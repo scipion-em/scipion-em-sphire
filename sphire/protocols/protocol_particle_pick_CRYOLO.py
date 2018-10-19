@@ -295,8 +295,8 @@ class XmippProtParticlePickingCRYOLO(ProtParticlePickingAuto):
             for x,y,xBox,ybox in reader:
 
                 # Create a scipion coordinate item
-                newCoordinate = Coordinate(x=x, y=y)
-                newCoordinate = Coordinate(x=int(x)+int(self.boxSize/2), y=int(y)+int(self.boxSize/2))
+                offset = int(self.anchors.get()/2)
+                newCoordinate = Coordinate(x=int(x)+offset, y=int(y)+offset)
                 #transformedCoordinate = Coordinate(x=x+int(self.boxSize/2), y=y+int(self.boxSize/2))
                 micBaseName = removeBaseExt(coordFile)
                 micId, micName = micMap[micBaseName]
