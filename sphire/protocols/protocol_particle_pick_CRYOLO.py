@@ -32,14 +32,14 @@ from pyworkflow.utils.path import replaceExt, getExt
 from sphire import Plugin, _sphirePluginDir
 
 
-class XmippProtParticlePickingCRYOLO(ProtParticlePicking):
+class XmippProtParticlePickingCRYOLO(ProtParticlePickingAuto):
     """ Picks particles in a set of micrographs
     either manually or in a supervised mode.
     """
     _label = 'crYOLO picking'
 
     def __init__(self, **args):
-        ProtParticlePicking.__init__(self, **args)
+        ProtParticlePickingAuto.__init__(self, **args)
 
     #--------------------------- DEFINE param functions ------------------------
     def _defineParams(self, form):
@@ -87,21 +87,22 @@ class XmippProtParticlePickingCRYOLO(ProtParticlePicking):
         form.addParallelSection(threads=1, mpi=1)
 
     #--------------------------- INSERT steps functions ------------------------
-    def _insertAllSteps(self):
-        """The Particle Picking process is realized for a set of micrographs"""
+    def _insertInitialSteps(self):
         # Get pointer to input micrographs
         self.inputMics = self.inputMicrographs.get()
-        micFn = self.inputMics.getFileName()
+        # micFn = self.inputMics.getFileName()
 
-        self._insertFunctionStep('createConfigurationFileStep')
-
+        steps = [self._insertFunctionStep('createConfigurationFileStep')]
         if self.trainDataset == True:
-            self._insertFunctionStep('convertTrainCoordsStep')
-            self._insertFunctionStep('cryoloModelingStep')
+            steps.append(self._insertFunctionStep('convertTrainCoordsStep'))
+            steps.append(self._insertFunctionStep('cryoloModelingStep'))
 
-        self._insertFunctionStep('linkingStep')
-        self._insertFunctionStep('cryoloDeepPickingStep')
-        self._insertFunctionStep('createOutputStep')
+        return steps
+
+        # self._insertFunctionStep('linkingStep')
+        # self._insertFunctionStep('cryoloDeepPickingStep') -->_pickMicrograph
+        # : with linkingStep "inside"   or  implement _pickMicrographList (later)
+        # self._insertFunctionStep('createOutputCoordinatesStep') --> readCoordsFromMics
 
 
     # --------------------------- STEPS functions ------------------------------
@@ -125,7 +126,7 @@ class XmippProtParticlePickingCRYOLO(ProtParticlePicking):
         oldMicName = None
         for item in coordSet:
             xCoord = item.getX()+int(self.boxSize/2)
-            yCoord = item.getY()+int(self.boxsize/2)
+            yCoord = item.getY()+int(self.boxSize/2)
             #xCoord = item.getX()
             #yCoord = item.getY()
             micName = item.getMicName()
@@ -191,7 +192,7 @@ class XmippProtParticlePickingCRYOLO(ProtParticlePicking):
             json.dump(jsonDict, fp, indent=4)
 
     def cryoloModelingStep(self):
-        # TEMPLATE: -c config.json -w 0 -g 0 -e 10
+
         wParam = 3  # define this in the form ???
         gParam = self.GPU.get()  # define this in the form ???
         eParam = 0  # define this in the form ???
@@ -208,21 +209,38 @@ class XmippProtParticlePickingCRYOLO(ProtParticlePicking):
         self.runJob('%s ./script_%s.sh' % (shellName, label), '', cwd=self._getExtraPath(),
                     env=Plugin.getEnviron())
 
-    def linkingStep(self):
-        full_data = self._getExtraPath('full_data')
+
+
+    def _pickMicrograph(self, micrograph, *args):
+        "This function picks from a given micrograph"
+        self._pickMicrographList([micrograph], args)
+
+
+    def _pickMicrographList(self, micList, *args):
+
+        MIC_FOLDER = 'full_data'   #refactor--->extract--->constant, more robust
+
+        full_data = self._getExtraPath('%s' % MIC_FOLDER)
+
+        #delete the contents of full_data after program2 finished
+        if os.path.exists(full_data):
+            pwutils.path.cleanPath(full_data)
+
         pwutils.path.makePath(full_data)
-        for micrographs in self.inputMics:
-            source = os.path.abspath(micrographs.getFileName())
+
+        # Create folder with linked mics
+        for micrograph in micList:
+            source = os.path.abspath(micrograph.getFileName())
             basename = os.path.basename(source)
             s = "/"
             seq = (full_data, basename)
-            dest = os.path.abspath(s.join (seq))
+            dest = os.path.abspath(s.join(seq))
+            print "Source %s and dest %s" % (source, dest)
             pwutils.path.createLink(source, dest)
 
-        #if self.trainDataset == False:
-    def cryoloDeepPickingStep(self):
-        fileName = self.inputMics.getFileName()
+        # fileName = self.inputMics.getFileName()   #where is this used???? delete it
         #wParam = self._getExtraPath('model.h5')
+
         if self.trainDataset == True:
             wParam = os.path.abspath(self._getExtraPath('model.h5'))  # define this in the form ???
         else:
@@ -233,7 +251,7 @@ class XmippProtParticlePickingCRYOLO(ProtParticlePicking):
         tParam = 0.2 # define this in the form ???
         params = "-c config.json"
         params += " -w %s -g %s" % (wParam, gParam)
-        params += " -i full_data/"
+        params += " -i %s/" % MIC_FOLDER
         params += " -o boxfiles/"
         params += " -t %s" % tParam
 
@@ -246,26 +264,27 @@ class XmippProtParticlePickingCRYOLO(ProtParticlePicking):
                     cwd=self._getExtraPath(),
                     env=Plugin.getEnviron())
 
-    def createOutputStep(self):
+    def readCoordsFromMics(self, outputDir, micDoneList , outputCoords):
+        "This method read coordinates from a given list of micrographs"
 
         # Create a map micname --> micId
         micMap = {}
-        for mic in self.inputMics:
+        for mic in micDoneList:
             key = removeBaseExt(mic.getFileName())
             micMap[key] = (mic.getObjId(), mic.getFileName())
 
-        coordSet = self._createSetOfCoordinates(self.inputMics)
-        coordSet.setBoxSize(self.anchors.get())
+        #coordSet = self._createSetOfCoordinates(self.inputMics)
+        outputCoords.setBoxSize(self.anchors.get())
         # Read output file (4 column tabular file)
-        boxFilesFolder = self._getExtraPath('boxfiles')
+        outputCRYOLOCoords = self._getExtraPath('boxfiles')
         # pwutils.path.makePath(boxFilesFolder)
         # For each box file
-        for boxFile in os.listdir(boxFilesFolder):
+        for boxFile in os.listdir(outputCRYOLOCoords):
             # Add coordinates file
-            self._coordinatesFileToScipion(coordSet, os.path.join(boxFilesFolder,boxFile), micMap)
+            self._coordinatesFileToScipion(outputCoords, os.path.join(outputCRYOLOCoords,boxFile), micMap)
 
-        self._defineOutputs(outputCoordinates=coordSet)
-        self._defineSourceRelation(self.inputMicrographs, coordSet)
+        #self._defineOutputs(outputCoordinates=coordSet)  #redundant
+        #self._defineSourceRelation(self.inputMicrographs, coordSet) #redundant
 
     def _coordinatesFileToScipion(self, coordSet, coordFile, micMap ):
 
@@ -277,7 +296,7 @@ class XmippProtParticlePickingCRYOLO(ProtParticlePicking):
 
                 # Create a scipion coordinate item
                 newCoordinate = Coordinate(x=x, y=y)
-                newCoordinate = Coordinate(x=x-int(self.boxSize/2), y=y-int(self.boxSize/2))
+                newCoordinate = Coordinate(x=int(x)+int(self.boxSize/2), y=int(y)+int(self.boxSize/2))
                 #transformedCoordinate = Coordinate(x=x+int(self.boxSize/2), y=y+int(self.boxSize/2))
                 micBaseName = removeBaseExt(coordFile)
                 micId, micName = micMap[micBaseName]
@@ -285,6 +304,9 @@ class XmippProtParticlePickingCRYOLO(ProtParticlePicking):
                 newCoordinate.setMicName(micName)
                 # Add it to the set
                 coordSet.append(newCoordinate)
+
+    def createOutputStep(self):
+        pass
 
     #--------------------------- INFO functions --------------------------------
     def _citations(self):
