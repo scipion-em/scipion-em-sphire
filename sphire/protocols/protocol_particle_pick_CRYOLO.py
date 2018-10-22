@@ -90,7 +90,6 @@ class XmippProtParticlePickingCRYOLO(ProtParticlePickingAuto):
     def _insertInitialSteps(self):
         # Get pointer to input micrographs
         self.inputMics = self.inputMicrographs.get()
-        # micFn = self.inputMics.getFileName()
 
         steps = [self._insertFunctionStep('createConfigurationFileStep')]
         if self.trainDataset == True:
@@ -98,12 +97,6 @@ class XmippProtParticlePickingCRYOLO(ProtParticlePickingAuto):
             steps.append(self._insertFunctionStep('cryoloModelingStep'))
 
         return steps
-
-        # self._insertFunctionStep('linkingStep')
-        # self._insertFunctionStep('cryoloDeepPickingStep') -->_pickMicrograph
-        # : with linkingStep "inside"   or  implement _pickMicrographList (later)
-        # self._insertFunctionStep('createOutputCoordinatesStep') --> readCoordsFromMics
-
 
     # --------------------------- STEPS functions ------------------------------
     def convertTrainCoordsStep(self):
@@ -127,8 +120,6 @@ class XmippProtParticlePickingCRYOLO(ProtParticlePickingAuto):
         for item in coordSet:
             xCoord = item.getX()+int(self.boxSize/2)
             yCoord = item.getY()+int(self.boxSize/2)
-            #xCoord = item.getX()
-            #yCoord = item.getY()
             micName = item.getMicName()
             boxName = join(trainCoordDir, replaceExt(micName, "box"))
             boxFile = open(boxName, 'a+')
@@ -239,9 +230,6 @@ class XmippProtParticlePickingCRYOLO(ProtParticlePickingAuto):
             print "Source %s and dest %s" % (source, dest)
             pwutils.path.createLink(source, dest)
 
-        # fileName = self.inputMics.getFileName()   #where is this used???? delete it
-        #wParam = self._getExtraPath('model.h5')
-
         if self.trainDataset == True:
             wParam = os.path.abspath(self._getExtraPath('model.h5'))  # define this in the form ???
         else:
@@ -274,18 +262,15 @@ class XmippProtParticlePickingCRYOLO(ProtParticlePickingAuto):
             key = removeBaseExt(mic.getFileName())
             micMap[key] = (mic.getObjId(), mic.getFileName())
 
-        #coordSet = self._createSetOfCoordinates(self.inputMics)
         outputCoords.setBoxSize(self.anchors.get())
         # Read output file (4 column tabular file)
         outputCRYOLOCoords = self._getExtraPath('boxfiles')
-        # pwutils.path.makePath(boxFilesFolder)
+
         # For each box file
         for boxFile in os.listdir(outputCRYOLOCoords):
             # Add coordinates file
             self._coordinatesFileToScipion(outputCoords, os.path.join(outputCRYOLOCoords,boxFile), micMap)
 
-        #self._defineOutputs(outputCoordinates=coordSet)  #redundant
-        #self._defineSourceRelation(self.inputMicrographs, coordSet) #redundant
 
     def _coordinatesFileToScipion(self, coordSet, coordFile, micMap ):
 
@@ -293,14 +278,13 @@ class XmippProtParticlePickingCRYOLO(ProtParticlePickingAuto):
             # Configure csv reader
             reader = csv.reader(f, delimiter='\t')
 
-            width, height, foo = self.inputMicrographs.get().getDim()
+            (width, height, foo) = self.inputMicrographs.get().getDim()
 
             for x,y,xBox,ybox in reader:
 
                 # Create a scipion coordinate item
                 offset = int(self.anchors.get()/2)
-                newCoordinate = Coordinate(x=int(x)+offset, Y=height-(int(y)+offset))
-                #transformedCoordinate = Coordinate(x=x+int(self.boxSize/2), y=y+int(self.boxSize/2))
+                newCoordinate = Coordinate(x=int(x)+offset, y=height-(int(y)+offset))
                 micBaseName = removeBaseExt(coordFile)
                 micId, micName = micMap[micBaseName]
                 newCoordinate.setMicId(micId)
@@ -325,9 +309,6 @@ class XmippProtParticlePickingCRYOLO(ProtParticlePickingAuto):
     def _preparingCondaProgram(self, program, params='', label=''):
         CRYOLO_ENV_NAME = 'cryolo'
         f = open(self._getExtraPath('script_%s.sh' % label), "w")
-        # print f
-        # print ShellName
-        # line0 = 'conda create -n cryolo -c anaconda python=2 pyqt=5 cudnn=7.1.2'
         lines = 'pwd\n'
         lines += 'ls\n'
         lines += 'source activate %s\n' % CRYOLO_ENV_NAME
