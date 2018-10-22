@@ -36,38 +36,39 @@ from sphire.constants import *
 _logo = "sphire_logo.jpg"
 _sphirePluginDir = os.path.dirname(os.path.abspath(__file__))
 
+
 class Plugin(pyworkflow.em.Plugin):
     _homeVar = CRYOLO_HOME_VAR
-    _pathVars = [CRYOLO_HOME_VAR]
+    _pathVars = [CRYOLO_HOME_VAR, CRYOLO_MODEL_VAR]
     _supportedVersions = CRYOLO_V1_1_0
 
     @classmethod
     def _defineVariables(cls):
         cls._defineEmVar(CRYOLO_HOME_VAR, 'sphire_1.1.0')
-        #define default value for CRYOLO_MODEL
+        cls._defineVar(CRYOLO_MODEL_VAR, '')
 
     @classmethod
     def getEnviron(cls):
         """ Setup the environment variables needed to launch sphire. """
         environ = Environ(os.environ)
-        print("getEnvirion(): %s" % os.environ.get(cls.getHome()))
-        if ('%s' % Plugin._homeVar) in environ:
-            environ.update({'PATH': str.join(CRYOLO_HOME, 'bin'),
-                            }, position=Environ.BEGIN)
-            if 'PYTHONPATH' in environ:
-                # this is required for python virtual env to work
-                del environ['PYTHONPATH']
+        # print("getHome(): %s" % cls.getHome())
+        # if ('%s' % Plugin._homeVar) in environ:
+        environ.update({'PATH': str.join(cls.getHome(), 'bin'),
+                        }, position=Environ.BEGIN)
+        if 'PYTHONPATH' in environ:
+            # this is required for python virtual env to work
+            del environ['PYTHONPATH']
 
-        else:
-            # TODO: Find a generic way to warn of this situation
-            print("%s variable not set on environment." % cls.getHome())
+        # else:
+        #     # TODO: Find a generic way to warn of this situation
+        #     print("%s variable not set on environment." % cls.getHome())
         return environ
 
-    @classmethod
-    def validateInstallation(cls):
-        """ This function will be used to check if package is properly installed."""
-        missingPaths = ["%s: %s" % (cls._homeVar, cls.getHome())] \
-            if not os.path.exists(Plugin._homeVar) else []
+    # @classmethod
+    # def validateInstallation(cls):
+    #     """ This function will be used to check if package is properly installed."""
+    #     missingPaths = ["%s: %s" % (cls._homeVar, cls.getHome())] \
+    #         if not os.path.exists(Plugin._homeVar) else []
 
     @classmethod
     def isVersionActive(cls):
@@ -76,10 +77,10 @@ class Plugin(pyworkflow.em.Plugin):
     @classmethod
     def defineBinaries(cls, env):
         """ Define required binaries in the given Environment. """
-
-        env.addPackage('sphire', version='1.1.0',
-                       tar='shpire-1.1.0.tgz',
-                       default=True)
+        #
+        # env.addPackage('sphire', version='1.1.0',
+        #                tar='shpire-1.1.0.tgz',
+        #                default=True)
 
 
 pyworkflow.em.Domain.registerPlugin(__name__)

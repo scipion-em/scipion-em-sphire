@@ -28,8 +28,7 @@ import os
 
 # we declarate global constants to multiple usage
 CRYOLO_HOME_VAR = 'CRYOLO_HOME'
-CRYOLO_HOME = os.environ.get(CRYOLO_HOME_VAR, '')
-
+CRYOLO_MODEL_VAR = 'CRYOLO_MODEL'
 
 # Supported versions
 CRYOLO_V1_1_0 = '1.1.0 '
