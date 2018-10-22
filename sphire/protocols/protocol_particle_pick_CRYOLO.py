@@ -30,6 +30,7 @@ from pyworkflow.em import *
 import pyworkflow.protocol.constants as cons
 from pyworkflow.utils.path import replaceExt, getExt
 from sphire import Plugin, _sphirePluginDir
+from sphire.constants import CRYOLO_MODEL_VAR
 
 
 class XmippProtParticlePickingCRYOLO(ProtParticlePickingAuto):
@@ -233,8 +234,7 @@ class XmippProtParticlePickingCRYOLO(ProtParticlePickingAuto):
         if self.trainDataset == True:
             wParam = os.path.abspath(self._getExtraPath('model.h5'))  # define this in the form ???
         else:
-            wParam = os.path.join(_sphirePluginDir, 'resources',
-                                      'gmodel_yolo_20180823_0806_loss_0059.h5')
+            wParam = Plugin.getVar(CRYOLO_MODEL_VAR)
         gParam = self.GPU.get()  # define this in the form ???
         eParam = 0  # define this in the form ???
         tParam = 0.2 # define this in the form ???

@@ -51,8 +51,6 @@ class Plugin(pyworkflow.em.Plugin):
     def getEnviron(cls):
         """ Setup the environment variables needed to launch sphire. """
         environ = Environ(os.environ)
-        # print("getHome(): %s" % cls.getHome())
-        # if ('%s' % Plugin._homeVar) in environ:
         environ.update({'PATH': str.join(cls.getHome(), 'bin'),
                         }, position=Environ.BEGIN)
         if 'PYTHONPATH' in environ:
@@ -65,22 +63,8 @@ class Plugin(pyworkflow.em.Plugin):
         return environ
 
     # @classmethod
-    # def validateInstallation(cls):
-    #     """ This function will be used to check if package is properly installed."""
-    #     missingPaths = ["%s: %s" % (cls._homeVar, cls.getHome())] \
-    #         if not os.path.exists(Plugin._homeVar) else []
-
-    @classmethod
-    def isVersionActive(cls):
-        return cls.getActiveVersion().startswith(CRYOLO_V1_1_0)
-
-    @classmethod
-    def defineBinaries(cls, env):
-        """ Define required binaries in the given Environment. """
-        #
-        # env.addPackage('sphire', version='1.1.0',
-        #                tar='shpire-1.1.0.tgz',
-        #                default=True)
+    # def isVersionActive(cls):
+    #     return cls.getActiveVersion().startswith(CRYOLO_V1_1_0)
 
 
 pyworkflow.em.Domain.registerPlugin(__name__)
