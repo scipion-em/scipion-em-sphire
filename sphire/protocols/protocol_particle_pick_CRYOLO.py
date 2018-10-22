@@ -225,7 +225,7 @@ class XmippProtParticlePickingCRYOLO(ProtParticlePickingAuto):
         #delete the contents of full_data after program2 finished
         if os.path.exists(full_data):
             pwutils.path.cleanPath(full_data)
-            pwutils.path.cleanPath('boxfiles')
+            pwutils.path.cleanPath(self._getExtraPath('boxfiles'))
 
         pwutils.path.makePath(full_data)
 
