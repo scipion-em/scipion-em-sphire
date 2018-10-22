@@ -293,11 +293,13 @@ class XmippProtParticlePickingCRYOLO(ProtParticlePickingAuto):
             # Configure csv reader
             reader = csv.reader(f, delimiter='\t')
 
+            width, height, foo = self.inputMics.getDim()
+
             for x,y,xBox,ybox in reader:
 
                 # Create a scipion coordinate item
                 offset = int(self.anchors.get()/2)
-                newCoordinate = Coordinate(x=int(x)+offset, y=int(y)+offset)
+                newCoordinate = Coordinate(x=int(x)+offset, Y=height-(int(y)+offset))
                 #transformedCoordinate = Coordinate(x=x+int(self.boxSize/2), y=y+int(self.boxSize/2))
                 micBaseName = removeBaseExt(coordFile)
                 micId, micName = micMap[micBaseName]
