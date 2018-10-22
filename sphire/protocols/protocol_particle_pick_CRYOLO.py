@@ -293,7 +293,7 @@ class XmippProtParticlePickingCRYOLO(ProtParticlePickingAuto):
             # Configure csv reader
             reader = csv.reader(f, delimiter='\t')
 
-            width, height, foo = self.inputMics.getDim()
+            width, height, foo = self.inputMicrographs.get().getDim()
 
             for x,y,xBox,ybox in reader:
 
