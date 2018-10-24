@@ -76,7 +76,7 @@ class SphireProtCRYOLO(ProtParticlePickingAuto):
                       expertLevel=cons.LEVEL_ADVANCED,
                       label="Learning rates",
                       help="If the number is too small convergence can be slow, if it is "
-                           "too large it can diverge")
+                           "too large it can diverge.")
         form.addParam('max_box_per_image', params.IntParam, default=600,
                       expertLevel=cons.LEVEL_ADVANCED,
                       label="Maximum box per image")
@@ -191,7 +191,7 @@ class SphireProtCRYOLO(ProtParticlePickingAuto):
     def cryoloModelingStep(self):
 
         wParam = 3  # define this in the form ???
-        gParam = self.GPU.get()  # define this in the form ???
+        gParam = self.params.GPU_LIST.get()  # define this in the form ???self.GPU.get()
         eParam = 0  # define this in the form ???
         params = "-c config.json"
         params += " -w %s -g %s" % (wParam, gParam)
@@ -321,7 +321,7 @@ class SphireProtCRYOLO(ProtParticlePickingAuto):
         lines = 'pwd\n'
         lines += 'ls\n'
         lines += 'source activate %s\n' % CRYOLO_ENV_NAME
-        lines += 'export CUDA_VISIBLE_DEVICES=%s\n' % self.GPU.get()
+        lines += 'export CUDA_VISIBLE_DEVICES=%s\n' % self.params.GPU_LIST.get()     #self.GPU.get()
         lines += '%s %s\n' % (program, params)
         lines += 'source deactivate\n'
         f.write(lines)
