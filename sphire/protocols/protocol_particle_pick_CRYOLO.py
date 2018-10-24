@@ -28,12 +28,12 @@ import csv, os
 
 from pyworkflow.em import *
 import pyworkflow.protocol.constants as cons
-from pyworkflow.utils.path import replaceExt, getExt
+from pyworkflow.utils.path import replaceExt, getExt, copyFile
 from sphire import Plugin, _sphirePluginDir
 from sphire.constants import CRYOLO_MODEL_VAR
 
 
-class XmippProtParticlePickingCRYOLO(ProtParticlePickingAuto):
+class SphireProtCRYOLO(ProtParticlePickingAuto):
     """ Picks particles in a set of micrographs
     either manually or in a supervised mode.
     """
@@ -49,31 +49,34 @@ class XmippProtParticlePickingCRYOLO(ProtParticlePickingAuto):
                       label='Train dataset?',
                       help='Train dataset by providing manually picked coordinates '
                            'to create a model, which will be used to automatically '
-                      'pick coordinates from the micrographs that were not used in '
-                      'the training')
+                      'pick coordinates from the micrographs')
         form.addParam('inputCoordinates', params.PointerParam,
                       condition='trainDataset',
                       pointerClass='SetOfCoordinates',
                       label='Input coordinates', important=True,
-                      help='Select the SetOfCoordinates to be used to train.')
+                      help='Select the SetOfCoordinates to be used for training.')
         form.addParam('memory', FloatParam, default=2,
                       label='Memory to use (In Gb)', expertLevel=2)
-        form.addParam('GPU', params.IntParam, default=0,
-                      label="GPU to use",
-                      help="GPU to use (single one)")
         form.addParam('input_size', params.IntParam, default= 1024,
+                      expertLevel=cons.LEVEL_ADVANCED,
                       label="Input size",
-                      help="Input size of the micrographs")
+                      help="crYOLO extracts a patch and rescales to the given"
+                           " input size and uses the resized patch for traning.")
         form.addParam('anchors', params.IntParam, default= 160,
                       label="Anchors",
-                      help="Box dimension")
+                      help="It should be the size of the minimum particle enclosing"
+                           " square in pixel.")
         form.addParam('batch_size', params.IntParam, default= 3,
+                      expertLevel=cons.LEVEL_ADVANCED,
                       label="Batch size",
-                      help="Box dimension")
+                      help="Parameter you can set the number of images picked as batch."
+                           " Note this batch size is different from scipion batch size"
+                           " in streaming.")
         form.addParam('learning_rates', params.FloatParam, default= 1e-4,
                       expertLevel=cons.LEVEL_ADVANCED,
                       label="Learning rates",
-                      help="?")
+                      help="If the number is too small convergence can be slow, if it is "
+                           "too large it can diverge")
         form.addParam('max_box_per_image', params.IntParam, default=600,
                       expertLevel=cons.LEVEL_ADVANCED,
                       label="Maximum box per image")
@@ -86,6 +89,8 @@ class XmippProtParticlePickingCRYOLO(ProtParticlePickingAuto):
                              " Motioncor2 can use multiple GPUs - in that case"
                              " set to i.e. *0 1 2*.")
         form.addParallelSection(threads=1, mpi=1)
+
+        self._defineStreamingParams(form)
 
     #--------------------------- INSERT steps functions ------------------------
     def _insertInitialSteps(self):
@@ -209,27 +214,28 @@ class XmippProtParticlePickingCRYOLO(ProtParticlePickingAuto):
 
 
     def _pickMicrographList(self, micList, *args):
+        #clear the extra folder
+        pwutils.path.cleanPath(self._getExtraPath())
 
-        MIC_FOLDER = 'full_data'   #refactor--->extract--->constant, more robust
-
-        full_data = self._getExtraPath('%s' % MIC_FOLDER)
-
-        #delete the contents of full_data after program2 finished
-        if os.path.exists(full_data):
-            pwutils.path.cleanPath(full_data)
-            pwutils.path.cleanPath(self._getExtraPath('boxfiles'))
-
-        pwutils.path.makePath(full_data)
+        MIC_FOLDER = 'mics'   #refactor--->extract--->constant, more robust
+        mics = self._getTmpPath()
+        if not os.path.exists(mics):
+            pwutils.path.makePath(mics)
 
         # Create folder with linked mics
         for micrograph in micList:
             source = os.path.abspath(micrograph.getFileName())
             basename = os.path.basename(source)
             s = "/"
-            seq = (full_data, basename)
+            seq = (mics, basename)
             dest = os.path.abspath(s.join(seq))
-            print "Source %s and dest %s" % (source, dest)
+            #print "Source %s and dest %s" % (source, dest)
             pwutils.path.createLink(source, dest)
+
+        # Copy the batch to the extra folder
+            dest2 = self._getExtraPath()
+            copyFile(dest, dest2)
+
 
         if self.trainDataset == True:
             wParam = os.path.abspath(self._getExtraPath('model.h5'))  # define this in the form ???
@@ -270,7 +276,7 @@ class XmippProtParticlePickingCRYOLO(ProtParticlePickingAuto):
         for boxFile in os.listdir(outputCRYOLOCoords):
             # Add coordinates file
             self._coordinatesFileToScipion(outputCoords, os.path.join(outputCRYOLOCoords,boxFile), micMap)
-
+            pwutils.path.createLink(source, dest)
 
     def _coordinatesFileToScipion(self, coordSet, coordFile, micMap ):
 
@@ -291,6 +297,9 @@ class XmippProtParticlePickingCRYOLO(ProtParticlePickingAuto):
                 newCoordinate.setMicName(micName)
                 # Add it to the set
                 coordSet.append(newCoordinate)
+                source = os.path.abspath(boxfiles)
+                tmp_check = self._getExtraPath(boxfiles)
+                dest = os.path.abspath(tmp)
 
     def createOutputStep(self):
         pass
