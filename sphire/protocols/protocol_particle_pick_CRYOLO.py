@@ -241,7 +241,7 @@ class SphireProtCRYOLO(ProtParticlePickingAuto):
             wParam = os.path.abspath(self._getExtraPath('model.h5'))  # define this in the form ???
         else:
             wParam = Plugin.getVar(CRYOLO_MODEL_VAR)
-        gParam = self.GPU.get()  # define this in the form ???
+        gParam = self.params.GPU_LIST.get()  # define this in the form ??? self.GPU.get()
         eParam = 0  # define this in the form ???
         tParam = 0.2 # define this in the form ???
         params = "-c config.json"
