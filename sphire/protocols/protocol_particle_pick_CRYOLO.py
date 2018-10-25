@@ -139,6 +139,12 @@ class SphireProtCRYOLO(ProtParticlePickingAuto):
                 copyFile(mic.getFileName(), trainMicDir)
             oldMicName = micName
 
+    def convertGPUID(self):
+        # type: () -> object
+        if len(self.getGpuList())<2:
+            return self.getGpuList()
+        else:
+            return ' '.join(self.getGpuList())
 
     def createConfigurationFileStep(self):
         inputSize = self.input_size.get()
@@ -191,7 +197,7 @@ class SphireProtCRYOLO(ProtParticlePickingAuto):
     def cryoloModelingStep(self):
 
         wParam = 3  # define this in the form ???
-        gParam = self.params.GPU_LIST.get()  # define this in the form ???self.GPU.get()
+        gParam = self.convertGPUID()  # define this in the form ???self.GPU.get()
         eParam = 0  # define this in the form ???
         params = "-c config.json"
         params += " -w %s -g %s" % (wParam, gParam)
@@ -241,7 +247,7 @@ class SphireProtCRYOLO(ProtParticlePickingAuto):
             wParam = os.path.abspath(self._getExtraPath('model.h5'))  # define this in the form ???
         else:
             wParam = Plugin.getVar(CRYOLO_MODEL_VAR)
-        gParam = self.params.GPU_LIST.get()  # define this in the form ??? self.GPU.get()
+        gParam = self.convertGPUID()  # define this in the form ??? self.GPU.get()
         eParam = 0  # define this in the form ???
         tParam = 0.2 # define this in the form ???
         params = "-c config.json"
@@ -321,7 +327,7 @@ class SphireProtCRYOLO(ProtParticlePickingAuto):
         lines = 'pwd\n'
         lines += 'ls\n'
         lines += 'source activate %s\n' % CRYOLO_ENV_NAME
-        lines += 'export CUDA_VISIBLE_DEVICES=%s\n' % self.params.GPU_LIST.get()     #self.GPU.get()
+        lines += 'export CUDA_VISIBLE_DEVICES=%s\n' % self.convertGPUID()     #self.GPU.get()
         lines += '%s %s\n' % (program, params)
         lines += 'source deactivate\n'
         f.write(lines)
