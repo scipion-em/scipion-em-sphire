@@ -240,10 +240,10 @@ class SphireProtCRYOLO(ProtParticlePickingAuto):
         gParam = (' '.join(str(g) for g in self.getGpuList()))
         eParam = 0  # define this in the form ???
         tParam = 0.2 # define this in the form ???
-        params = "-c config.json"
+        params = "-c %s " % self._getExtraPath('config.json')
         params += " -w %s -g %s" % (wParam, gParam)
-        params += " -i %s/" % mics
-        params += " -o %s/" % mics
+        params += " -i ./"
+        params += " -o ./"
         params += " -t %s" % tParam
 
         program2 = getProgram('cryolo_predict.py')
@@ -252,7 +252,7 @@ class SphireProtCRYOLO(ProtParticlePickingAuto):
         shellName = os.environ.get('SHELL')
         self.info("**Running:** %s %s" % (program2, params))
         self.runJob('%s ./script_%s.sh' % (shellName, label), '',
-                    cwd=self._getExtraPath(),
+                    cwd=self._getTmpPath(),
                     env=Plugin.getEnviron())
 
     def readCoordsFromMics(self, outputDir, micDoneList , outputCoords):
@@ -266,13 +266,16 @@ class SphireProtCRYOLO(ProtParticlePickingAuto):
 
         outputCoords.setBoxSize(self.anchors.get())
         # Read output file (4 column tabular file)
-        outputCRYOLOCoords = self._getExtraPath('boxfiles')
+        outputCRYOLOCoords = self._getTmpPath()
 
         # For each box file
         for boxFile in os.listdir(outputCRYOLOCoords):
             # Add coordinates file
             self._coordinatesFileToScipion(outputCoords, os.path.join(outputCRYOLOCoords,boxFile), micMap)
             #pwutils.path.createLink(source, dest)
+
+        # Move mics and box files
+        pwutils.path.moveTree(self._getTmpPath(), self._getExtraPath())
 
     def _coordinatesFileToScipion(self, coordSet, coordFile, micMap ):
 
