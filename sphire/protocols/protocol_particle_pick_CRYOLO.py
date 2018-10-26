@@ -242,8 +242,8 @@ class SphireProtCRYOLO(ProtParticlePickingAuto):
         tParam = 0.2 # define this in the form ???
         params = "-c %s " % self._getExtraPath('config.json')
         params += " -w %s -g %s" % (wParam, gParam)
-        params += " -i ./"
-        params += " -o ./"
+        params += " -i %s/" % mics
+        params += " -o %s/" % mics
         params += " -t %s" % tParam
 
         program2 = getProgram('cryolo_predict.py')
@@ -251,8 +251,7 @@ class SphireProtCRYOLO(ProtParticlePickingAuto):
         self._preparingCondaProgram(program2, params, label)
         shellName = os.environ.get('SHELL')
         self.info("**Running:** %s %s" % (program2, params))
-        self.runJob('%s ./script_%s.sh' % (shellName, label), '',
-                    cwd=self._getTmpPath(),
+        self.runJob('%s %s/script_%s.sh' % (shellName, self._getExtraPath(), label), '',
                     env=Plugin.getEnviron())
 
     def readCoordsFromMics(self, outputDir, micDoneList , outputCoords):
