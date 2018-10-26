@@ -191,7 +191,7 @@ class SphireProtCRYOLO(ProtParticlePickingAuto):
     def cryoloModelingStep(self):
 
         wParam = 3  # define this in the form ???
-        gParam = ' '.join(str(g) for g in self.getGpuList())
+        gParam = (' '.join(str(g) for g in self.getGpuList()))
         eParam = 0  # define this in the form ???
         params = "-c config.json"
         params += " -w %s -g %s" % (wParam, gParam)
@@ -215,39 +215,35 @@ class SphireProtCRYOLO(ProtParticlePickingAuto):
 
     def _pickMicrographList(self, micList, *args):
         #clear the extra folder
-        pwutils.path.cleanPath(self._getExtraPath())
+        #pwutils.path.cleanPath(self._getExtraPath())
 
         MIC_FOLDER = 'mics'   #refactor--->extract--->constant, more robust
         mics = self._getTmpPath()
-        if not os.path.exists(mics):
-            pwutils.path.makePath(mics)
 
         # Create folder with linked mics
         for micrograph in micList:
             source = os.path.abspath(micrograph.getFileName())
             basename = os.path.basename(source)
-            s = "/"
-            seq = (mics, basename)
-            dest = os.path.abspath(s.join(seq))
+            dest = os.path.abspath(os.path.join(mics, basename))
             #print "Source %s and dest %s" % (source, dest)
             pwutils.path.createLink(source, dest)
 
-        # Copy the batch to the extra folder
-            dest2 = self._getExtraPath()
-            copyFile(dest, dest2)
+            # Copy the batch to the extra folder
+            #dest2 = self._getExtraPath()
+            #copyFile(dest, dest2)
 
 
         if self.trainDataset == True:
             wParam = os.path.abspath(self._getExtraPath('model.h5'))
         else:
             wParam = Plugin.getVar(CRYOLO_MODEL_VAR)
-        gParam = ' '.join(str(g) for g in self.getGpuList())
+        gParam = (' '.join(str(g) for g in self.getGpuList()))
         eParam = 0  # define this in the form ???
         tParam = 0.2 # define this in the form ???
         params = "-c config.json"
         params += " -w %s -g %s" % (wParam, gParam)
-        params += " -i %s/" % MIC_FOLDER
-        params += " -o boxfiles/"
+        params += " -i %s/" % mics
+        params += " -o %s/" % mics
         params += " -t %s" % tParam
 
         program2 = getProgram('cryolo_predict.py')
@@ -318,7 +314,7 @@ class SphireProtCRYOLO(ProtParticlePickingAuto):
         lines = 'pwd\n'
         lines += 'ls\n'
         lines += 'source activate %s\n' % CRYOLO_ENV_NAME
-        lines += 'export CUDA_VISIBLE_DEVICES=%s\n' % ' '.join(str(g) for g in self.getGpuList())
+        lines += 'export CUDA_VISIBLE_DEVICES=%s\n' % (' '.join(str(g) for g in self.getGpuList()))
         lines += '%s %s\n' % (program, params)
         lines += 'source deactivate\n'
         f.write(lines)
