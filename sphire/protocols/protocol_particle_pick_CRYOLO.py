@@ -275,6 +275,7 @@ class SphireProtCRYOLO(ProtParticlePickingAuto):
 
         # Move mics and box files
         pwutils.path.moveTree(self._getTmpPath(), self._getExtraPath())
+        pwutils.path.makePath(self._getTmpPath())
 
     def _coordinatesFileToScipion(self, coordSet, coordFile, micMap ):
 
