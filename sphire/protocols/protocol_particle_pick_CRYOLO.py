@@ -139,12 +139,6 @@ class SphireProtCRYOLO(ProtParticlePickingAuto):
                 copyFile(mic.getFileName(), trainMicDir)
             oldMicName = micName
 
-    def convertGPUID(self):
-        # type: () -> object
-        if len(self.getGpuList())<2:
-            return self.getGpuList()
-        else:
-            return ' '.join(self.getGpuList())
 
     def createConfigurationFileStep(self):
         inputSize = self.input_size.get()
@@ -197,7 +191,7 @@ class SphireProtCRYOLO(ProtParticlePickingAuto):
     def cryoloModelingStep(self):
 
         wParam = 3  # define this in the form ???
-        gParam = self.convertGPUID()  # define this in the form ???self.GPU.get()
+        gParam = ' '.join(str(g) for g in self.getGpuList())
         eParam = 0  # define this in the form ???
         params = "-c config.json"
         params += " -w %s -g %s" % (wParam, gParam)
@@ -244,10 +238,10 @@ class SphireProtCRYOLO(ProtParticlePickingAuto):
 
 
         if self.trainDataset == True:
-            wParam = os.path.abspath(self._getExtraPath('model.h5'))  # define this in the form ???
+            wParam = os.path.abspath(self._getExtraPath('model.h5'))
         else:
             wParam = Plugin.getVar(CRYOLO_MODEL_VAR)
-        gParam = self.convertGPUID()  # define this in the form ??? self.GPU.get()
+        gParam = ' '.join(str(g) for g in self.getGpuList())
         eParam = 0  # define this in the form ???
         tParam = 0.2 # define this in the form ???
         params = "-c config.json"
@@ -282,7 +276,7 @@ class SphireProtCRYOLO(ProtParticlePickingAuto):
         for boxFile in os.listdir(outputCRYOLOCoords):
             # Add coordinates file
             self._coordinatesFileToScipion(outputCoords, os.path.join(outputCRYOLOCoords,boxFile), micMap)
-            pwutils.path.createLink(source, dest)
+            #pwutils.path.createLink(source, dest)
 
     def _coordinatesFileToScipion(self, coordSet, coordFile, micMap ):
 
@@ -303,9 +297,6 @@ class SphireProtCRYOLO(ProtParticlePickingAuto):
                 newCoordinate.setMicName(micName)
                 # Add it to the set
                 coordSet.append(newCoordinate)
-                source = os.path.abspath(boxfiles)
-                tmp_check = self._getExtraPath(boxfiles)
-                dest = os.path.abspath(tmp)
 
     def createOutputStep(self):
         pass
@@ -327,7 +318,7 @@ class SphireProtCRYOLO(ProtParticlePickingAuto):
         lines = 'pwd\n'
         lines += 'ls\n'
         lines += 'source activate %s\n' % CRYOLO_ENV_NAME
-        lines += 'export CUDA_VISIBLE_DEVICES=%s\n' % self.convertGPUID()     #self.GPU.get()
+        lines += 'export CUDA_VISIBLE_DEVICES=%s\n' % ' '.join(str(g) for g in self.getGpuList())
         lines += '%s %s\n' % (program, params)
         lines += 'source deactivate\n'
         f.write(lines)
