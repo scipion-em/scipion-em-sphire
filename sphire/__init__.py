@@ -39,7 +39,7 @@ _sphirePluginDir = os.path.dirname(os.path.abspath(__file__))
 
 class Plugin(pyworkflow.em.Plugin):
     _homeVar = CRYOLO_HOME_VAR
-    _pathVars = [CRYOLO_HOME_VAR, CRYOLO_MODEL_VAR]
+    #_pathVars = [CRYOLO_HOME_VAR, CRYOLO_MODEL_VAR]
     _supportedVersions = CRYOLO_V1_1_0
 
     @classmethod
