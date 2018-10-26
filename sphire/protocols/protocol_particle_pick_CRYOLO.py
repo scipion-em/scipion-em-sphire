@@ -289,7 +289,8 @@ class SphireProtCRYOLO(ProtParticlePickingAuto):
 
                 # Create a scipion coordinate item
                 offset = int(self.anchors.get()/2)
-                newCoordinate = Coordinate(x=int(x)+offset, y=height-(int(y)+offset))
+                #newCoordinate = Coordinate(x=int(x)+offset, y=height-(int(y)+offset))
+                newCoordinate = Coordinate(x=int(x) + offset, y=int(y) + offset)
                 micBaseName = removeBaseExt(coordFile)
                 micId, micName = micMap[micBaseName]
                 newCoordinate.setMicId(micId)
