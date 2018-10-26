@@ -269,9 +269,9 @@ class SphireProtCRYOLO(ProtParticlePickingAuto):
 
         # For each box file
         for boxFile in os.listdir(outputCRYOLOCoords):
-            # Add coordinates file
-            self._coordinatesFileToScipion(outputCoords, os.path.join(outputCRYOLOCoords,boxFile), micMap)
-            #pwutils.path.createLink(source, dest)
+            if '.box' in boxFile:
+                # Add coordinates file
+                self._coordinatesFileToScipion(outputCoords, os.path.join(outputCRYOLOCoords,boxFile), micMap)
 
         # Move mics and box files
         pwutils.path.moveTree(self._getTmpPath(), self._getExtraPath())
