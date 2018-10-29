@@ -305,8 +305,14 @@ class SphireProtCRYOLO(ProtParticlePickingAuto):
     def _citations(self):
         return ['Wagner2018']
 
-    def _validate(self):
-        validateMsgs = []
+    def _warnings(self):
+        warningMsgs = []
+
+        if self.trainDataset == True:
+            if self.inputCoordinates.get().getSize() < 1000:
+                warningMsgs.append("The input SetOfCoordinates must be larger than 1000 items.")
+
+        return warningMsgs
 
         # Check if need to use the generic model
         # What is inside CRYOLO_MODEL variable, exists?
