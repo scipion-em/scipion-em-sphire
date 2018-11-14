@@ -1,7 +1,7 @@
 # **************************************************************************
 # *
-# * Authors:     Jose Gutierrez Tabuenca (jose.gutierrez@cnb.csic.es)
-# *              J.M. De la Rosa Trevin (jmdelarosa@cnb.csic.es)
+# * Authors:     David Maluenda (dmaluenda@cnb.csic.es)
+# *              Peter Horvath (phorvath@cnb.csic.es)
 # *
 # * Unidad de  Bioinformatica of Centro Nacional de Biotecnologia , CSIC
 # *
@@ -29,7 +29,7 @@ import csv, os
 from pyworkflow.em import *
 import pyworkflow.protocol.constants as cons
 from pyworkflow.utils.path import replaceExt, getExt, copyFile
-from sphire import Plugin, _sphirePluginDir
+from sphire import Plugin
 from sphire.constants import CRYOLO_MODEL_VAR
 
 
@@ -124,8 +124,9 @@ class SphireProtCRYOLO(ProtParticlePickingAuto):
         pwutils.path.makePath(trainCoordDir)
         oldMicName = None
         for item in coordSet:
-            xCoord = item.getX()+int(self.boxSize/2)
-            yCoord = item.getY()+int(self.boxSize/2)
+            #(width, height, foo) = self.inputMicrographs.get().getDim() #get height for flipping on y
+            xCoord = item.getX()-int(self.boxSize/2)
+            yCoord = item.getY()-int(self.boxSize/2)
             micName = item.getMicName()
             boxName = join(trainCoordDir, replaceExt(micName, "box"))
             boxFile = open(boxName, 'a+')
@@ -144,8 +145,6 @@ class SphireProtCRYOLO(ProtParticlePickingAuto):
         inputSize = self.input_size.get()
         anchors = self.anchors.get()
         maxBoxPerImage = self.max_box_per_image.get()
-        trainedNetWork =(os.path.join(_sphirePluginDir, 'resources',
-                                      'gmodel_yolo_20180823_0806_loss_0059.h5'))
 
         model = {"architecture": "crYOLO",
                  "input_size": inputSize,
@@ -225,12 +224,7 @@ class SphireProtCRYOLO(ProtParticlePickingAuto):
             source = os.path.abspath(micrograph.getFileName())
             basename = os.path.basename(source)
             dest = os.path.abspath(os.path.join(mics, basename))
-            #print "Source %s and dest %s" % (source, dest)
             pwutils.path.createLink(source, dest)
-
-            # Copy the batch to the extra folder
-            #dest2 = self._getExtraPath()
-            #copyFile(dest, dest2)
 
 
         if self.trainDataset == True:
@@ -283,13 +277,13 @@ class SphireProtCRYOLO(ProtParticlePickingAuto):
             # Configure csv reader
             reader = csv.reader(f, delimiter='\t')
 
-            (width, height, foo) = self.inputMicrographs.get().getDim()
+            #(width, height, foo) = self.inputMicrographs.get().getDim()
 
             for x,y,xBox,ybox in reader:
 
                 # Create a scipion coordinate item
                 offset = int(self.anchors.get()/2)
-                #newCoordinate = Coordinate(x=int(x)+offset, y=height-(int(y)+offset))
+                #newCoordinate = Coordinate(x=int(x)+offset, y=int(y)+offset)
                 newCoordinate = Coordinate(x=int(x) + offset, y=int(y) + offset)
                 micBaseName = removeBaseExt(coordFile)
                 micId, micName = micMap[micBaseName]
@@ -309,7 +303,7 @@ class SphireProtCRYOLO(ProtParticlePickingAuto):
         warningMsgs = []
 
         if self.trainDataset == True:
-            if self.inputCoordinates.get().getSize() < 1000:
+            if self.inputCoordinates.get().getSize() < 13000 particles:
                 warningMsgs.append("The input SetOfCoordinates must be larger than 1000 items.")
 
         return warningMsgs
@@ -334,5 +328,3 @@ def getProgram(program):
     """ Return the program binary that will be used. """
     cmd = join(Plugin.getHome(), 'bin', program)
     return cmd
-
-
