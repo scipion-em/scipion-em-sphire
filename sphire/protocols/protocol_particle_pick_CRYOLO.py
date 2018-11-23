@@ -31,6 +31,8 @@ import pyworkflow.protocol.constants as cons
 from pyworkflow.utils.path import replaceExt, getExt, copyFile
 from sphire import Plugin
 from sphire.constants import CRYOLO_MODEL_VAR
+from sphire.convert import coordinateToRow, writeSetOfCoordinates, \
+    getFlippingParams
 
 
 class SphireProtCRYOLO(ProtParticlePickingAuto):
@@ -106,7 +108,22 @@ class SphireProtCRYOLO(ProtParticlePickingAuto):
 
     # --------------------------- STEPS functions ------------------------------
     def convertTrainCoordsStep(self):
-        def convertMic(mic):
+        """ Converts a set of coordinates to box files and binaries to mrc
+        if needed. It generates 2 folders 1 for the box files and another for
+        the mrc files. To be passed (the folders as params for cryolo
+        """
+
+        coordSet = self.inputCoordinates.get()
+
+        trainMicDir = self._getExtraPath('train_image')
+        pwutils.path.makePath(trainMicDir)
+
+        trainCoordDir = self._getExtraPath('train_annotation')
+        pwutils.path.makePath(trainCoordDir)
+
+        def createMic(micId):
+            # we only copy the micrographs once
+            mic = self.inputMics[micId]
             fileName = mic.getFileName()
             extensionFn =getExt(fileName)
             if extensionFn != ".mrc":
@@ -114,32 +131,10 @@ class SphireProtCRYOLO(ProtParticlePickingAuto):
                 ih = ImageHandler()   #initalize as an object
                 ih.convert(extensionFn, fileName1)
 
-        coordSet = self.inputCoordinates.get()
-        self.boxSize = coordSet.getBoxSize()
+            copyFile(mic.getFileName(), trainMicDir)
 
-        trainMicDir = self._getExtraPath('train_image')
-        pwutils.path.makePath(trainMicDir)
-
-        trainCoordDir = self._getExtraPath('train_annotation')
-        pwutils.path.makePath(trainCoordDir)
-        oldMicName = None
-        for item in coordSet:
-            #(width, height, foo) = self.inputMicrographs.get().getDim() #get height for flipping on y
-            xCoord = item.getX()-int(self.boxSize/2)
-            yCoord = item.getY()-int(self.boxSize/2)
-            micName = item.getMicName()
-            boxName = join(trainCoordDir, replaceExt(micName, "box"))
-            boxFile = open(boxName, 'a+')
-            boxFile.write("%s\t%s\t%s\t%s\n" % (xCoord, yCoord,
-                                                self.boxSize, self.boxSize))
-            boxFile.close()
-            # we only copy the micrographs once
-            if micName != oldMicName:
-                mic = self.inputMics[item.getMicId()]
-                newMicFn = convertMic(mic)
-                copyFile(mic.getFileName(), trainMicDir)
-            oldMicName = micName
-
+        # call the write set of Coordinates passing the createMic function
+        writeSetOfCoordinates(trainCoordDir, coordSet, createMic)
 
     def createConfigurationFileStep(self):
         inputSize = self.input_size.get()
@@ -251,6 +246,10 @@ class SphireProtCRYOLO(ProtParticlePickingAuto):
     def readCoordsFromMics(self, outputDir, micDoneList , outputCoords):
         "This method read coordinates from a given list of micrographs"
 
+        # Evaluate if micDonelist is empty
+        if len(micDoneList) == 0:
+            return
+
         # Create a map micname --> micId
         micMap = {}
         for mic in micDoneList:
@@ -261,17 +260,20 @@ class SphireProtCRYOLO(ProtParticlePickingAuto):
         # Read output file (4 column tabular file)
         outputCRYOLOCoords = self._getTmpPath()
 
+        # Calculate if flip is needed
+        flip, y = getFlippingParams(mic.getFileName())
+
         # For each box file
         for boxFile in os.listdir(outputCRYOLOCoords):
             if '.box' in boxFile:
                 # Add coordinates file
-                self._coordinatesFileToScipion(outputCoords, os.path.join(outputCRYOLOCoords,boxFile), micMap)
+                self._coordinatesFileToScipion(outputCoords, os.path.join(outputCRYOLOCoords,boxFile), micMap, flipOnY=flip, imgHeight=y)
 
         # Move mics and box files
         pwutils.path.moveTree(self._getTmpPath(), self._getExtraPath())
         pwutils.path.makePath(self._getTmpPath())
 
-    def _coordinatesFileToScipion(self, coordSet, coordFile, micMap ):
+    def _coordinatesFileToScipion(self, coordSet, coordFile, micMap, flipOnY=False, imgHeight=None ):
 
         with open(coordFile, 'r') as f:
             # Configure csv reader
@@ -283,8 +285,16 @@ class SphireProtCRYOLO(ProtParticlePickingAuto):
 
                 # Create a scipion coordinate item
                 offset = int(self.anchors.get()/2)
-                #newCoordinate = Coordinate(x=int(x)+offset, y=int(y)+offset)
-                newCoordinate = Coordinate(x=int(x) + offset, y=int(y) + offset)
+
+                # USE the flip and imageHeight!! To flip or not to flip!
+                sciX = int(x) + offset
+                sciY = int(y) + offset
+
+                if flipOnY == True:
+                    sciY = imgHeight -sciY
+
+                Coordinate(x=sciX, y=sciY)
+
                 micBaseName = removeBaseExt(coordFile)
                 micId, micName = micMap[micBaseName]
                 newCoordinate.setMicId(micId)
@@ -303,8 +313,9 @@ class SphireProtCRYOLO(ProtParticlePickingAuto):
         warningMsgs = []
 
         if self.trainDataset == True:
-            if self.inputCoordinates.get().getSize() < 13000 particles:
-                warningMsgs.append("The input SetOfCoordinates must be larger than 1000 items.")
+            if self.inputCoordinates.get().getSize() < 13000:
+                warningMsgs.append("The input SetOfCoordinates must be larger "
+                                   "than 13000 items.")
 
         return warningMsgs
 
