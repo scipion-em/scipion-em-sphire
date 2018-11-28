@@ -33,7 +33,7 @@ from pyworkflow.utils import Environ
 from sphire.constants import *
 
 
-_logo = "sphire_logo.jpg"
+_logo = "sphire_logo.png"
 _sphirePluginDir = os.path.dirname(os.path.abspath(__file__))
 
 
