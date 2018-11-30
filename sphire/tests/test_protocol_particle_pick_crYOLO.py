@@ -25,30 +25,30 @@
 # *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
-import tempfile
-import unittest
-import os
 from os import mkdir
 
 from pyworkflow.em.headers import Ccp4Header
 from pyworkflow.protocol import *
 from pyworkflow.em import *
-from pyworkflow.tests import BaseTest, setupTestProject, DataSet
+from pyworkflow.tests import BaseTest, setupTestProject, DataSet, \
+    setupTestOutput
 from sphire.convert import writeSetOfCoordinates, needToFlipOnY, \
     getFlippingParams
 from sphire.protocols import SphireProtCRYOLO
+from pyworkflow.utils import importFromPlugin
+XmippProtPreprocessMicrographs = importFromPlugin('xmipp3.protocols','XmippProtPreprocessMicrographs', doRaise=True)
 
 
 class TestSphireConvert(BaseTest):
 
-    # @classmethod
-    # def setUpClass(cls):
-    #     setupTestOutput(cls)
-    #     cls.setData()
-    #
-    # @classmethod
-    # def setData(cls):
-    #     cls.ds = DataSet.getDataSet('relion_tutorial')
+    @classmethod
+    def setData(cls):
+        cls.ds = DataSet.getDataSet('relion_tutorial')
+
+    @classmethod
+    def setUpClass(cls):
+        cls.setData()
+        setupTestOutput(cls)
 
     def testConvert(self):
 
@@ -174,81 +174,82 @@ class TestSphireConvert(BaseTest):
         self.assertEquals(y, 1024, "Y dimension of the micrograph is not correct.")
 
 
+class TestCryolo(BaseTest):
+    """ Test cryolo protocol"""
 
-
-class TestCryoloBase(BaseTest):
     @classmethod
     def setData(cls):
         cls.ds = DataSet.getDataSet('relion_tutorial')
 
     @classmethod
-    def runImportMicrograph(cls, pattern, samplingRate, voltage, magnification,
-                            sphericalAberration):
-        """ Run an Import micrograph protocol. """
-        cls.protImport = cls.newProtocol(ProtImportMicrographs,
-                                         samplingRateMode=0,
-                                         filesPath=pattern,
-                                         samplingRate=samplingRate,
-                                         magnification=magnification,
-                                         voltage=voltage,
-                                         sphericalAberration=sphericalAberration
-                                         )
-        cls.launchProtocol(cls.protImport)
-        return cls.protImport
-
-
-
-    @classmethod
-    def runImportMicrographKLH(cls):
-        """ Run an Import micrograph protocol. """
-        return cls.runImportMicrograph(cls.ds.getFile('micrographs/*.mrc'),
-                                       samplingRate=3.54,
-                                       voltage=300,
-                                       sphericalAberration=2,
-                                       magnification=59000)
-        cls.assertIsNotNone(cls.protImport.outputMicrogaphs,
-                            "There was a problem with the import")
-        cls.launchProtocol(protImport)
-        return protImport
-
-    @classmethod
-    def runImportCoords(cls):
-        """ Run an Import coords protocol. """
-        cls.protImportCoords = cls.newProtocol(ProtImportCoordinates,
-                                               importFrom=ProtImportCoordinates.IMPORT_FROM_EMAN,
-                                               objLabel='import EMAN coordinates',
-                                               filesPath=cls.ds.getFile(
-                                                   'pickingEman/info/'),
-                                               inputMicrographs=cls.protImportMics.outputMicrographs,
-                                               filesPattern='*.json',
-                                               boxSize=65)
-        cls.launchProtocol(cls.protImportCoords)
-        return cls.protImportCoords
-
-
-
-class TestCryolo(TestCryoloBase):
-    @classmethod
     def setUpClass(cls):
         setupTestProject(cls)
-        TestCryoloBase.setData()
-        cls.protImportMics = cls.runImportMicrographKLH()
-        cls.protImportCoords = cls.runImportCoords()
+        cls.setData()
 
-    def testCryoloNoTraining(self):
+    def runImportMicrograph(self):
+
+        """ Run an Import micrograph protocol. """
+        protImport = self.newProtocol(ProtImportMicrographs,
+                                         samplingRateMode=0,
+                                         filesPath=TestCryolo.ds.getFile('micrographs/*.mrc'),
+                                         samplingRate=3.54,
+                                         magnification=59000,
+                                         voltage=300,
+                                         sphericalAberration=2)
+
+        self.launchProtocol(protImport)
+        self.assertSetSize(protImport.outputMicrographs, 20,
+                           "There was a problem with the import")
+
+        self.protImport = protImport
+
+    def runMicPreprocessing(self):
+
+        print "Preprocessing the micrographs..."
+        protPreprocess = self.newProtocol(XmippProtPreprocessMicrographs,
+                                          doCrop=True, cropPixels=25)
+        protPreprocess.inputMicrographs.set(self.protImport.outputMicrographs)
+        protPreprocess.setObjLabel('crop 50px')
+        self.launchProtocol(protPreprocess)
+        self.assertSetSize(protPreprocess.outputMicrographs, 20,
+                             "There was a problem with the preprocessing")
+
+        self.protPreprocess = protPreprocess
+
+    def runImportCoords(self):
+        """ Run an Import coords protocol. """
+        protImportCoords = self.newProtocol(ProtImportCoordinates,
+                                               importFrom=ProtImportCoordinates.IMPORT_FROM_EMAN,
+                                               objLabel='import EMAN coordinates',
+                                               filesPath=TestCryolo.ds.getFile(
+                                                   'pickingEman/info/'),
+                                               inputMicrographs=self.protPreprocess.outputMicrographs,
+                                               filesPattern='*.json',
+                                               boxSize=65)
+        self.launchProtocol(protImportCoords)
+        self.assertSetSize(protImportCoords.outputCoordinates, msg="There was a problem importing eman coordinates")
+        self.protImportCorrs = protImportCoords
+
+    def testCryoloPicking(self):
+
+        # Run needed protocols
+        self.runImportMicrograph()
+        self.runMicPreprocessing()
+        self.runImportCoords()
+
+        # No training mode
         protcryolo = self.newProtocol(SphireProtCRYOLO,
                                       trainDataset=False,
-                                      inputMicrographs=self.protImportMics.outputMicrographs,
-                                      anchors = 65)
+                                      inputMicrographs=self.protPreprocess.outputMicrographs,
+                                      anchors=65)
         self.launchProtocol(protcryolo)
-        self.assertIsNotNone(protcryolo.outputCoordinates, "There was a problem picking with crYOLO")
+        self.assertSetSize(protcryolo.outputCoordinates, msg="There was a problem picking with crYOLO")
 
-
-    def testCryoloTraining(self):
+        # Training mode
         protcryolo2 = self.newProtocol(SphireProtCRYOLO,
                                       trainDataset=True,
-                                      inputMicrographs=self.protImportMics.outputMicrographs,
+                                      inputMicrographs=self.protPreprocess.outputMicrographs,
                                       inputCoordinates=self.protImportCoords.outputCoordinates,
                                       anchors=65)
         self.launchProtocol(protcryolo2)
-        self.assertIsNotNone(protcryolo2.outputCoordinates, "There was a problem picking with crYOLO")
+        self.assertSetSize(protcryolo2.outputCoordinates, msg="There was a problem picking with crYOLO")
