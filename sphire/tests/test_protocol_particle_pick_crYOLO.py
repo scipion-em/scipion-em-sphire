@@ -3,8 +3,7 @@
 # * Authors:     It is me
 # *
 # *
-# * [1] SciLifeLab, Stockholm University
-# * [2] MRC Laboratory of Molecular Biology (MRC-LMB)
+# * [1]
 # *
 # * This program is free software; you can redistribute it and/or modify
 # * it under the terms of the GNU General Public License as published by
@@ -25,18 +24,21 @@
 # *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
-from os import mkdir
+import re
+from os import mkdir, os
 
-from pyworkflow.em.headers import Ccp4Header
-from pyworkflow.protocol import *
-from pyworkflow.em import *
+from pyworkflow.em import Coordinate, SetOfMicrographs, Micrograph, \
+    SetOfCoordinates, ProtImportMicrographs, ProtImportCoordinates, Ccp4Header
 from pyworkflow.tests import BaseTest, setupTestProject, DataSet, \
     setupTestOutput
 from sphire.convert import writeSetOfCoordinates, needToFlipOnY, \
     getFlippingParams
 from sphire.protocols import SphireProtCRYOLO
-from pyworkflow.utils import importFromPlugin
-XmippProtPreprocessMicrographs = importFromPlugin('xmipp3.protocols','XmippProtPreprocessMicrographs', doRaise=True)
+from pyworkflow.utils import importFromPlugin, copyFile
+
+XmippProtPreprocessMicrographs = \
+    importFromPlugin('xmipp3.protocols', 'XmippProtPreprocessMicrographs',
+                     doRaise=True)
 
 
 class TestSphireConvert(BaseTest):
@@ -73,8 +75,10 @@ class TestSphireConvert(BaseTest):
         (x, y, sizeX, sizeY) = coordinateToBox(coord, boxSize, True, imgHeight)
 
         # Assert values
-        self.assertEquals(x, 50, "x coordinate value %s is wrong when flipping on Y ")
-        self.assertEquals(y, 250, "y coordinate value is wrong when no flipping on Y ")
+        self.assertEquals(x, 50, "x coordinate value %s is wrong when "
+                                 "flipping on Y ")
+        self.assertEquals(y, 250, "y coordinate value is wrong when no "
+                                  "flipping on Y ")
 
         # Case exception raised
         self.assertRaises(ValueError, coordinateToBox, coord, boxSize, {'flipOnY': True})

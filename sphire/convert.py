@@ -25,7 +25,7 @@
 # *
 # **************************************************************************
 from pyworkflow.em import ImageHandler
-from pyworkflow.em.headers import Ccp4Header
+from pyworkflow.em.convert import Ccp4Header
 from pyworkflow.utils import replaceExt, join, getExt
 
 
