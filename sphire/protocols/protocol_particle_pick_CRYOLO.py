@@ -291,34 +291,17 @@ class SphireProtCRYOLO(ProtParticlePickingAuto):
                 sciY = int(y) + offset
 
                 if flipOnY == True:
-                    FlipCoordinate = Coordinate(x=sciX, y=imgHeight - sciY)
-                    # sciY = imgHeight -sciY
-                    micBaseName = removeBaseExt(coordFile)
-                    micId, micName = micMap[micBaseName]
-                    FlipCoordinate.setMicId(micId)
-                    FlipCoordinate.setMicName(micName)
-                    # Add it to the set
-                    coordSet.append(FlipCoordinate)
+                    sciY = imgHeight - sciY
                 else:
-                    NoFlipCoordinate = Coordinate(x=sciX, y=sciY)
-                    micBaseName = removeBaseExt(coordFile)
-                    micId, micName = micMap[micBaseName]
-                    NoFlipCoordinate.setMicId(micId)
-                    NoFlipCoordinate.setMicName(micName)
-                    # Add it to the set
-                    coordSet.append(NoFlipCoordinate)
+                    sciY = int(y) - offset
 
-                    # if flipOnY == True:
-                #     sciY = imgHeight -sciY
-                #
-                # Coordinate(x=sciX, y=sciY)
-                #
-                # micBaseName = removeBaseExt(coordFile)
-                # micId, micName = micMap[micBaseName]
-                # newCoordinate.setMicId(micId)
-                # newCoordinate.setMicName(micName)
-                # # Add it to the set
-                # coordSet.append(newCoordinate)
+                coordinate = Coordinate(x=sciX, y=sciY)
+                micBaseName = removeBaseExt(coordFile)
+                micId, micName = micMap[micBaseName]
+                coordinate.setMicId(micId)
+                coordinate.setMicName(micName)
+                # Add it to the set
+                coordSet.append(coordinate)
 
     def createOutputStep(self):
         pass
