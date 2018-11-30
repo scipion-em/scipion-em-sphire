@@ -232,7 +232,7 @@ class TestCryolo(BaseTest):
                                                boxSize=65)
         self.launchProtocol(protImportCoords)
         self.assertSetSize(protImportCoords.outputCoordinates, msg="There was a problem importing eman coordinates")
-        self.protImportCorrs = protImportCoords
+        self.protImportCoords = protImportCoords
 
     def testCryoloPicking(self):
 
