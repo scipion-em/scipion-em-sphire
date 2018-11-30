@@ -25,7 +25,7 @@
 # *
 # **************************************************************************
 import re
-from os import mkdir, os
+import os
 
 from pyworkflow.em import Coordinate, SetOfMicrographs, Micrograph, \
     SetOfCoordinates, ProtImportMicrographs, ProtImportCoordinates, Ccp4Header
@@ -115,7 +115,7 @@ class TestSphireConvert(BaseTest):
 
         # Get boxDirectory
         boxFolder = self.getOutputPath('boxFolder')
-        mkdir(boxFolder)
+        os.mkdir(boxFolder)
 
         micsNofified = []
 
