@@ -83,7 +83,7 @@ class TestSphireConvert(BaseTest):
         # Case exception raised
         self.assertRaises(ValueError, coordinateToBox, coord, boxSize, {'flipOnY': True})
 
-    def testWriteSetOfCoordinates(self):
+    def testWriteSetOfCoordinatesWithoutFlip(self):
         # Define a temporary sqlite file for micrographs
         fn = self.getOutputPath('convert_mics.sqlite')
 
@@ -154,7 +154,7 @@ class TestSphireConvert(BaseTest):
         # test non mrc file
         self.assertFalse(needToFlipOnY('dummy.foo'), "needToFlipOnY wrong for non mrc.")
 
-        # Test right ispg value (0 in mrc file) TODO
+        # Test right ispg value (0 in mrc file)
         # Copy 006
         goodMrc = self.getOutputPath('good_ispg.mrc')
         copyFile(mrcFile, goodMrc)

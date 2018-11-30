@@ -42,8 +42,9 @@ def coordinateToBox(coord, boxSize, flipOnY=False, height=None):
 
     # Sphire 0,0 is at bottom-left. But also image are flip vertically
     # Also, coordinate x and y refers to bottom, left of the box
-    xCoord = coord.getX() - int(boxSize / 2)
-    yCoord = coord.getY() - int(boxSize / 2)
+    halfBox = int(boxSize/2)
+    xCoord = coord.getX() - halfBox
+    yCoord = coord.getY() - halfBox
 
     # Under some circumstances (xmipp setting ISPG value to 1),
     # cryolo does not flip the image, so we need to flip the coordinate.
@@ -51,7 +52,7 @@ def coordinateToBox(coord, boxSize, flipOnY=False, height=None):
         if height is None:
             raise ValueError("height param is mandatory when flipOnY is True")
 
-        yCoord = height - yCoord
+        yCoord = height - (coord.getY() + halfBox)
 
     return xCoord, yCoord, boxSize, boxSize
 
@@ -109,7 +110,7 @@ def needToFlipOnY(filename):
 
         header = Ccp4Header(filename, readHeader=True)
 
-        # TODO: Use proper ISPG? value when PR accepted
+        # 1, cryolo will not flip the image
         ispg = header.getISPG()
 
         return ispg != 0
