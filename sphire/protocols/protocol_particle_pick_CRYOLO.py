@@ -64,10 +64,18 @@ class SphireProtCRYOLO(ProtParticlePickingAuto):
                       label="Input size",
                       help="crYOLO extracts a patch and rescales to the given"
                            " input size and uses the resized patch for traning.")
-        form.addParam('anchors', params.IntParam, default= 160,
-                      label="Anchors",
-                      help="It should be the size of the minimum particle enclosing"
-                           " square in pixel.")
+        form.addParam('bxSzFromCoor', BooleanParam, default=False,
+                      label='Use an input coordinates for box size')
+        form.addParam('boxSize', IntParam, default=100,
+                      condition='bxSzFromCoor==False',
+                      label='Box Size',
+                      help='Box size in pixels. It should be the size of '
+                           'the minimum particle enclosing square in pixel.')
+        form.addParam('coordsToBxSz', PointerParam, pointerClass='SetOfCoordinates',
+                      condition='bxSzFromCoor==True',
+                      label='Coordinates to extract the box size.',
+                      help='Coordinates to extract the box size. '
+                           'It can be an empty set.')
         form.addParam('batch_size', params.IntParam, default= 3,
                       expertLevel=cons.LEVEL_ADVANCED,
                       label="Batch size",
@@ -138,12 +146,12 @@ class SphireProtCRYOLO(ProtParticlePickingAuto):
 
     def createConfigurationFileStep(self):
         inputSize = self.input_size.get()
-        anchors = self.anchors.get()
+        boxSize = self.getBoxSize()
         maxBoxPerImage = self.max_box_per_image.get()
 
         model = {"architecture": "crYOLO",
                  "input_size": inputSize,
-                 "anchors": [anchors, anchors],
+                 "anchors": [boxSize, boxSize],
                  "max_box_per_image": maxBoxPerImage,
                   }
 
@@ -256,7 +264,7 @@ class SphireProtCRYOLO(ProtParticlePickingAuto):
             key = removeBaseExt(mic.getFileName())
             micMap[key] = (mic.getObjId(), mic.getFileName())
 
-        outputCoords.setBoxSize(self.anchors.get())
+        outputCoords.setBoxSize(self.getBoxSize())
         # Read output file (4 column tabular file)
         outputCRYOLOCoords = self._getTmpPath()
 
@@ -284,7 +292,7 @@ class SphireProtCRYOLO(ProtParticlePickingAuto):
             for x,y,xBox,ybox in reader:
 
                 # Create a scipion coordinate item
-                offset = int(self.anchors.get()/2)
+                offset = int(self.getBoxSize()/2)
 
                 # USE the flip and imageHeight!! To flip or not to flip!
                 sciX = int(x) + offset
@@ -320,8 +328,30 @@ class SphireProtCRYOLO(ProtParticlePickingAuto):
 
         return warningMsgs
 
-        # Check if need to use the generic model
-        # What is inside CRYOLO_MODEL variable, exists?
+    def _validate(self):
+        errors = []
+        if self.trainDataset == False:
+            if Plugin.getVar(CRYOLO_MODEL_VAR) == '':
+                errors.append("If _Train dataset?_ is set to _NO_\n" 
+                              "The general model for cryolo must be "
+                              "download from Sphire/crYOLO website and "
+                              "~/.config/scipion/scipion.conf must contain "
+                              "the 'CRYOLO_MODEL' parameter pointing to "
+                              "the downloaded file.")
+            elif not os.path.isfile(Plugin.getVar(CRYOLO_MODEL_VAR)):
+                errors.append("General model not found at '%s' and "
+                              "needed in the non-training mode. "
+                              "Please check the path or "
+                              "the ~/.config/scipion/scipion.conf.\n"
+                              "You can download the file from "
+                              "the Sphire/crYOLO website."
+                              % Plugin.getVar(CRYOLO_MODEL_VAR))
+            if errors:
+                errors.append("Even though, you can still using crYOLO "
+                              "training first the network by setting "
+                              "_Train dataset?_ to *YES* and providing "
+                              "some already picked coordinates.")
+        return errors
 
     #--------------------------- UTILS functions -------------------------------
     def _preparingCondaProgram(self, program, params='', label=''):
@@ -336,7 +366,13 @@ class SphireProtCRYOLO(ProtParticlePickingAuto):
         f.write(lines)
         f.close()
 
+    def getBoxSize(self):
+        if self.bxSzFromCoor:
+            return self.coordsToBxSz.get().getBoxSize()
+        else:
+            return self.boxSize.get()
+
 def getProgram(program):
     """ Return the program binary that will be used. """
     cmd = join(Plugin.getHome(), 'bin', program)
-    return cmd
+    return program
