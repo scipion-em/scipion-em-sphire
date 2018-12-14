@@ -30,7 +30,7 @@ from pyworkflow.em import *
 import pyworkflow.protocol.constants as cons
 from pyworkflow.utils.path import replaceExt, getExt, copyFile
 from sphire import Plugin
-from sphire.constants import CRYOLO_MODEL_VAR
+from sphire.constants import CRYOLO_MODEL_VAR, CRYOLO_ENV_NAME
 from sphire.convert import coordinateToRow, writeSetOfCoordinates, \
     getFlippingParams
 
