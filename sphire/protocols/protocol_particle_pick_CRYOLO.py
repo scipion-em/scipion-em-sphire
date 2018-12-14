@@ -292,16 +292,16 @@ class SphireProtCRYOLO(ProtParticlePickingAuto):
             for x,y,xBox,ybox in reader:
 
                 # Create a scipion coordinate item
-                offset = int(self.getBoxSize()/2)
+                offset = round(self.getBoxSize()/2)
 
                 # USE the flip and imageHeight!! To flip or not to flip!
-                sciX = int(x) + offset
-                sciY = int(y) + offset
+                sciX = round(x) + offset
+                sciY = round(y) + offset
 
                 if flipOnY == True:
                     sciY = imgHeight - sciY
                 else:
-                    sciY = int(y) - offset
+                    sciY = round(y) - offset
 
                 coordinate = Coordinate(x=sciX, y=sciY)
                 micBaseName = removeBaseExt(coordFile)
