@@ -44,8 +44,10 @@ class Plugin(pyworkflow.em.Plugin):
 
     @classmethod
     def _defineVariables(cls):
-        cls._defineEmVar(CRYOLO_HOME_VAR, 'sphire_1.1.0')
+        # CRYOLO do NOT need EmVar because it uses a conda enviroment.
+        # cls._defineEmVar(CRYOLO_HOME_VAR, 'sphire_1.1.0')
         cls._defineVar(CRYOLO_MODEL_VAR, '')
+        cls._defineVar(CRYOLO_ENV_NAME, 'cryolo')
 
     @classmethod
     def getEnviron(cls):

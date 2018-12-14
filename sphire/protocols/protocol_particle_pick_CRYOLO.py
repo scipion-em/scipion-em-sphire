@@ -200,7 +200,7 @@ class SphireProtCRYOLO(ProtParticlePickingAuto):
         if eParam != 0:
             params += " -e %s" % eParam
 
-        program = getProgram('cryolo_train.py')
+        program = 'cryolo_train.py'
         label = 'train'
         self._preparingCondaProgram(program, params, label)
         shellName = os.environ.get('SHELL')
@@ -243,7 +243,7 @@ class SphireProtCRYOLO(ProtParticlePickingAuto):
         params += " -o %s/" % mics
         params += " -t %s" % tParam
 
-        program2 = getProgram('cryolo_predict.py')
+        program2 = 'cryolo_predict.py'
         label = 'predict'
         self._preparingCondaProgram(program2, params, label)
         shellName = os.environ.get('SHELL')
@@ -292,7 +292,7 @@ class SphireProtCRYOLO(ProtParticlePickingAuto):
             for x,y,xBox,ybox in reader:
 
                 # Create a scipion coordinate item
-                offset = round(self.getBoxSize()/2)
+                offset = int(self.getBoxSize()/2)
 
                 # USE the flip and imageHeight!! To flip or not to flip!
                 sciX = int(float(x)) + offset
@@ -355,16 +355,14 @@ class SphireProtCRYOLO(ProtParticlePickingAuto):
 
     #--------------------------- UTILS functions -------------------------------
     def _preparingCondaProgram(self, program, params='', label=''):
-        CRYOLO_ENV_NAME = 'cryolo'
-        f = open(self._getExtraPath('script_%s.sh' % label), "w")
-        lines = 'pwd\n'
-        lines += 'ls\n'
-        lines += 'source activate %s\n' % CRYOLO_ENV_NAME
-        lines += 'export CUDA_VISIBLE_DEVICES=%s\n' % (' '.join(str(g) for g in self.getGpuList()))
-        lines += '%s %s\n' % (program, params)
-        lines += 'source deactivate\n'
-        f.write(lines)
-        f.close()
+        with open(self._getExtraPath('script_%s.sh' % label), "w") as f:
+            # lines = 'pwd\n'
+            # lines += 'ls\n'
+            lines = 'source activate %s\n' % Plugin.getVar(CRYOLO_ENV_NAME)
+            lines += 'export CUDA_VISIBLE_DEVICES=%s\n' % (' '.join(str(g) for g in self.getGpuList()))
+            lines += '%s %s\n' % (program, params)
+            lines += 'source deactivate\n'
+            f.write(lines)
 
     def getBoxSize(self):
         if self.bxSzFromCoor:
@@ -372,7 +370,4 @@ class SphireProtCRYOLO(ProtParticlePickingAuto):
         else:
             return self.boxSize.get()
 
-def getProgram(program):
-    """ Return the program binary that will be used. """
-    cmd = join(Plugin.getHome(), 'bin', program)
-    return program
+
