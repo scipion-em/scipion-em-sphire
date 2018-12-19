@@ -300,8 +300,8 @@ class SphireProtCRYOLO(ProtParticlePickingAuto):
 
                 if flipOnY == True:
                     sciY = imgHeight - sciY
-                else:
-                    sciY = int(float(y)) - offset
+                # else:
+                #     sciY = int(float(y)) - offset
 
                 coordinate = Coordinate(x=sciX, y=sciY)
                 micBaseName = removeBaseExt(coordFile)
