@@ -301,7 +301,7 @@ class SphireProtCRYOLO(ProtParticlePickingAuto):
                 if flipOnY == True:
                     sciY = imgHeight - sciY
                 else:
-                    sciY = sciY - offset
+                    sciY = sciY - self.getBoxSize()
 
                 coordinate = Coordinate(x=sciX, y=sciY)
                 micBaseName = removeBaseExt(coordFile)
@@ -369,5 +369,3 @@ class SphireProtCRYOLO(ProtParticlePickingAuto):
             return self.coordsToBxSz.get().getBoxSize()
         else:
             return self.boxSize.get()
-
-
