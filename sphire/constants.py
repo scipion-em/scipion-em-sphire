@@ -1,6 +1,7 @@
 # **************************************************************************
 # *
-# * Authors:    ****
+# * Authors:    Peter Horvath
+# *             Pablo Conesa
 # *
 # * Unidad de  Bioinformatica of Centro Nacional de Biotecnologia , CSIC
 # *
@@ -23,13 +24,7 @@
 # *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
-import os
-
 
 # we declarate global constants to multiple usage
-CRYOLO_HOME_VAR = 'CRYOLO_HOME'
-CRYOLO_MODEL_VAR = 'CRYOLO_MODEL'
-CRYOLO_ENV_NAME = 'CRYOLO_ENV_NAME'
-
-# Supported versions
-CRYOLO_V1_1_0 = '1.1.0 '
+CRYOLO_GENMOD_VAR = 'CRYOLO_GENERIC_MODEL'
+CRYOLO_ENV_ACTIVATION = 'CRYOLO_ENV_ACTIVATION'

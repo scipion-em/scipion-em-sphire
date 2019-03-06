@@ -1,3 +1,2 @@
-
-
-from protocol_particle_pick_CRYOLO import SphireProtCRYOLO
+from protocol_particle_training_CRYOLO import SphireProtCRYOLOTraining
+from protocol_particle_picking_CRYOLO import SphireProtCRYOLOPicking

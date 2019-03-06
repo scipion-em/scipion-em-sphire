@@ -1,7 +1,8 @@
 # **************************************************************************
 # *
-# * Authors:     Peter ... (p...@cnb.csic.es)
-# *
+# * Authors:     Peter Horvath
+# *              Pablo Conesa
+
 # * Unidad de  Bioinformatica of Centro Nacional de Biotecnologia , CSIC
 # *
 # * This program is free software; you can redistribute it and/or modify
@@ -26,47 +27,85 @@
 """
 This package contains the protocols and data for crYOLO
 """
-
+import os, subprocess
 import pyworkflow.em
 from pyworkflow.utils import Environ
-
-from sphire.constants import *
-
+from sphire.constants import CRYOLO_GENMOD_VAR, CRYOLO_ENV_ACTIVATION
 
 _logo = "sphire_logo.png"
 _sphirePluginDir = os.path.dirname(os.path.abspath(__file__))
 
 
 class Plugin(pyworkflow.em.Plugin):
-    _homeVar = CRYOLO_HOME_VAR
-    #_pathVars = [CRYOLO_HOME_VAR, CRYOLO_MODEL_VAR]
-    _supportedVersions = CRYOLO_V1_1_0
+    _cryoloEnvFound = None
 
     @classmethod
     def _defineVariables(cls):
-        # CRYOLO do NOT need EmVar because it uses a conda enviroment.
-        # cls._defineEmVar(CRYOLO_HOME_VAR, 'sphire_1.1.0')
-        cls._defineVar(CRYOLO_MODEL_VAR, '')
-        cls._defineVar(CRYOLO_ENV_NAME, 'cryolo')
+        # CRYOLO do NOT need EmVar because it uses a conda environment.
+        cls._defineVar(CRYOLO_GENMOD_VAR, '')
+        cls._defineVar(CRYOLO_ENV_ACTIVATION, 'source activate cryolo')
+
+    @classmethod
+    def getCryoloEnvActivation(cls):
+        # All variables in PACKAGES have scipion path prepended.
+        var = cls.getVar(CRYOLO_ENV_ACTIVATION)
+        return var[var.rfind("/")+1:]
 
     @classmethod
     def getEnviron(cls):
         """ Setup the environment variables needed to launch sphire. """
         environ = Environ(os.environ)
-        environ.update({'PATH': str.join(cls.getHome(), 'bin'),
-                        }, position=Environ.BEGIN)
+        #environ.update({'PATH': os.path.join(cls.getHome(), 'bin'),
+        #                 }, position=Environ.BEGIN)
         if 'PYTHONPATH' in environ:
             # this is required for python virtual env to work
             del environ['PYTHONPATH']
 
-        # else:
-        #     # TODO: Find a generic way to warn of this situation
-        #     print("%s variable not set on environment." % cls.getHome())
         return environ
 
-    # @classmethod
-    # def isVersionActive(cls):
-    #     return cls.getActiveVersion().startswith(CRYOLO_V1_1_0)
+    @classmethod
+    def validateInstallation(cls):
+        """
+        Check if the binaries are properly installed and if not, return
+        a list with the error messages.
 
+        The default implementation will check if the _pathVars exists.
+        """
+
+        missing = []
+
+        envFound, version, versionSupported = cls._checkCryoloInstallation()
+
+        if not envFound:
+            missing.append("crYOLO environment (%s) could not be activated." % cls.getCryoloEnvActivation())
+
+
+        if not versionSupported:
+            missing.append("crYOLO version %s unsupported" % version)
+
+        return missing
+
+    @classmethod
+    def _checkCryoloInstallation(cls):
+
+        if cls._cryoloEnvFound is None:
+           try:
+                # check if is crYOLO is installed or not
+                cmd = "%s && pip list | grep 'cryolo\s'" % cls.getCryoloEnvActivation()
+                p = subprocess.Popen(["bash", "-c", cmd],
+                                 stdin=subprocess.PIPE, stdout=subprocess.PIPE)
+
+                output, err = p.communicate()
+                cls._cryoloVersion = output.split()[1]
+                cls._cryoloEnvFound = True
+                from pkg_resources import parse_version
+                cls._cryoloVersionSupported = parse_version(cls._cryoloVersion) >= parse_version("1.2")
+
+           except Exception as e:
+                cls._cryoloEnvFound = False
+                cls._cryoloVersion = "0.0.0"
+                cls._cryoloVersionSupported = False
+
+        return cls._cryoloEnvFound, cls._cryoloVersion, cls._cryoloVersionSupported
 
 pyworkflow.em.Domain.registerPlugin(__name__)
