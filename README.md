@@ -12,7 +12,9 @@ Installation
  - crYOLO (last tested version: 1.2.2)
  - crYOLO's boxmanager (last tested version: 1.1.0).
 
-2. If you want to use the generic model, please download also the General PhosaursNet model and edit the `~/.config/scipion/scipion.conf` file in such a way that exists the following
+2. If you want to use the generic model, please download also the General PhosaursNet model and
+
+   edit the `~/.config/scipion/scipion.conf` file in such a way that exists the following
     ```
     CRYOLO_GEN_MODEL = path/to/the/downloaded/General_PhosaursNet_model 
     ```
