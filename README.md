@@ -18,17 +18,18 @@ Installation
     ```
     CRYOLO_GEN_MODEL = path/to/the/downloaded/General_PhosaursNet_model 
     ```
+
 3. Install scipion-em-sphire as a Scipion plugin
   
-  a) by running:
+  - by running:
   ``scipion installp -p scipion-em-sphire``
   
   OR
   
-  b) through the GUI menu bar by launching Scipion and Configuration -> Plugins 
+  - through the GUI menu bar by launching Scipion and Configuration -> Plugins 
    
 
- * For **developers** replace point 3 for
+### For **developers** replace point 3 for
 
 3a. Clone this repository in a local folder
 ```
