@@ -8,9 +8,9 @@ So far we have implemented:
 Installation  
 ============ 
 
-1. Please follow installation instructions from [Sphire webpage](http://sphire.mpg.de/wiki/doku.php?id=downloads:cryolo_1&redirect=1) in order to install
- - crYOLO (last tested version: 1.2.2)
- - crYOLO's boxmanager (last tested version: 1.1.0).
+1. Please follow installation instructions from [Sphire webpage](http://sphire.mpg.de/wiki/doku.php?id=downloads:cryolo_1&redirect=1) in order to install:
+   - crYOLO (last tested version: 1.2.2)
+   - crYOLO's boxmanager (last tested version: 1.1.0).
 
 2. If you want to use the generic model, please download also the General PhosaursNet model and
 
@@ -22,11 +22,13 @@ Installation
 3. Install scipion-em-sphire as a Scipion plugin
   
   - by running:
-  ``scipion installp -p scipion-em-sphire``
+  ```
+  scipion installp -p scipion-em-sphire
+  ```
   
   OR
   
-  - through the GUI menu bar by launching Scipion and Configuration -> Plugins 
+  - through the plugin manager GUI by launching Scipion and following *Configuration* >> *Plugins* 
    
 
 ### For **developers** replace point 3 for
