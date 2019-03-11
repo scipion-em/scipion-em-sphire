@@ -24,7 +24,7 @@ Installation
   b) through the GUI menu bar by launching Scipion and Configuration -> Plugins 
    
 
-For **developers** replace point 3 for
+ * For **developers** replace point 3 for
 
 3a. Clone this repository in a local folder
 `` git clone https://github.com/scipion-em/scipion-em-sphire ``
