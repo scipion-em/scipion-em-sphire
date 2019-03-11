@@ -8,17 +8,13 @@ So far we have implemented:
 Installation  
 ============ 
 
-1. Please follow installation instructions at <http://sphire.mpg.de/wiki/doku.php?id=downloads:cryolo_1&redirect=1>
+1. Please follow installation instructions at [Sphire webpage](http://sphire.mpg.de/wiki/doku.php?id=downloads:cryolo_1&redirect=1) in order to install crYOLO (last tested version 1.2.2) and crYOLO's boxmanager (last tested version 1.1.0).
 
-2. Install `crYOLO Version 1.2.2 <http://sphire.mpg.de/wiki/doku.php?id=cryolo_archive#cryolo>
-
-3. Install `crYOLO boxmanager 1.1.0 <http://sphire.mpg.de/wiki/doku.php?id=cryolo_archive#cryolo>
-
-4. If you want to use the generic model, please download the General PhosaursNet model and edit the `~/.config/scipion/scipion.conf` file in such a way that exist the following
+2. If you want to use the generic model, please download also the General PhosaursNet model and edit the `~/.config/scipion/scipion.conf` file in such a way that exists the following
     ```
     CRYOLO_GEN_MODEL = path/to/the/downloaded/General_PhosaursNet_model 
     ```
-5. Install scipion-em-sphire as a Scipion plugin
+3. Install scipion-em-sphire as a Scipion plugin
   
   a) by running:
   ``scipion installp -p scipion-em-sphire``
@@ -28,11 +24,11 @@ Installation
   b) through the GUI menu bar by launching Scipion and Configuration -> Plugins 
    
 
-For **developers** replace point 6 for
+For **developers** replace point 3 for
 
-5a. Clone this repository in a local folder
+3a. Clone this repository in a local folder
 `` git clone https://github.com/scipion-em/scipion-em-sphire ``
 
-5b. Install the Scipion plugin in a devel mode
+3b. Install the Scipion plugin in a devel mode
 `` scipion installp -p --devel /path/where/you/cloned/the/repo/in/the/previous/point ``
     
