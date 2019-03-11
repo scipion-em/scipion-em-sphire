@@ -27,8 +27,12 @@ Installation
  * For **developers** replace point 3 for
 
 3a. Clone this repository in a local folder
-`` git clone https://github.com/scipion-em/scipion-em-sphire ``
+```
+git clone https://github.com/scipion-em/scipion-em-sphire
+```
 
 3b. Install the Scipion plugin in a devel mode
-`` scipion installp -p --devel /path/where/you/cloned/the/repo/in/the/previous/point ``
+```
+scipion installp -p --devel /path/where/you/cloned/the/repo/in/the/previous/point
+```
     
