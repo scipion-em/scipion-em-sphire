@@ -24,15 +24,18 @@
 # *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
-import os, json, csv
+
+import os
+import json
+import csv
+
+import pyworkflow.utils as pwutils
 from pyworkflow.em.data import Coordinate
-from pyworkflow.utils import path
 import pyworkflow.protocol.params as params
 import pyworkflow.protocol.constants as cons
 from pyworkflow.em.protocol import ProtParticlePickingAuto
-from pyworkflow.utils.path import removeBaseExt
-from sphire.convert import getFlippingParams, preparingCondaProgram, \
-    getBoxSize, createMic
+
+import sphire.convert as convert
 from sphire.constants import CRYOLO_GENMOD_VAR
 from sphire import Plugin
 
@@ -41,7 +44,7 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
     """ Picks particles in a set of micrographs
     either manually or in a supervised mode.
     """
-    _label = 'crYOLO picking'
+    _label = 'cryolo picking'
 
     def __init__(self, **args):
         ProtParticlePickingAuto.__init__(self, **args)
@@ -62,23 +65,17 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
                            " model can be found.")
         form.addParam('sphireTraining', params.PointerParam,
                       allowsNull=True,
-                      condition="useGenMod == False",
+                      condition="not useGenMod",
                       label="Cryolo training run",
                       pointerClass='SphireProtCRYOLOTraining',
                       help='Select the previous cryolo training run.')
-        form.addParam('conservPick', params.BooleanParam,
+        form.addParam('conservPickVar', params.FloatParam, default=0.3,
                       expertLevel=cons.LEVEL_ADVANCED,
-                      default=False,
-                      label="Pick conservatively?",
+                      label="Confidence threshold",
                       help='If you want to pick less conservatively or more '
-                           'conservatively you might want to change'
-                            ' the selection threshold from the default of 0.3 '
-                           'to a less conservative value like 0.2 or '
-                            'more conservative value like 0.4?')
-        form.addParam('conservPickVar', params.FloatParam,
-                      condition="conservPick",
-                      label="Insert value",
-                      help="less conservative value:0.2, conservative value:0.4.")
+                           'conservatively you might want to change the threshold '
+                           'from the default of 0.3 to a less conservative value '
+                           'like 0.2 or more conservative value like 0.4.')
         form.addParam('lowPassFilter', params.BooleanParam,
                       expertLevel=cons.LEVEL_ADVANCED,
                       default=False,
@@ -124,7 +121,7 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
                        help="GPU may have several cores. Set it to zero"
                             " if you do not know what we are talking about."
                             " First core index is 0, second 1 and so on."
-                            " Motioncor2 can use multiple GPUs - in that case"
+                            " crYOLO can use multiple GPUs - in that case"
                             " set to i.e. *0 1 2*.")
 
         form.addParallelSection(threads=1, mpi=1)
@@ -133,16 +130,13 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
 
     # --------------------------- INSERT steps functions -----------------------
     def _insertInitialSteps(self):
-
         self.particlePickingRun = self.sphireTraining.get()
-
         self._insertFunctionStep("createConfigurationFileStep")
-
 
     # --------------------------- STEPS functions ------------------------------
     def createConfigurationFileStep(self):
         inputSize = self.input_size.get()
-        boxSize = getBoxSize(self)
+        boxSize = convert.getBoxSize(self)
         maxBoxPerImage = self.max_box_per_image.get()
         numPatches = self.num_patches.get()
         absCutOfffreq = self.absCutOffFreq.get()
@@ -155,10 +149,10 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
             "num_patches": numPatches
         }
 
-        if self.lowPassFilter == True:
-            model.update({"filter": [absCutOfffreq,"filtered"]})
+        if self.lowPassFilter:
+            model.update({"filter": [absCutOfffreq, "filtered"]})
             filteredDir = self._getExtraPath("filtered")
-            path.makePath('filteredDir')
+            pwutils.makePath('filteredDir')
 
         jsonDict = {"model": model}
 
@@ -167,18 +161,15 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
 
     def _pickMicrograph(self, micrograph, *args):
         """This function picks from a given micrograph"""
-
         self._pickMicrographList([micrograph], args)
 
-
     def _pickMicrographList(self, micList, *args):
-
         MIC_FOLDER = 'mics'
         mics = self._getTmpPath()
 
         # Create folder with linked mics
         for micrograph in micList:
-            createMic(micrograph, mics)
+            convert.createMic(micrograph, mics)
 
         # clear the mrc files
         dirName = self._getExtraPath()
@@ -187,25 +178,20 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
             if item.endswith(".mrc"):
                 os.remove(os.path.join(dirName, item))
 
-        if self.useGenMod == True:
-            wParam = Plugin.getVar(CRYOLO_GENMOD_VAR)
-        else:
-            wParam = os.path.abspath(self.particlePickingRun.getModel())
         gParam = (' '.join(str(g) for g in self.getGpuList()))
         params = "-c %s " % self._getExtraPath('config.json')
-        params += " -w %s -g %s" % (wParam, gParam)
+        params += " -w %s -g %s" % (self.getInputModel(), gParam)
         params += " -i %s/" % mics
         params += " -o %s/" % mics
-        if self.conservPick == True:
-            tParam = self.conservPickVar.get()
-            params += " -t %f" % tParam
+        params += " -t %0.3f" % self.conservPickVar
 
         program2 = 'cryolo_predict.py'
         label = 'predict'
-        preparingCondaProgram(self, program2, params, label)
+        convert.preparingCondaProgram(self, program2, params, label)
         shellName = os.environ.get('SHELL')
         self.info("**Running:** %s %s" % (program2, params))
-        self.runJob('%s %s/script_%s.sh' % (shellName, self._getExtraPath(), label), '',
+        self.runJob('%s %s/script_%s.sh'
+                    % (shellName, self._getExtraPath(), label), '',
                     env=Plugin.getEnviron())
 
     def readCoordsFromMics(self, outputDir, micDoneList, outputCoords):
@@ -218,15 +204,15 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
         # Create a map micname --> micId
         micMap = {}
         for mic in micDoneList:
-            key = removeBaseExt(mic.getFileName())
+            key = pwutils.removeBaseExt(mic.getFileName())
             micMap[key] = (mic.getObjId(), mic.getFileName())
 
-        outputCoords.setBoxSize(getBoxSize(self))
+        outputCoords.setBoxSize(convert.getBoxSize(self))
         # Read output file (4 column tabular file)
         outputCRYOLOCoords = self._getTmpPath("EMAN")
 
         # Calculate if flip is needed
-        flip, y = getFlippingParams(mic.getFileName())
+        flip, y = convert.getFlippingParams(mic.getFileName())
 
         # For each box file
         for boxFile in os.listdir(outputCRYOLOCoords):
@@ -238,11 +224,11 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
                                                flipOnY=flip, imgHeight=y)
 
         # Move mics and box files
-        path.moveTree(self._getTmpPath(), self._getExtraPath())
-        path.makePath(self._getTmpPath())
+        pwutils.moveTree(self._getTmpPath(), self._getExtraPath())
+        pwutils.makePath(self._getTmpPath())
 
-
-    def _coordinatesFileToScipion(self, coordSet, coordFile, micMap, flipOnY=False, imgHeight=None ):
+    def _coordinatesFileToScipion(self, coordSet, coordFile, micMap,
+                                  flipOnY=False, imgHeight=None):
 
         with open(coordFile, 'r') as f:
             # Configure csv reader
@@ -253,17 +239,17 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
             for x,y,xBox,ybox in reader:
 
                 # Create a scipion coordinate item
-                offset = int(getBoxSize(self)/2)
+                offset = int(convert.getBoxSize(self)/2)
 
                 # USE the flip and imageHeight!! To flip or not to flip!
                 sciX = int(float(x)) + offset
                 sciY = int(float(y)) + offset
 
-                if flipOnY == True:
+                if flipOnY:
                     sciY = imgHeight - sciY
 
                 coordinate = Coordinate(x=sciX, y=sciY)
-                micBaseName = removeBaseExt(coordFile)
+                micBaseName = pwutils.removeBaseExt(coordFile)
                 micId, micName = micMap[micBaseName]
                 coordinate.setMicId(micId)
                 coordinate.setMicName(micName)
@@ -272,42 +258,46 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
 
     def createOutputStep(self):
         pass
+
     # --------------------------- INFO functions -------------------------------
     def _summary(self):
         summary = []
 
-        if self.useGenMod == True:
-            summary.append("Coordinates were picked by the general model: %s \
-             \n" % (Plugin.getVar(CRYOLO_GENMOD_VAR)))
+        if self.useGenMod:
+            summary.append("Coordinates were picked by the general model: "
+                           "%s \n" % (Plugin.getVar(CRYOLO_GENMOD_VAR)))
         else:
-            summary.append("Coordinates were picked by the trained model: %s \
-             \n" % (self.sphireTraining.get().getModel()))
-
+            summary.append("Coordinates were picked by the trained model: "
+                           "%s \n" % (self.sphireTraining.get().getModel()))
         return summary
 
     def _validate(self):
         validateMsgs = []
 
-        if self.useGenMod == True:
+        if self.useGenMod:
             if Plugin.getVar(CRYOLO_GENMOD_VAR) == '':
                 validateMsgs.append(
-                              "The general model for cryolo must be "
-                              "download from Sphire website and "
-                              "~/.config/scipion/scipion.conf must contain "
-                              "the '%s' parameter pointing to "
-                              "the downloaded file." % CRYOLO_GENMOD_VAR)
+                    "The general model for cryolo must be download from Sphire "
+                    "website and ~/.config/scipion/scipion.conf must contain "
+                    "the '%s' parameter pointing to the downloaded file."
+                    % CRYOLO_GENMOD_VAR)
             elif not os.path.isfile(Plugin.getVar(CRYOLO_GENMOD_VAR)):
-                validateMsgs.append("General model not found at '%s' and "
-                              "needed when you would like to use the general"
-                              " network (i.e.: non-training mode). "
-                              "Please check the path in "
-                              "the ~/.config/scipion/scipion.conf.\n"
-                              "You can download the file from "
-                              "the Sphire website."
-                              % Plugin.getVar(CRYOLO_GENMOD_VAR))
+                validateMsgs.append(
+                    "General model not found at '%s' and needed when you would "
+                    "like to use the general network (i.e.: non-training mode). "
+                    "Please check the path in the ~/.config/scipion/scipion.conf.\n"
+                    "You can download the file from the Sphire website."
+                    % Plugin.getVar(CRYOLO_GENMOD_VAR))
         return validateMsgs
 
+    # -------------------------- UTILS functions ------------------------------
+    def getInputModel(self):
+        if self.useGenMod:
+            m = Plugin.getVar(CRYOLO_GENMOD_VAR)
+        else:
+            m = self.particlePickingRun.getModel()
 
+        return os.path.abspath(m) if m else ''
 
 
 

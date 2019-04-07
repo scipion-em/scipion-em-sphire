@@ -27,9 +27,12 @@
 """
 This package contains the protocols and data for crYOLO
 """
-import os, subprocess
+import os
+import subprocess
+
 import pyworkflow.em
-from pyworkflow.utils import Environ
+import pyworkflow.utils as pwutils
+
 from sphire.constants import CRYOLO_GENMOD_VAR, CRYOLO_ENV_ACTIVATION
 
 _logo = "sphire_logo.png"
@@ -37,7 +40,8 @@ _sphirePluginDir = os.path.dirname(os.path.abspath(__file__))
 
 
 class Plugin(pyworkflow.em.Plugin):
-    _cryoloEnvFound = None
+    _cryoloVersion = None  # Means not detected yet
+    _cryoloVersionSupported = None
 
     @classmethod
     def _defineVariables(cls):
@@ -47,65 +51,54 @@ class Plugin(pyworkflow.em.Plugin):
 
     @classmethod
     def getCryoloEnvActivation(cls):
-        # All variables in PACKAGES have scipion path prepended.
-        var = cls.getVar(CRYOLO_ENV_ACTIVATION)
-        return var[var.rfind("/")+1:]
+        return cls.getVar(CRYOLO_ENV_ACTIVATION)
 
     @classmethod
     def getEnviron(cls):
         """ Setup the environment variables needed to launch sphire. """
-        environ = Environ(os.environ)
-        #environ.update({'PATH': os.path.join(cls.getHome(), 'bin'),
-        #                 }, position=Environ.BEGIN)
+        environ = pwutils.Environ(os.environ)
         if 'PYTHONPATH' in environ:
             # this is required for python virtual env to work
             del environ['PYTHONPATH']
-
         return environ
 
     @classmethod
     def validateInstallation(cls):
         """
-        Check if the binaries are properly installed and if not, return
-        a list with the error messages.
-
-        The default implementation will check if the _pathVars exists.
+        Check we can activate the crYOLO environment using the provided
+        command via variable CRYOLO_ENV_ACTIVATION and the version can be
+        parsed.
         """
+        errors = []
+        cls.__parseCryoloVersion()
 
-        missing = []
+        if cls._cryoloVersion is None:
+            errors.append("crYOLO environment could not be activated.\n"
+                          "or the version could not be parsed. \n"
+                          "Using %s=%s" % (CRYOLO_ENV_ACTIVATION,
+                                           cls.getCryoloEnvActivation()))
+        elif not cls._cryoloVersionSupported:
+            errors.append("crYOLO version %s unsupported" % cls._cryoloVersion)
 
-        envFound, version, versionSupported = cls._checkCryoloInstallation()
-
-        if not envFound:
-            missing.append("crYOLO environment (%s) could not be activated." % cls.getCryoloEnvActivation())
-
-
-        if not versionSupported:
-            missing.append("crYOLO version %s unsupported" % version)
-
-        return missing
+        return errors
 
     @classmethod
-    def _checkCryoloInstallation(cls):
-
-        if cls._cryoloEnvFound is None:
-           try:
+    def __parseCryoloVersion(cls):
+        # If the version has not been detected, try to load the environment
+        if cls._cryoloVersionSupported is None:
+            try:
                 # check if is crYOLO is installed or not
-                cmd = "%s && pip list | grep 'cryolo\s'" % cls.getCryoloEnvActivation()
-                p = subprocess.Popen(["bash", "-c", cmd],
-                                 stdin=subprocess.PIPE, stdout=subprocess.PIPE)
-
+                cmd = cls.getCryoloEnvActivation()
+                cmd += '; pip list | grep cryolo'
+                p = subprocess.Popen(["bash", "-c", cmd], env=cls.getEnviron(),
+                                     stdin=subprocess.PIPE, stdout=subprocess.PIPE)
                 output, err = p.communicate()
                 cls._cryoloVersion = output.split()[1]
-                cls._cryoloEnvFound = True
                 from pkg_resources import parse_version
                 cls._cryoloVersionSupported = parse_version(cls._cryoloVersion) >= parse_version("1.2")
-
-           except Exception as e:
-                cls._cryoloEnvFound = False
-                cls._cryoloVersion = "0.0.0"
+            except Exception as e:
+                cls._cryoloVersion = None
                 cls._cryoloVersionSupported = False
 
-        return cls._cryoloEnvFound, cls._cryoloVersion, cls._cryoloVersionSupported
 
 pyworkflow.em.Domain.registerPlugin(__name__)

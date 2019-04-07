@@ -29,6 +29,7 @@ import os
 from pyworkflow.em import ImageHandler
 from pyworkflow.em.convert import Ccp4Header
 from pyworkflow.utils import replaceExt, join, getExt, path
+
 from sphire import Plugin
 
 
@@ -61,6 +62,7 @@ def coordinateToBox(coord, boxSize, flipOnY=False, height=None):
         yCoord = height - (coord.getY() + halfBox)
 
     return xCoord, yCoord, boxSize, boxSize
+
 
 def writeSetOfCoordinates(boxDir, coordSet, micsDir):
     """ Convert a SetOfCoordinates to Cryolo box files.
@@ -111,7 +113,7 @@ def needToFlipOnY(filename):
 
     # Get the extension.
     ext = getExt(filename)
-    accepted_ext = [".tif",".tiff",".jpg"]
+    accepted_ext = [".tif", ".tiff", ".jpg"]
     if ext in ".mrc":
 
         header = Ccp4Header(filename, readHeader=True)
@@ -165,7 +167,6 @@ def createMic(mic, micDir):
 
 
 # --------------------------- UTILS functions -------------------------------
-
 def preparingCondaProgram(prot, program, params='', label=''):
     with open(prot._getExtraPath('script_%s.sh' % label), "w") as f:
         lines = '%s\n' % Plugin.getCryoloEnvActivation()

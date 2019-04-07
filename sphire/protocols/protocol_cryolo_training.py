@@ -36,6 +36,7 @@ from sphire.convert import writeSetOfCoordinates, getFlippingParams,\
 
 MODEL = "model.h5"
 
+
 class SphireProtCRYOLOTraining(ProtParticlePicking):
     """ Picks particles in a set of micrographs
     either manually or in a supervised mode.
@@ -45,7 +46,7 @@ class SphireProtCRYOLOTraining(ProtParticlePicking):
     def __init__(self, **args):
         ProtParticlePicking.__init__(self, **args)
 
-    #--------------------------- DEFINE param functions ------------------------
+    # -------------------------- DEFINE param functions ------------------------
     def _defineParams(self, form):
         ProtParticlePicking._defineParams(self, form)
         form.addParam('inputCoordinates', params.PointerParam,
@@ -131,17 +132,12 @@ class SphireProtCRYOLOTraining(ProtParticlePicking):
 
         self._defineStreamingParams(form)
 
-
     # --------------------------- INSERT steps functions ------------------------
     def _insertAllSteps(self):
         self._insertFunctionStep("convertTrainCoordsStep")
-
         self._insertFunctionStep("createConfigurationFileStep")
-
         self._insertFunctionStep("warmUpTheNetwork")
-
         self._insertFunctionStep("cryoloModelingStep")
-
 
     # --------------------------- STEPS functions ------------------------------
     def convertTrainCoordsStep(self):
