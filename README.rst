@@ -43,13 +43,16 @@ OR
 
   - through the plugin manager GUI by launching Scipion and following **Configuration** >> **Plugins**
 OR 
+
 .. code-block::
    scipion python -m pip install scipion-em-sphire
 
 If you are developing the plugin, other useful options are:
+
 .. code-block::
     scipion installp -p local/path/to/scipion-em-sphire --devel
 OR
+
 .. code-block::
    git clone git@github.com:scipion-em/scipion-em-sphire
    export PYTHONPATH=$PYTHONPATH:$PWD/scipion-em-sphire
@@ -58,5 +61,6 @@ OR
 Running crYOLO tests
 -----------------------------
 To check that everything is properly installed and configured, you might want to run some tests:
+
 .. code-block::
    scipion test --grep cryolo --run
