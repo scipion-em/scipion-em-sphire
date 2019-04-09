@@ -20,6 +20,7 @@ crYOLO installation
 The installation should be pretty easy if you have already a conda installation.
 
 .. code-block::
+
    conda create -n cryolo -c anaconda python=3.6 pyqt=5 cudnn=7.1.2 numpy==1.14.5
    pip install cryolo-X.Y.Z.tar.gz 
    pip install cryoloBM-X.Y.Z.tar.gz
