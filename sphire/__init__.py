@@ -54,6 +54,10 @@ class Plugin(pyworkflow.em.Plugin):
         return cls.getVar(CRYOLO_ENV_ACTIVATION)
 
     @classmethod
+    def getCryoloGeneralModel(cls):
+        return os.path.abspath(cls.getVar(CRYOLO_GENMOD_VAR))
+
+    @classmethod
     def getEnviron(cls):
         """ Setup the environment variables needed to launch sphire. """
         environ = pwutils.Environ(os.environ)
@@ -99,6 +103,12 @@ class Plugin(pyworkflow.em.Plugin):
             except Exception as e:
                 cls._cryoloVersion = None
                 cls._cryoloVersionSupported = False
+
+    @classmethod
+    def runCryolo(cls, protocol, program, args, cwd=None):
+        """ Run crYOLO command from a given protocol. """
+        fullProgram = '%s; %s' % (cls.getCryoloEnvActivation(), program)
+        protocol.runJob(fullProgram, args, env=cls.getEnviron(), cwd=cwd)
 
 
 pyworkflow.em.Domain.registerPlugin(__name__)
