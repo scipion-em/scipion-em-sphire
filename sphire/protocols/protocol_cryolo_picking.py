@@ -70,14 +70,12 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
                       pointerClass='SphireProtCRYOLOTraining',
                       help='Select the previous cryolo training run.')
         form.addParam('conservPickVar', params.FloatParam, default=0.3,
-                      expertLevel=cons.LEVEL_ADVANCED,
                       label="Confidence threshold",
                       help='If you want to pick less conservatively or more '
                            'conservatively you might want to change the threshold '
                            'from the default of 0.3 to a less conservative value '
                            'like 0.2 or more conservative value like 0.4.')
         form.addParam('lowPassFilter', params.BooleanParam,
-                      expertLevel=cons.LEVEL_ADVANCED,
                       default=False,
                       label="Low-pass filter",
                       help="CrYOLO works on original micrographs but the "
@@ -131,12 +129,12 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
     # --------------------------- INSERT steps functions -----------------------
     def _insertInitialSteps(self):
         self.particlePickingRun = self.sphireTraining.get()
-        self._insertFunctionStep("createConfigurationFileStep")
+        self._insertFunctionStep("createConfigStep")
 
     # --------------------------- STEPS functions ------------------------------
-    def createConfigurationFileStep(self):
+    def createConfigStep(self):
         inputSize = self.input_size.get()
-        boxSize = convert.getBoxSize(self)
+        boxSize = self.boxSize.get()
         maxBoxPerImage = self.max_box_per_image.get()
         numPatches = self.num_patches.get()
         absCutOfffreq = self.absCutOffFreq.get()
@@ -151,110 +149,60 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
 
         if self.lowPassFilter:
             model.update({"filter": [absCutOfffreq, "filtered"]})
-            filteredDir = self._getExtraPath("filtered")
-            pwutils.makePath('filteredDir')
 
         jsonDict = {"model": model}
 
         with open(self._getExtraPath('config.json'), 'w') as fp:
             json.dump(jsonDict, fp, indent=4)
 
+        # Create a temporary folder to store all coordinates files
+        outDir = self.getOutputDir()
+        pwutils.cleanPath(outDir)
+        pwutils.makePath(outDir)
+
     def _pickMicrograph(self, micrograph, *args):
         """This function picks from a given micrograph"""
         self._pickMicrographList([micrograph], args)
 
     def _pickMicrographList(self, micList, *args):
-        MIC_FOLDER = 'mics'
-        mics = self._getTmpPath()
+        workingDir = self._getTmpPath(self.getMicsWorkingDir(micList))
+        pwutils.cleanPath(workingDir)
+        pwutils.makePath(workingDir)
 
         # Create folder with linked mics
-        for micrograph in micList:
-            convert.createMic(micrograph, mics)
+        convert.convertMicrographs(micList, workingDir)
 
-        # clear the mrc files
-        dirName = self._getExtraPath()
-        test = os.listdir(dirName)
-        for item in test:
-            if item.endswith(".mrc"):
-                os.remove(os.path.join(dirName, item))
+        args = "-c %s " % self._getExtraPath('config.json')
+        args += " -w %s " % self.getInputModel()
+        args += " -i %s/" % workingDir
+        args += " -o %s/" % workingDir
+        args += " -t %0.3f" % self.conservPickVar
+        args += " -g %(GPU)s "  # Add GPU that will be set by the executor
+        if self.lowPassFilter:
+            args += ' --otf'
 
-        gParam = (' '.join(str(g) for g in self.getGpuList()))
-        params = "-c %s " % self._getExtraPath('config.json')
-        params += " -w %s -g %s" % (self.getInputModel(), gParam)
-        params += " -i %s/" % mics
-        params += " -o %s/" % mics
-        params += " -t %0.3f" % self.conservPickVar
+        Plugin.runCryolo(self, 'cryolo_predict.py', args)
 
-        program2 = 'cryolo_predict.py'
-        label = 'predict'
-        convert.preparingCondaProgram(self, program2, params, label)
-        shellName = os.environ.get('SHELL')
-        self.info("**Running:** %s %s" % (program2, params))
-        self.runJob('%s %s/script_%s.sh'
-                    % (shellName, self._getExtraPath(), label), '',
-                    env=Plugin.getEnviron())
+        # Move output files to a common location
+        self.runJob('mv', '%s/* %s/' % (os.path.join(workingDir, 'EMAN'),
+                                        self.getOutputDir()))
+        pwutils.cleanPath(workingDir)
 
     def readCoordsFromMics(self, outputDir, micDoneList, outputCoords):
         """This method read coordinates from a given list of micrographs"""
-
-        # Evaluate if micDonelist is empty
-        if len(micDoneList) == 0:
-            return
-
-        # Create a map micname --> micId
-        micMap = {}
-        for mic in micDoneList:
-            key = pwutils.removeBaseExt(mic.getFileName())
-            micMap[key] = (mic.getObjId(), mic.getFileName())
-
-        outputCoords.setBoxSize(convert.getBoxSize(self))
-        # Read output file (4 column tabular file)
-        outputCRYOLOCoords = self._getTmpPath("EMAN")
-
+        outDir = self.getOutputDir()
+        boxSize = self.boxSize.get()
         # Calculate if flip is needed
-        flip, y = convert.getFlippingParams(mic.getFileName())
+        # JMRT: Let's assume that all mics have same dims, so we avoid
+        # to open the image file each time for checking this
+        yFlipHeight = convert.getFlipYHeight(micDoneList[0].getFileName())
 
-        # For each box file
-        for boxFile in os.listdir(outputCRYOLOCoords):
-            if '.box' in boxFile:
-                # Add coordinates file
-                self._coordinatesFileToScipion(outputCoords,
-                                               os.path.join(outputCRYOLOCoords,
-                                                            boxFile), micMap,
-                                               flipOnY=flip, imgHeight=y)
-
-        # Move mics and box files
-        pwutils.moveTree(self._getTmpPath(), self._getExtraPath())
-        pwutils.makePath(self._getTmpPath())
-
-    def _coordinatesFileToScipion(self, coordSet, coordFile, micMap,
-                                  flipOnY=False, imgHeight=None):
-
-        with open(coordFile, 'r') as f:
-            # Configure csv reader
-            reader = csv.reader(f, delimiter='\t')
-
-            # (width, height, foo) = self.inputMicrographs.get().getDim()
-
-            for x,y,xBox,ybox in reader:
-
-                # Create a scipion coordinate item
-                offset = int(convert.getBoxSize(self)/2)
-
-                # USE the flip and imageHeight!! To flip or not to flip!
-                sciX = int(float(x)) + offset
-                sciY = int(float(y)) + offset
-
-                if flipOnY:
-                    sciY = imgHeight - sciY
-
-                coordinate = Coordinate(x=sciX, y=sciY)
-                micBaseName = pwutils.removeBaseExt(coordFile)
-                micId, micName = micMap[micBaseName]
-                coordinate.setMicId(micId)
-                coordinate.setMicName(micName)
-                # Add it to the set
-                coordSet.append(coordinate)
+        for mic in micDoneList:
+            coordsFile = os.path.join(outDir, convert.getMicIdName(mic, '.box'))
+            if os.path.exists(coordsFile):
+                convert.readMicrographCoords(mic, outputCoords, coordsFile, boxSize,
+                                             yFlipHeight=yFlipHeight)
+        outputCoords.setBoxSize(boxSize)
 
     def createOutputStep(self):
         pass
@@ -268,7 +216,7 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
                            "%s \n" % (Plugin.getVar(CRYOLO_GENMOD_VAR)))
         else:
             summary.append("Coordinates were picked by the trained model: "
-                           "%s \n" % (self.sphireTraining.get().getModel()))
+                           "%s \n" % (self.sphireTraining.get().getOutputModel()))
         return summary
 
     def _validate(self):
@@ -295,10 +243,18 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
         if self.useGenMod:
             m = Plugin.getVar(CRYOLO_GENMOD_VAR)
         else:
-            m = self.particlePickingRun.getModel()
+            m = self.particlePickingRun.getOutputModel()
 
         return os.path.abspath(m) if m else ''
 
+    def getOutputDir(self):
+        return self._getTmpPath('outputEMAN')
+
+    def getMicsWorkingDir(self, micList):
+        wd = 'micrographs_%s' % micList[0].strId()
+        if len(micList) > 1:
+            wd += '-%s' % micList[-1].strId()
+        return wd
 
 
 
