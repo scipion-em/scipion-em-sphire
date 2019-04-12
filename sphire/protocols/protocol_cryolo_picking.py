@@ -48,6 +48,7 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
 
     def __init__(self, **args):
         ProtParticlePickingAuto.__init__(self, **args)
+        self.stepsExecutionMode = cons.STEPS_PARALLEL
 
     # --------------------------- DEFINE param functions ------------------------
     def _defineParams(self, form):
@@ -129,7 +130,7 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
     # --------------------------- INSERT steps functions -----------------------
     def _insertInitialSteps(self):
         self.particlePickingRun = self.sphireTraining.get()
-        self._insertFunctionStep("createConfigStep")
+        return [self._insertFunctionStep("createConfigStep")]
 
     # --------------------------- STEPS functions ------------------------------
     def createConfigStep(self):
@@ -184,8 +185,10 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
         Plugin.runCryolo(self, 'cryolo_predict.py', args)
 
         # Move output files to a common location
-        self.runJob('mv', '%s/* %s/' % (os.path.join(workingDir, 'EMAN'),
-                                        self.getOutputDir()))
+        outputCoordsDir = os.path.join(workingDir, 'EMAN')
+        if os.path.exists(outputCoordsDir):
+            self.runJob('mv', '%s/* %s/'
+                        % (outputCoordsDir, self.getOutputDir()))
         pwutils.cleanPath(workingDir)
 
     def readCoordsFromMics(self, outputDir, micDoneList, outputCoords):
