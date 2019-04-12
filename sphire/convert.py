@@ -100,20 +100,26 @@ class CoordBoxReader:
             self._file.close()
 
 
-def writeSetOfCoordinates(boxDir, coordSet):
+def writeSetOfCoordinates(boxDir, coordSet, micList=None):
     """ Convert a SetOfCoordinates to Cryolo box files.
     Params:
         boxDir: the output directory where to generate the files.
         coordSet: the input SetOfCoordinates that will be converted.
+        micList: if not None, only coordinates from this micrographs
+            will be written.
     """
     # Get the SOM (SetOfMicrographs)
     micSet = coordSet.getMicrographs()
+    micIdSet = micSet.getIdSet() if micList is None else set(m.getObjId()
+                                                             for m in micList)
+
     # Get first mic from mics
     mic = micSet.getFirstItem()
     # Get fileName from mic
     writer = CoordBoxWriter(coordSet.getBoxSize(),
                             getFlipYHeight(mic.getFileName()))
     lastMicId = None
+    doWrite = True
 
     # Loop through coordinates and generate box files
     for coord in coordSet.iterItems(orderBy='_micId'):
@@ -121,11 +127,14 @@ def writeSetOfCoordinates(boxDir, coordSet):
         mic = micSet[micId]
 
         if micId != lastMicId:
-            # we need to close previous opened file
-            writer.open(os.path.join(boxDir, getMicIdName(mic, '.box')))
+            doWrite = micId in micIdSet
+            if doWrite:
+                # we need to close previous opened file
+                writer.open(os.path.join(boxDir, getMicIdName(mic, '.box')))
             lastMicId = micId
 
-        writer.writeCoord(coord)
+        if doWrite:
+            writer.writeCoord(coord)
 
     writer.close()
 

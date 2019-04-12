@@ -168,8 +168,9 @@ class SphireProtCRYOLOTraining(ProtParticlePicking):
             pwutils.makePath(paths[-1])
 
         # call the write set of Coordinates passing the createMic function
-        convert.writeSetOfCoordinates(paths[0], coordSet)
-        convert.convertMicrographs([mic.clone() for mic in inputMics], paths[1])
+        micList = [mic.clone() for mic in inputMics]
+        convert.writeSetOfCoordinates(paths[0], coordSet, micList)
+        convert.convertMicrographs(micList, paths[1])
 
     def createConfigStep(self):
         inputSize = self.input_size.get()
