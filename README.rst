@@ -30,6 +30,7 @@ Scipion crYOLO Configuration
 Then, we need to define some environment variables to specify how to load the cryolo environment and where is the general model. We can define the variables in the .bashrc file or in ~/.config/scipion/scipion.conf:
 
 .. code-block::
+
     CRYOLO_ENV_ACTIVATION = '. /path/to/anaconda/etc/profile.d/conda.sh; conda activate cryolo'
     CRYOLO_GENERIC_MODEL = path/to/the/downloaded/General_PhosaursNet_model
 
@@ -43,7 +44,8 @@ Install Scipion crYOLO Plugin
 OR
 
   - through the plugin manager GUI by launching Scipion and following **Configuration** >> **Plugins**
-OR 
+
+OR
 
 .. code-block::
 
@@ -54,6 +56,7 @@ If you are developing the plugin, other useful options are:
 .. code-block::
 
     scipion installp -p local/path/to/scipion-em-sphire --devel
+
 OR
 
 .. code-block::
