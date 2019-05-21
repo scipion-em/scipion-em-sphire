@@ -28,3 +28,6 @@
 # we declarate global constants to multiple usage
 CRYOLO_GENMOD_VAR = 'CRYOLO_GENERIC_MODEL'
 CRYOLO_ENV_ACTIVATION = 'CRYOLO_ENV_ACTIVATION'
+
+# crYOLO supported input formats for micrographs
+CRYOLO_SUPPORTED_FORMATS = [".mrc", ".tif", ".tiff", ".jpg"]

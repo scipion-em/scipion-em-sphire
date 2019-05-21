@@ -24,158 +24,179 @@
 # *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
+
 import os
+import csv
 
-from pyworkflow.em import ImageHandler
+import pyworkflow.em as pwem
+import pyworkflow.utils as pwutils
 from pyworkflow.em.convert import Ccp4Header
-from pyworkflow.utils import replaceExt, join, getExt, path
-from sphire import Plugin
+
+import sphire.constants as constants
 
 
-def coordinateToRow(coord, boxSize, boxFile, flipOnY=False, height=None):
-    """ Add a scipion coordinate to a box file  """
+class CoordBoxWriter:
+    """ Helper class to write a .BOX file for cryolo. """
+    def __init__(self, boxSize, yFlipHeight=None):
+        """
+        :param boxSize: The box size of the coordinates that will be written
+        :param yFlipHeight: if not None, the y coordinates will be flipped
+        """
+        self._file = None
+        self._boxSize = boxSize
+        self._halfBox = int(boxSize / 2)
+        self._yFlipHeight = yFlipHeight
 
-    # (width, height, foo) = self.inputMicrographs.get().getDim() #get height for flipping on y
-    boxLine = coordinateToBox(coord, boxSize, flipOnY=flipOnY, height=height)
-    boxFile.write("%s\t%s\t%s\t%s\n" % boxLine)
+    def open(self, filename):
+        """ Open a new filename to write, close previous one if open. """
+        self.close()
+        self._file = open(filename, 'w')
+
+    def writeCoord(self, coord):
+        x = coord.getX() - self._halfBox
+        if self._yFlipHeight is None:
+            y = coord.getY() - self._halfBox
+        else:
+            y = self._yFlipHeight - coord.getY() - self._halfBox
+        self._file.write("%s\t%s\t%s\t%s\n" % (x, y, self._boxSize, self._boxSize))
+
+    def close(self):
+        if self._file:
+            self._file.close()
 
 
-def coordinateToBox(coord, boxSize, flipOnY=False, height=None):
-    """ Plain conversion of Scipion coordinate to the 4 tuple values
-    for the box line"""
+class CoordBoxReader:
+    """ Helper class to read coordinates from .BOX files. """
+    def __init__(self, boxSize, yFlipHeight=None):
+        """
+        :param boxSize: The box size of the coordinates that will be read
+        :param yFlipHeight: if not None, the y coordinates will be flipped
+        """
+        self._file = None
+        self._boxSize = boxSize
+        self._halfBox = int(boxSize / 2)
+        self._yFlipHeight = yFlipHeight
 
-    # Sphire 0,0 is at bottom-left. But also image are flip vertically
-    # Xmipp coordinates origin is defined in the middle. This correction should
-    # Also, coordinate x and y refers to bottom, left of the box
-    halfBox = int(boxSize/2)
-    xCoord = coord.getX() - halfBox
-    yCoord = coord.getY() - halfBox
+    def open(self, filename):
+        """ Open a new filename to write, close previous one if open. """
+        self.close()
+        self._file = open(filename, 'r')
 
-    # Under some circumstances in ".mrc" (xmipp setting ISPG value to 1),
-    # cryolo does not flip the image, so we need to flip the coordinate.
-    # This flips the image.
-    if flipOnY:
-        if height is None:
-            raise ValueError("height param is mandatory when flipOnY is True")
+    def iterCoords(self):
+        reader = csv.reader(self._file, delimiter='\t')
 
-        yCoord = height - (coord.getY() + halfBox)
+        for x, y, _, _ in reader:
+            # USE the imageHeight to flip or not to flip!
+            sciX = int(float(x)) + self._halfBox
+            sciY = int(float(y)) + self._halfBox
 
-    return xCoord, yCoord, boxSize, boxSize
+            if self._yFlipHeight is not None:
+                sciY = self._yFlipHeight - sciY
 
-def writeSetOfCoordinates(boxDir, coordSet, micsDir):
+            yield sciX, sciY
+
+    def close(self):
+        if self._file:
+            self._file.close()
+
+
+def writeSetOfCoordinates(boxDir, coordSet, micList=None):
     """ Convert a SetOfCoordinates to Cryolo box files.
     Params:
         boxDir: the output directory where to generate the files.
         coordSet: the input SetOfCoordinates that will be converted.
+        micList: if not None, only coordinates from this micrographs
+            will be written.
     """
-    openedBoxFileName = None
-    boxfh = None
-
     # Get the SOM (SetOfMicrographs)
-    micList = coordSet.getMicrographs()
+    micSet = coordSet.getMicrographs()
+    micIdSet = micSet.getIdSet() if micList is None else set(m.getObjId()
+                                                             for m in micList)
 
     # Get first mic from mics
-    mic = micList.getFirstItem()
-
+    mic = micSet.getFirstItem()
     # Get fileName from mic
-    fileName = mic.getFileName()
-
-    fliponY, y = getFlippingParams(fileName)
+    writer = CoordBoxWriter(coordSet.getBoxSize(),
+                            getFlipYHeight(mic.getFileName()))
+    lastMicId = None
+    doWrite = True
 
     # Loop through coordinates and generate box files
-    for item in coordSet:
-        # Define file name (box)
-        micName = item.getMicName()
-        boxFileName = join(boxDir, replaceExt(micName, "box"))
+    for coord in coordSet.iterItems(orderBy='_micId'):
+        micId = coord.getMicId()
+        mic = micSet[micId]
 
-        # If opened box file is not the same
-        if boxFileName != openedBoxFileName:
-            #close the previous file handler
-            if openedBoxFileName is not None:
-                boxfh.close()
-            boxfh = open(boxFileName, 'a+')
+        if micId != lastMicId:
+            doWrite = micId in micIdSet
+            if doWrite:
+                # we need to close previous opened file
+                writer.open(os.path.join(boxDir, getMicIdName(mic, '.box')))
+            lastMicId = micId
 
-            # convert micrograph if needed
-            mic = micList[item.getMicId()]
-            createMic(mic, micsDir)
+        if doWrite:
+            writer.writeCoord(coord)
 
-        # Write the coordinate
-        coordinateToRow(item, coordSet.getBoxSize(), boxfh, flipOnY=fliponY, height=y)
+    writer.close()
 
-    if openedBoxFileName is not None:
-        boxfh.close()
+
+def readMicrographCoords(mic, coordSet, coordsFile, boxSize, yFlipHeight=None):
+    reader = CoordBoxReader(boxSize, yFlipHeight=yFlipHeight)
+    reader.open(coordsFile)
+
+    coord = pwem.Coordinate()
+
+    for x, y in reader.iterCoords():
+        # Clean up objId to add as a new coordinate
+        coord.setObjId(None)
+        coord.setPosition(x, y)
+        coord.setMicrograph(mic)
+        # Add it to the set
+        coordSet.append(coord)
+
+    reader.close()
 
 
 def needToFlipOnY(filename):
     """ Returns true if need to flip coordinates on Y"""
+    ext = pwutils.getExt(filename)
 
-    # Get the extension.
-    ext = getExt(filename)
-    accepted_ext = [".tif",".tiff",".jpg"]
     if ext in ".mrc":
-
         header = Ccp4Header(filename, readHeader=True)
+        return header.getISPG() != 0  # ISPG 1, cryolo will not flip the image
 
-        # 1, cryolo will not flip the image
-        ispg = header.getISPG()
+    return ext in constants.CRYOLO_SUPPORTED_FORMATS
 
-        return ispg != 0
 
-    elif ext in accepted_ext:
-        return True           # These micrograph coordinates are need to be flipped
+def getFlipYHeight(filename):
+    """ Return y-Height if flipping is needed, None otherwise """
+    x, y, z, n = pwem.ImageHandler().getDimensions(filename)
+    return y if needToFlipOnY(filename) else None
 
+
+def convertMicrographs(micList, micDir):
+    """ Convert (or simply link) input micrographs into the given directory
+    in a format that is compatible with crYOLO.
+    """
+    ih = pwem.ImageHandler()
+    ext = pwutils.getExt(micList[0].getFileName())
+
+    def _convert(mic, newName):
+        ih.convert(mic, os.path.join(micDir, newName))
+
+    def _link(mic, newName):
+        pwutils.createAbsLink(os.path.abspath(mic.getFileName()),
+                              os.path.join(micDir, newName))
+
+    if ext in constants.CRYOLO_SUPPORTED_FORMATS:
+        func = _link
     else:
-        return False
+        func = _convert
+        ext = '.mrc'
+
+    for mic in micList:
+        func(mic, getMicIdName(mic, suffix=ext))
 
 
-def getFlippingParams(filename):
-    """ Returns params that are needed for flipping """
-
-    flipOnY = needToFlipOnY(filename)
-    x, y, z, n = ImageHandler().getDimensions(filename)
-    return flipOnY, y
-
-
-def createMic(mic, micDir):
-    """ Return a valid micrograph for CRYOLO:
-     If compatible, it will be a link in  micDir
-     otherwise it will be a converted micrograph to mrc."""
-
-    path.makePath(micDir)
-
-    # we only copy the micrographs once
-    fileName = mic.getFileName()
-    extensionFn = getExt(fileName)
-    accepted_fformats = [".mrc", ".tif", ".jpg"]
-    if extensionFn not in accepted_fformats:
-        fileName1 = replaceExt(fileName, "mrc")
-        basename = os.path.basename(fileName1)
-        dest = os.path.abspath(os.path.join(micDir, basename))
-        ih = ImageHandler()  # instantiate as an object
-        ih.convert(fileName, dest)
-
-    else:
-        # No conversion is needed
-        basename = os.path.basename(fileName)
-        source = os.path.abspath(fileName)
-        dest = os.path.abspath(join(micDir, basename))
-        path.createLink(source, dest)
-
-    return dest
-
-
-# --------------------------- UTILS functions -------------------------------
-
-def preparingCondaProgram(prot, program, params='', label=''):
-    with open(prot._getExtraPath('script_%s.sh' % label), "w") as f:
-        lines = '%s\n' % Plugin.getCryoloEnvActivation()
-        lines += 'export CUDA_VISIBLE_DEVICES=%s\n' % (' '.join(str(g) for g in prot.getGpuList()))
-        lines += '%s %s\n' % (program, params)
-        f.write(lines)
-
-
-def getBoxSize(prot):
-    # if self.bxSzFromCoor:
-    #     return self.coordsToBxSz.get().getBoxSize()
-    # else:
-    return prot.boxSize.get()
+def getMicIdName(mic, suffix=''):
+    """ Return a name for the micrograph based on its IDs. """
+    return 'mic%05d%s' % (mic.getObjId(), suffix)
