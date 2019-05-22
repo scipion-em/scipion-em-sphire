@@ -80,12 +80,12 @@ class SphireProtCRYOLOTraining(ProtParticlePicking):
                            "improve the results you can use the model from the "
                            "previous training step by answering no. The general"
                            " model can be found.")
-        form.addParam('sphireTraining', params.PointerParam,
-                      allowsNull=True,
-                      condition="doFineTune and not useGenMod",
-                      label="Cryolo training run",
-                      pointerClass='SphireProtCRYOLOTraining',
-                      help='Select the previous cryolo training run.')
+        # form.addParam('sphireTraining', params.PointerParam,
+        #               allowsNull=True,
+        #               condition="doFineTune and not useGenMod",
+        #               label="Cryolo training run",
+        #               pointerClass='SphireProtCRYOLOTraining',
+        #               help='Select the previous cryolo training run.')
 
         form.addParam('eFlagParam', params.IntParam, default=10,
                       expertLevel=cons.LEVEL_ADVANCED,
