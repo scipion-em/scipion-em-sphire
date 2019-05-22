@@ -251,7 +251,7 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
         return os.path.abspath(m) if m else ''
 
     def getOutputDir(self):
-        return self._getTmpPath('outputEMAN')
+        return self._getExtraPath('Boxfiles')
 
     def getMicsWorkingDir(self, micList):
         wd = 'micrographs_%s' % micList[0].strId()
