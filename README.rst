@@ -24,7 +24,7 @@ Then, we need to define some environment variables to specify how to load the cr
 
 .. code-block::
 
-    CRYOLO_ENV_ACTIVATION = '. /path/to/anaconda/etc/profile.d/conda.sh; conda activate cryolo'
+    CRYOLO_ENV_ACTIVATION = . /path/to/anaconda/etc/profile.d/conda.sh; conda activate cryolo
     CRYOLO_GENERIC_MODEL = path/to/the/downloaded/General_PhosaursNet_model
 
 Install Scipion crYOLO Plugin
