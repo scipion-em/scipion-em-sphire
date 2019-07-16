@@ -17,13 +17,6 @@ crYOLO installation
 
 - **If you want to use the generic model**, please download also the General PhosaursNet model. (latest at the time of writing: ftp://ftp.gwdg.de/pub/misc/sphire/crYOLO-GENERAL-MODELS/gmodel_phosnet_20190314.h5, but better to check the Sphire page for the latest one)
 
-The installation should be pretty easy if you have already a conda installation.
-
-.. code-block::
-
-   conda create -n cryolo -c anaconda python=3.6 pyqt=5 cudnn=7.1.2 numpy==1.14.5
-   pip install cryolo-X.Y.Z.tar.gz 
-   pip install cryoloBM-X.Y.Z.tar.gz
 
 Scipion crYOLO Configuration
 ----------------------------
@@ -31,7 +24,7 @@ Then, we need to define some environment variables to specify how to load the cr
 
 .. code-block::
 
-    CRYOLO_ENV_ACTIVATION = '. /path/to/anaconda/etc/profile.d/conda.sh; conda activate cryolo'
+    CRYOLO_ENV_ACTIVATION = . /path/to/anaconda/etc/profile.d/conda.sh; conda activate cryolo
     CRYOLO_GENERIC_MODEL = path/to/the/downloaded/General_PhosaursNet_model
 
 Install Scipion crYOLO Plugin
