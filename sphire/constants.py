@@ -25,9 +25,18 @@
 # *
 # **************************************************************************
 
-# we declarate global constants to multiple usage
-CRYOLO_GENMOD_VAR = 'CRYOLO_GENERIC_MODEL'
+# we declare global constants to multiple usage
+import os
+
+DEFAULT_ENV_NAME = "cryolo"
+DEFAULT_ACTIVATION_CMD = 'conda activate ' + DEFAULT_ENV_NAME
 CRYOLO_ENV_ACTIVATION = 'CRYOLO_ENV_ACTIVATION'
+CRYOLO_GENMOD_VAR = 'CRYOLO_GENERIC_MODEL'
+
+CRYOLO_GENMOD = 'cryolo_model'
+CRYOLO_GENMOD_20190516 = '20190516'
+CRYOLO_GENMOD_20190516_FN = "gmodel_phosnet_" + CRYOLO_GENMOD_20190516 +".h5"
+CRYOLO_GENMOD_DEFAULT = os.path.join(CRYOLO_GENMOD + "-" + CRYOLO_GENMOD_20190516, CRYOLO_GENMOD_20190516_FN)
 
 # crYOLO supported input formats for micrographs
 CRYOLO_SUPPORTED_FORMATS = [".mrc", ".tif", ".tiff", ".jpg"]
