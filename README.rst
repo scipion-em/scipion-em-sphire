@@ -70,3 +70,13 @@ To check that everything is properly installed and configured, you might want to
 .. code-block::
 
    scipion test --grep cryolo --run
+   
+   
+.. crYOLO: http://sphire.mpg.de/wiki/doku.php?id=downloads:cryolo_1&redirect=1
+
+.. _Scipion2: https://scipion-em.github.io/docs/docs/scipion-modes/how-to-install.html
+
+.. _install: https://scipion-em.github.io/docs/release-2.0.0/docs/scipion-modes/install-from-sources#step-4-installing-xmipp3-and-other-em-plugins
+
+.. _GitHub: https://scipion-em.github.io/docs/docs/scipion-modes/install-from-sources#from-github
+   
