@@ -39,28 +39,28 @@ For developers
 crYOLO integration
 -----------------
 
-The following steps presuppose that you have Anaconda or Miniconda installed on your computer.
-In ``~/.config/scipion/scipion.conf``: 
-Set CONDA_ACTIVATION_CMD variable in the Packages section.
-For example: ``CONDA_ACTIVATION_CMD = . ~/anaconda2/etc/profile.d/conda.sh``
-Notice the command starts with a period! This will source the conda.sh script.
-This is needed to activate the conda environment.
-For further information please visit the following website:
-https://github.com/conda/conda/blob/master/CHANGELOG.md#440-2017-12-20
-If you wish to install the plugin with the default settings just go to plugin manager and 
-install scipion-em-sphire.
-This will create the default environment named crYOLO and download version 1.4.0 for you.
-You are ready to use crYOLO.
-If you wish to change the environment name you can introduce CRYOLO_ENV_ACTIVATION variable in the 
-~/.config/scipion.conf variables section:
-For example: CRYOLO_ENV_ACTIVATION = conda activate yourdesiredname
-crYOLO general model is not installed by default. You may install it by expanding the plugin
-in the plugin manager and install it.
-This will install the general model to a default location: ~/Softwares/scipion/software/em/cryolo_model-20190516.
-If you wish to install the latest general model manually please vist the following website:
-http://sphire.mpg.de/wiki/doku.php?id=downloads:cryolo_1&redirect=1
-Download the general model and set CRYOLO_GENERIC_MODEL variable in the ~/.config/scipion.conf variables section:
-For example: CRYOLO_GENERIC_MODEL = /your/desired/location/generalmodelname.h5
+| The following steps presuppose that you have Anaconda or Miniconda installed on your computer.
+| In ``~/.config/scipion/scipion.conf``: 
+| Set CONDA_ACTIVATION_CMD variable in the Packages section.
+| For example: ``CONDA_ACTIVATION_CMD = . ~/anaconda2/etc/profile.d/conda.sh``
+| Notice the command starts with a period! This will source the conda.sh script.
+| This is needed to activate the conda environment.
+| For further information please visit the following website:
+| https://github.com/conda/conda/blob/master/CHANGELOG.md#440-2017-12-20
+| If you wish to install the plugin with the default settings just go to plugin manager and 
+| install scipion-em-sphire.
+| This will create the default environment named crYOLO and download version 1.4.0 for you.
+| You are ready to use crYOLO.
+| If you wish to change the environment name you can introduce CRYOLO_ENV_ACTIVATION variable in the 
+| ~/.config/scipion.conf variables section:
+| For example: CRYOLO_ENV_ACTIVATION = conda activate yourdesiredname
+| crYOLO general model is not installed by default. You may install it by expanding the plugin
+| in the plugin manager and install it.
+| This will install the general model to a default location: ~/Softwares/scipion/software/em/cryolo_model-20190516.
+| If you wish to install the latest general model manually please vist the following website:
+| http://sphire.mpg.de/wiki/doku.php?id=downloads:cryolo_1&redirect=1
+| Download the general model and set CRYOLO_GENERIC_MODEL variable in the ~/.config/scipion.conf variables section:
+| For example: CRYOLO_GENERIC_MODEL = /your/desired/location/generalmodelname.h5
 
 
 Running crYOLO tests
