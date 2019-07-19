@@ -74,7 +74,7 @@ class CoordBoxReader:
         """
         self._file = None
         self._boxSize = boxSize
-        self._halfBox = int(boxSize / 2)
+        self._halfBox = boxSize / 2.0
         self._yFlipHeight = yFlipHeight
 
     def open(self, filename):
@@ -87,8 +87,8 @@ class CoordBoxReader:
 
         for x, y, _, _ in reader:
             # USE the imageHeight to flip or not to flip!
-            sciX = int(float(x)) + self._halfBox
-            sciY = int(float(y)) + self._halfBox
+            sciX = round(float(x) + self._halfBox)
+            sciY = round(float(y) + self._halfBox)
 
             if self._yFlipHeight is not None:
                 sciY = self._yFlipHeight - sciY
@@ -200,3 +200,18 @@ def convertMicrographs(micList, micDir):
 def getMicIdName(mic, suffix=''):
     """ Return a name for the micrograph based on its IDs. """
     return 'mic%05d%s' % (mic.getObjId(), suffix)
+
+
+def roundInputSize(inputSize):
+    """ Returns the closest value to inputSize th is multiple of 32"""
+    rounded = roundTo(inputSize, 32)
+
+    if rounded != inputSize:
+        print ("Input size (%s) will be rounded to %s, the closest "
+               "multiple of 32." % (inputSize, rounded))
+    return rounded
+
+
+def roundTo(number, base=1.0):
+    """ Returns the closest int value to number that is multiple of base"""
+    return int(base * round(float(number) / base))
