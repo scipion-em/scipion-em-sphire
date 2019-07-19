@@ -72,7 +72,7 @@ To check that everything is properly installed and configured, you might want to
    scipion test --grep cryolo --run
    
    
-.. crYOLO: http://sphire.mpg.de/wiki/doku.php?id=downloads:cryolo_1&redirect=1
+.. _crYOLO: http://sphire.mpg.de/wiki/doku.php?id=downloads:cryolo_1&redirect=1
 
 .. _Scipion2: https://scipion-em.github.io/docs/docs/scipion-modes/how-to-install.html
 
