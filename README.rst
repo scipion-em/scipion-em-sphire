@@ -57,8 +57,7 @@ crYOLO integration
 | crYOLO general model is not installed by default. You may install it by expanding the plugin
 | in the plugin manager and install it.
 | This will install the general model to a default location: ~/Softwares/scipion/software/em/cryolo_model-20190516.
-| If you wish to install the latest general model manually please vist the following website:
-| http://sphire.mpg.de/wiki/doku.php?id=downloads:cryolo_1&redirect=1
+| If you wish to install the latest general model manually please visit `crYOLO`_ website:
 | Download the general model and set CRYOLO_GENERIC_MODEL variable in the ~/.config/scipion.conf variables section:
 | For example: CRYOLO_GENERIC_MODEL = /your/desired/location/generalmodelname.h5
 
