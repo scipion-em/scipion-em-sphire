@@ -49,7 +49,7 @@ crYOLO integration
 | https://github.com/conda/conda/blob/master/CHANGELOG.md#440-2017-12-20
 | If you wish to install the plugin with the default settings just go to plugin manager and 
 | install scipion-em-sphire.
-| This will create the default environment named crYOLO and download version 1.4.0 for you.
+| This will create the default environment named cryolo and download version 1.4.0 for you.
 | You are ready to use crYOLO.
 | If you wish to change the environment name you can introduce CRYOLO_ENV_ACTIVATION variable in the 
 | ~/.config/scipion.conf variables section:
