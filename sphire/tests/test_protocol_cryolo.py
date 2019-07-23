@@ -198,6 +198,21 @@ class TestSphireConvert(BaseTest):
         # test if image dimension is right
         self.assertEquals(y, 1024, "Y dimension of the micrograph is not correct.")
 
+    def testInputSizeRounding(self):
+
+        rounded = convert.roundInputSize(1000)
+
+        self.assertEqual(rounded, 992, "input size rounding to the lower is wrong.")
+
+        rounded = convert.roundInputSize(60)
+
+        self.assertEqual(rounded, 64,
+                         "input size rounding to the higher is wrong.")
+
+        rounded = convert.roundInputSize(320)
+
+        self.assertEqual(rounded, 320,
+                         "input size rounding to exact is wrong.")
 
 class TestCryolo(BaseTest):
     """ Test cryolo protocol"""

@@ -134,7 +134,7 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
 
     # --------------------------- STEPS functions ------------------------------
     def createConfigStep(self):
-        inputSize = self.input_size.get()
+        inputSize = convert.roundInputSize(self.input_size.get())
         boxSize = self.boxSize.get()
         maxBoxPerImage = self.max_box_per_image.get()
         numPatches = self.num_patches.get()
@@ -189,7 +189,7 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
         if os.path.exists(outputCoordsDir):
             self.runJob('mv', '%s/* %s/'
                         % (outputCoordsDir, self.getOutputDir()))
-        pwutils.cleanPath(workingDir)
+        # pwutils.cleanPath(workingDir)
 
     def readCoordsFromMics(self, outputDir, micDoneList, outputCoords):
         """This method read coordinates from a given list of micrographs"""

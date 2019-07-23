@@ -173,7 +173,7 @@ class SphireProtCRYOLOTraining(ProtParticlePicking):
         convert.convertMicrographs(micList, paths[1])
 
     def createConfigStep(self):
-        inputSize = self.input_size.get()
+        inputSize = convert.roundInputSize(self.input_size.get())
         boxSize = self.boxSize.get()
         maxBoxPerImage = self.max_box_per_image.get()
         absCutOfffreq = self.absCutOffFreq.get()
