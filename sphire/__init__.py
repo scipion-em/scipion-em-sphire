@@ -117,7 +117,7 @@ class Plugin(pyworkflow.em.Plugin):
             elif correctCondaActivationCmd[-1] != ";":
                 correctCondaActivationCmd += ";"
 
-            cls._condaActivationCmd = condaActivationCmd
+            cls._condaActivationCmd = correctCondaActivationCmd
 
         return cls._condaActivationCmd
 
