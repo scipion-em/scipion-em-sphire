@@ -129,7 +129,7 @@ class Plugin(pyworkflow.em.Plugin):
 
         envPath = os.environ.get('PATH', "")  # keep path since conda likely in there
         installEnvVars = {'PATH': envPath} if envPath else None
-        env.addPackage('cryolo', version='1.4.0',
+        env.addPackage('cryolo', version='1.5.3',
                        tar='void.tgz',
                        commands=cryolo_commands,
                        neededProgs=neededProgs,
@@ -152,19 +152,16 @@ class Plugin(pyworkflow.em.Plugin):
         installationCmd = cls.getCondaActivationCmd()
 
         # Create the environment
-        installationCmd += 'conda create -y -n %s -c anaconda python=3.6 pyqt=5 cudnn=7.1.2 cython;' % DEFAULT_ENV_NAME
+        installationCmd += 'conda create -y -n %s -c anaconda python=3.6 ' \
+                           'pyqt=5 cudnn=7.1.2 numpy==1.14.5 cython ' \
+                           'wxPython==4.0.4 intel-openmp==2019.4;' \
+                           % DEFAULT_ENV_NAME
 
         # Activate new the environment
         installationCmd += 'conda activate %s;' % DEFAULT_ENV_NAME
 
-        # Install numpy==1.15.4
-        installationCmd += 'pip install numpy==1.15.4;'
-
-        # Download cryolo code
-        installationCmd += 'wget ftp://ftp.gwdg.de/pub/misc/sphire/crYOLO_V1_4_0/cryolo-1.4.0.tar.gz;'
-
         # Install downloaded code
-        installationCmd += 'pip install cryolo-1.4.0.tar.gz[gpu];'
+        installationCmd += 'pip install cryolo[gpu];'
 
         # Flag installation finished
         installationCmd += 'touch %s' % CRYOLO_INSTALLED
