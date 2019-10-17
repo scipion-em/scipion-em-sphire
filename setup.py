@@ -45,7 +45,9 @@ setup(
     # This is a one-line description or tagline of what your project does. This
     # corresponds to the "Summary" metadata field:
     # https://packaging.python.org/specifications/core-metadata/#summary
-    description='Cryolo picker ready to use in scipion. NOTE: Installation of CrYOLO and generic model is available but not active by default. Expand this item and select them.',
+    description='Cryolo picker ready to use in scipion. NOTE: Installation of '
+                'CrYOLO and generic model is available but not active by '
+                'default. Expand this item and select them.',
 
     # This is an optional longer description of your project that represents
     # the body of text which users will see when they visit PyPI.
@@ -97,7 +99,7 @@ setup(
     # project page. What does your project relate to?
     #
     # Note that this is a string of words separated by whitespace, not a list.
-    keywords='scipion cryoem imageprocessing scipion-1.2',  # Optional
+    keywords='scipion cryoem imageprocessing scipion-2.0',  # Optional
 
     # You can just specify package directories manually here if your project is
     # simple. Or you can use find_packages().
