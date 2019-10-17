@@ -45,9 +45,9 @@ setup(
     # This is a one-line description or tagline of what your project does. This
     # corresponds to the "Summary" metadata field:
     # https://packaging.python.org/specifications/core-metadata/#summary
-    description='Cryolo picker ready to use in scipion. NOTE: Installation of '
+    description='Cryolo picker. NOTE: Please install cryolo-1.5.3. NOTE1: Installation of '
                 'CrYOLO and generic model is available but not active by '
-                'default. Expand this item and select them.',
+                'default. Please install cryolo Expand this item and select them.',
 
     # This is an optional longer description of your project that represents
     # the body of text which users will see when they visit PyPI.
