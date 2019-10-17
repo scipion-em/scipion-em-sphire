@@ -131,6 +131,14 @@ class Plugin(pyworkflow.em.Plugin):
                        tar='void.tgz',
                        commands=[("wget ftp://ftp.gwdg.de/pub/misc/sphire/crYOLO-GENERAL-MODELS/" + CRYOLO_GENMOD_20190516_FN, CRYOLO_GENMOD_20190516_FN)],
                        neededProgs=["wget"],
+                       default=False)
+
+        env.addPackage(CRYOLO_GENMOD, version=CRYOLO_GENMOD_201909,
+                       tar='void.tgz',
+                       commands=[(
+                                 "wget ftp://ftp.gwdg.de/pub/misc/sphire/crYOLO-GENERAL-MODELS/" + CRYOLO_GENMOD_201909_FN,
+                                 CRYOLO_GENMOD_201909_FN)],
+                       neededProgs=["wget"],
                        default=True)
 
     @classmethod
