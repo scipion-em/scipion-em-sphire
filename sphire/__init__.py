@@ -114,8 +114,8 @@ class Plugin(pyworkflow.em.Plugin):
             if not correctCondaActivationCmd:
                 print("WARNING!!: %s variable not defined. "
                        "Relying on conda being in the PATH" % CONDA_ACTIVATION_CMD_VAR)
-            elif correctCondaActivationCmd[-1] != ";":
-                correctCondaActivationCmd += ";"
+            elif correctCondaActivationCmd[-1] not in [";", "&"]:
+                correctCondaActivationCmd += "&&"
 
             cls._condaActivationCmd = correctCondaActivationCmd
 
@@ -181,7 +181,7 @@ class Plugin(pyworkflow.em.Plugin):
     @classmethod
     def runCryolo(cls, protocol, program, args, cwd=None):
         """ Run crYOLO command from a given protocol. """
-        fullProgram = '%s %s; %s' % (cls.getCondaActivationCmd(), cls.getCryoloEnvActivation(), program)
+        fullProgram = '%s %s && %s' % (cls.getCondaActivationCmd(), cls.getCryoloEnvActivation(), program)
         protocol.runJob(fullProgram, args, env=cls.getEnviron(), cwd=cwd)
 
 
