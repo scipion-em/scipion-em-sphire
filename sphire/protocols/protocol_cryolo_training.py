@@ -34,6 +34,8 @@ import pyworkflow.utils as pwutils
 
 from sphire import Plugin
 import sphire.convert as convert
+from sphire.constants import INPUT_MODEL_GENERAL
+from sphire.objects import CryoloModel
 
 
 class SphireProtCRYOLOTraining(ProtParticlePicking):
@@ -70,22 +72,25 @@ class SphireProtCRYOLOTraining(ProtParticlePicking):
                            'The general model was trained on a lot of particles '
                            'with a variety of shapes and therefore learned a '
                            'very good set of generic features. ')
-        form.addParam('useGenMod', params.BooleanParam,
-                      default=True, condition="doFineTune",
-                      label='Use general model?',
+        form.addParam('inputModelFrom', params.EnumParam,
+                      default=INPUT_MODEL_GENERAL,
+                      choices=['general', 'other'],
+                      condition="doFineTune",
+                      display=params.EnumParam.DISPLAY_HLIST,
+                      label='Use previous model: ',
                       help="You might use a general network model that consists "
-                           "of real, simulated, particle free datasets"
-                      " on various grids with contaminations and skip training "
+                           "of real, simulated, particle free datasets on "
+                           "various grids with contamination and skip training "
                            "completely or if you would like to "
-                           "improve the results you can use the model from the "
-                           "previous training step by answering no. The general"
-                           " model can be found.")
-        form.addParam('sphireTraining', params.PointerParam,
+                           "improve the results you can use the model from a "
+                           "previous training step or an imported one.")
+        form.addParam('inputModel', params.PointerParam,
                       allowsNull=True,
-                      condition="doFineTune and not useGenMod",
-                      label="Cryolo training run",
-                      pointerClass='SphireProtCRYOLOTraining',
-                      help='Select the previous cryolo training run.')
+                      condition=("doFineTune and inputModelFrom!=%d"
+                                 % INPUT_MODEL_GENERAL),
+                      label="Input model",
+                      pointerClass='CryoloModel',
+                      help='Select an existing crYOLO trained model.')
 
         form.addParam('eFlagParam', params.IntParam, default=10,
                       expertLevel=cons.LEVEL_ADVANCED,
@@ -96,7 +101,7 @@ class SphireProtCRYOLOTraining(ProtParticlePicking):
                            "training more time to find the best model you might "
                            "increase this parameters to a higher value (e.g 15).")
 
-        form.addParam('max_box_per_image',params.IntParam, default=600,
+        form.addParam('max_box_per_image', params.IntParam, default=600,
                       expertLevel=cons.LEVEL_ADVANCED,
                       label="Maximum box per image",
                       help="Maximum number of particles in the image. Only for" 
@@ -106,8 +111,8 @@ class SphireProtCRYOLOTraining(ProtParticlePicking):
         form.addParam('nb_epochVal', params.IntParam, default=50,
                       expertLevel=cons.LEVEL_ADVANCED,
                       label="Maximum number of iterations",
-                      help="Maximum number of epochs the network will train."
-                           " Basically never reach this number, as crYOLO "
+                      help="Maximum number of epochs the network will train. "
+                           "Basically never reach this number, as crYOLO "
                            "stops training if it recognize that the validation "
                            "loss is not improving anymore.")
 
@@ -126,20 +131,21 @@ class SphireProtCRYOLOTraining(ProtParticlePicking):
                            "reasonable low-pass filter.")
 
         form.addParam('absCutOffFreq', params.FloatParam, default=0.1,
-                  expertLevel=cons.LEVEL_ADVANCED,
-                  condition='lowPassFilter',
-                  label="Absolute cut off frequency",
-                  help="Specifies the absolute cut-off frequency for the "
-                       "low-pass filter.")
+                      expertLevel=cons.LEVEL_ADVANCED,
+                      condition='lowPassFilter',
+                      label="Absolute cut off frequency",
+                      help="Specifies the absolute cut-off frequency for the "
+                           "low-pass filter.")
+
+        form.addParam('batchSize', params.IntParam, default=4,
+                      expertLevel=cons.LEVEL_ADVANCED,
+                      label="Batch size",
+                      help="The number of images crYOLO process in parallel "
+                           "during training. ")
 
         form.addHidden(params.GPU_LIST, params.StringParam, default='0',
-                         expertLevel=cons.LEVEL_ADVANCED,
-                         label="Choose GPU IDs",
-                         help="GPU may have several cores. Set it to zero"
-                             " if you do not know what we are talking about."
-                             " First core index is 0, second 1 and so on."
-                             " Motioncor2 can use multiple GPUs - in that case"
-                             " set to i.e. *0 1 2*.")
+                       expertLevel=cons.LEVEL_ADVANCED,
+                       label="Choose GPU IDs")
 
         form.addParallelSection(threads=1, mpi=1)
 
@@ -147,11 +153,18 @@ class SphireProtCRYOLOTraining(ProtParticlePicking):
     def _insertAllSteps(self):
         self._insertFunctionStep("convertInputStep")
         self._insertFunctionStep("createConfigStep")
+
         if self.doFineTune:
             self._insertFunctionStep("cryoloModelingStep", ' --fine_tune')
+            useGeneral = self.inputModelFrom == INPUT_MODEL_GENERAL
+            self.summaryVar.set("Fine-tuning input %s model: \n%s"
+                                % ('(GENERAL)' if useGeneral else '',
+                                   self.getInputModel()) )
         else:
             self._insertFunctionStep("warmUpNetworkStep")
             self._insertFunctionStep("cryoloModelingStep")
+
+        self._insertFunctionStep("createOutputStep")
 
     # --------------------------- STEPS functions ------------------------------
     def convertInputStep(self):
@@ -194,7 +207,7 @@ class SphireProtCRYOLOTraining(ProtParticlePicking):
                  "train_annot_folder": "%s/" % self.TRAIN[0],
                  "train_times": 10,
                  "pretrained_weights": pretrainedModel,
-                 "batch_size": 6,
+                 "batch_size": self.batchSize.get(),
                  "learning_rate": self.learning_rates.get(),
                  "nb_epoch": self.nb_epochVal.get(),
                  "warmup_epochs": 0,
@@ -217,6 +230,10 @@ class SphireProtCRYOLOTraining(ProtParticlePicking):
         with open(self._getWorkDir('config.json'), 'w') as fp:
             json.dump(jsonDict, fp, indent=4)
 
+    def createOutputStep(self):
+        """ Register the output model. """
+        self._defineOutputs(outputModel=CryoloModel(self.getOutputModelPath()))
+
     def runCryoloTrain(self, w, extraArgs=''):
         params = "-c config.json"
         params += " -w %s " % w  # FIXME: Check this param
@@ -231,17 +248,11 @@ class SphireProtCRYOLOTraining(ProtParticlePicking):
 
     def cryoloModelingStep(self, extraArgs=''):
         self.runCryoloTrain(0, extraArgs=extraArgs)
-        pwutils.moveFile(self._getWorkDir(self.MODEL), self.getOutputModel())
+        pwutils.moveFile(self._getWorkDir(self.MODEL), self.getOutputModelPath())
 
     # --------------------------- INFO functions -------------------------------
     def _summary(self):
-        summary = ['This protocol does not generate any output, '
-                   'but it can be used as input in a picking protocol.'
-                   '(Internally a model.h5 should be written. ']
-        if self.doFineTune:
-            summary.append('Fine-tunning input model: \n %s'
-                           % self.getInputModel())
-        return summary
+        return [self.summaryVar.get()]
 
     def _validate(self):
         validateMsgs = []
@@ -258,14 +269,14 @@ class SphireProtCRYOLOTraining(ProtParticlePicking):
     def _getWorkDir(self, *paths):
         return self._getExtraPath(*paths)
 
-    def getOutputModel(self):
+    def getOutputModelPath(self):
         return self._getPath(self.MODEL)
 
     def getInputModel(self):
-        if self.useGenMod:
+        if self.inputModelFrom == INPUT_MODEL_GENERAL:
             m = Plugin.getCryoloGeneralModel()
         else:
-            m = self.particlePickingRun.getOutputModel()
+            m = self.inputModel.get().getPath()
 
         return os.path.abspath(m) if m else ''
 
