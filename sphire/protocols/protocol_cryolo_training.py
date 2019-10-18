@@ -159,7 +159,7 @@ class SphireProtCRYOLOTraining(ProtParticlePicking):
             useGeneral = self.inputModelFrom == INPUT_MODEL_GENERAL
             self.summaryVar.set("Fine-tuning input %s model: \n%s"
                                 % ('(GENERAL)' if useGeneral else '',
-                                   self.getInputModel()) )
+                                   self.getInputModel()))
         else:
             self._insertFunctionStep("warmUpNetworkStep")
             self._insertFunctionStep("cryoloModelingStep")

@@ -28,6 +28,7 @@
 import os
 import csv
 
+import pyworkflow.object as pwobj
 import pyworkflow.em as pwem
 import pyworkflow.utils as pwutils
 from pyworkflow.em.convert import Ccp4Header
@@ -53,12 +54,15 @@ class CoordBoxWriter:
         self._file = open(filename, 'w')
 
     def writeCoord(self, coord):
-        x = coord.getX() - self._halfBox
+        box = self._boxSize
+        half = self._halfBox
+        x = coord.getX() - half
         if self._yFlipHeight is None:
-            y = coord.getY() - self._halfBox
+            y = coord.getY() - half
         else:
-            y = self._yFlipHeight - coord.getY() - self._halfBox
-        self._file.write("%s\t%s\t%s\t%s\n" % (x, y, self._boxSize, self._boxSize))
+            y = self._yFlipHeight - coord.getY() - half
+        score = getattr(coord, '_cryoloScore', 0.0)
+        self._file.write("%s\t%s\t%s\t%s\t%s\n" % (x, y, box, box, score))
 
     def close(self):
         if self._file:
@@ -85,7 +89,7 @@ class CoordBoxReader:
     def iterCoords(self):
         reader = csv.reader(self._file, delimiter='\t')
 
-        for x, y, _, _ in reader:
+        for x, y, _, _, score in reader:
             # USE the imageHeight to flip or not to flip!
             sciX = round(float(x) + self._halfBox)
             sciY = round(float(y) + self._halfBox)
@@ -93,7 +97,7 @@ class CoordBoxReader:
             if self._yFlipHeight is not None:
                 sciY = self._yFlipHeight - sciY
 
-            yield sciX, sciY
+            yield sciX, sciY, float(score)
 
     def close(self):
         if self._file:
@@ -145,11 +149,12 @@ def readMicrographCoords(mic, coordSet, coordsFile, boxSize, yFlipHeight=None):
 
     coord = pwem.Coordinate()
 
-    for x, y in reader.iterCoords():
+    for x, y, score in reader.iterCoords():
         # Clean up objId to add as a new coordinate
         coord.setObjId(None)
         coord.setPosition(x, y)
         coord.setMicrograph(mic)
+        coord._cryoloScore = pwobj.Float(score)
         # Add it to the set
         coordSet.append(coord)
 
