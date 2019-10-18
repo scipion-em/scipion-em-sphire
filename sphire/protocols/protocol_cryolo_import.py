@@ -69,4 +69,6 @@ class SphireProtCryoloImport(ProtImport):
                   "link to the model will be broken, but you can update the link "
                   "and get it working again. ")
 
+        pwutils.createAbsLink(absPath, outputPath)
+
         self._defineOutputs(outputModel=CryoloModel(outputPath))
