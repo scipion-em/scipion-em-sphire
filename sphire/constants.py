@@ -28,15 +28,29 @@
 # we declare global constants to multiple usage
 import os
 
-DEFAULT_ENV_NAME = "cryolo"
+def getCryoloEnvName(version):
+    return "cryolo-%s" % version
+
+V1_5_3 = "1.5.3"
+V1_5_4_rc3 = "1.5.4.rc3"
+VERSIONS = [V1_5_3, V1_5_4_rc3]
+
+DEFAULT_ENV_NAME = getCryoloEnvName(V1_5_3)
 DEFAULT_ACTIVATION_CMD = 'conda activate ' + DEFAULT_ENV_NAME
 CRYOLO_ENV_ACTIVATION = 'CRYOLO_ENV_ACTIVATION'
 CRYOLO_GENMOD_VAR = 'CRYOLO_GENERIC_MODEL'
+CONDA_ACTIVATION_CMD_VAR = 'CONDA_ACTIVATION_CMD'
 
 CRYOLO_GENMOD = 'cryolo_model'
+# Model constants
 CRYOLO_GENMOD_20190516 = '20190516'
 CRYOLO_GENMOD_20190516_FN = "gmodel_phosnet_" + CRYOLO_GENMOD_20190516 +".h5"
-CRYOLO_GENMOD_DEFAULT = os.path.join(CRYOLO_GENMOD + "-" + CRYOLO_GENMOD_20190516, CRYOLO_GENMOD_20190516_FN)
+
+CRYOLO_GENMOD_201909 = '201909'
+CRYOLO_GENMOD_201909_FN = "gmodel_phosnet_" + CRYOLO_GENMOD_201909 +".h5"
+
+# Default model (latest usually)
+CRYOLO_GENMOD_DEFAULT = os.path.join(CRYOLO_GENMOD + "-" + CRYOLO_GENMOD_201909, CRYOLO_GENMOD_201909_FN)
 
 # crYOLO supported input formats for micrographs
 CRYOLO_SUPPORTED_FORMATS = [".mrc", ".tif", ".tiff", ".jpg"]

@@ -1,67 +1,108 @@
 Sphire Scipion plugin
 =====================
 
-Plugin to use Sphire programs within the Scipion framework
-
+This plugin allows to use cryolo within Scipion framework.
 So far we have implemented:
 
-- crYOLO particle picker (current version: 1.3.3)
+- crYOLO particle picker (current version: 1.5.3)
+
+This plugin will be able to install cryolo 1.5.3 and the generic model.
 
 
-crYOLO installation
--------------------
 
-- **Please follow installation instructions from**: http://sphire.mpg.de/wiki/doku.php?id=downloads:cryolo_1&redirect=1 in order to install:
-   - crYOLO (last tested version: 1.3.3) (should download a file called cryolo-X.Y.Z.tar.gz)
-   - crYOLO's boxmanager (last tested version: 1.1.0). (should download a file called cryoloBM-X.Y.Z.tar.gz) Note: the BoxManager is not strictly necessary for using the Scipion protocols.
-
-- **If you want to use the generic model**, please download also the General PhosaursNet model. (latest at the time of writing: ftp://ftp.gwdg.de/pub/misc/sphire/crYOLO-GENERAL-MODELS/gmodel_phosnet_20190314.h5, but better to check the Sphire page for the latest one)
+`crYOLO`_ is a pipeline for particle detection in cryo-electron
+microscopy images which is based on the deep learning object detection system "You Only Look Once" (YOLO).
 
 
-Scipion crYOLO Configuration
-----------------------------
-Then, we need to define some environment variables to specify how to load the cryolo environment and where is the general model. We can define the variables in the .bashrc file or in ~/.config/scipion/scipion.conf:
+Setup
+=====
 
-.. code-block::
+Requires to have conda installed and not initialized in the shell.
 
-    CRYOLO_ENV_ACTIVATION = . /path/to/anaconda/etc/profile.d/conda.sh; conda activate cryolo
-    CRYOLO_GENERIC_MODEL = path/to/the/downloaded/General_PhosaursNet_model
+For Users
+---------
 
-Install Scipion crYOLO Plugin
------------------------------
+Install `Scipion2`_, follow the 'crYOLO integration' instructions below and `install`_ the cryolo plugin.
 
-.. code-block::
+For developers
+--------------
 
-      scipion installp -p scipion-em-sphire
+1. For testing and develop this plugin, you need to use the Scipion v2.0 in devel. 
+   For that, just install Scipion from `GitHub`_, using the ‘devel’ branch. 
+2. Follow the 'crYOLO integration' instructions below.
+3. Clone this repository in you system: 
+   ::
 
-OR
+      cd
+      git clone https://github.com/scipion-em/scipion-em-sphire
+   
+4. Install the sphire plugin in devel mode:
+   ::
+      
+      scipion installp -p ~/scipion-em-sphire --devel
 
-  - through the plugin manager GUI by launching Scipion and following **Configuration** >> **Plugins**
 
-OR
+crYOLO integration
+------------------
 
-.. code-block::
+The following steps presuppose that you have Anaconda or Miniconda installed on
+your computer.
+In ``~/.config/scipion/scipion.conf`` set **CONDA_ACTIVATION_CMD** variable in
+the Packages section.
 
-   scipion python -m pip install scipion-em-sphire
+For example:
 
-If you are developing the plugin, other useful options are:
+::
 
-.. code-block::
+ CONDA_ACTIVATION_CMD = . ~/anaconda2/etc/profile.d/conda.sh
 
-    scipion installp -p local/path/to/scipion-em-sphire --devel
+Notice the command starts with a period! This will source the conda.sh script.
+This is needed to activate the conda environment.
+For further information please visit the following website
+`[here] <https://github.com/conda/conda/blob/master/CHANGELOG.md#440-2017-12-20>`_
 
-OR
+If you wish to install the plugin with the default settings just go to plugin
+manager and install scipion-em-sphire. This will create the default environment
+named cryolo and download version 1.4.0 for you.
 
-.. code-block::
+You are ready to use crYOLO.
+If you wish to change the environment name you can introduce
+**CRYOLO_ENV_ACTIVATION** variable in the ``~/.config/scipion.conf`` variables section:
 
-   git clone git@github.com:scipion-em/scipion-em-sphire
-   export PYTHONPATH=$PYTHONPATH:$PWD/scipion-em-sphire
+For example:
+::
+
+ CRYOLO_ENV_ACTIVATION = conda activate yourdesiredname
+
+crYOLO general model is not installed by default. You may install it by
+expanding the plugin in the plugin manager and install it.
+This will install the general model to a default location: ``~/scipion/software/em/cryolo_model-20190516``.
+
+If you wish to provide a different general model:
+Set **CRYOLO_GENERIC_MODEL** variable in the ``~/.config/scipion.conf`` variables section:
+
+For example:
+
+::
+
+ CRYOLO_GENERIC_MODEL = /your/desired/location/myownmodelname.h5
 
 
 Running crYOLO tests
------------------------------
-To check that everything is properly installed and configured, you might want to run some tests:
+----------------------
+To check that everything is properly installed and configured, you might want
+to run some tests:
 
 .. code-block::
 
    scipion test --grep cryolo --run
+   
+   
+.. _crYOLO: http://sphire.mpg.de/wiki/doku.php?id=downloads:cryolo_1&redirect=1
+
+.. _Scipion2: https://scipion-em.github.io/docs/docs/scipion-modes/how-to-install.html
+
+.. _install: https://scipion-em.github.io/docs/release-2.0.0/docs/scipion-modes/install-from-sources#step-4-installing-xmipp3-and-other-em-plugins
+
+.. _GitHub: https://scipion-em.github.io/docs/docs/scipion-modes/install-from-sources#from-github
+   

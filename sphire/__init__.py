@@ -39,7 +39,7 @@ _sphirePluginDir = os.path.dirname(os.path.abspath(__file__))
 class Plugin(pyworkflow.em.Plugin):
     _cryoloVersion = None  # Means not detected yet
     _cryoloVersionSupported = None
-
+    _condaActivationCmd = None
     @classmethod
     def _defineVariables(cls):
         # CRYOLO do NOT need EmVar because it uses a conda environment.
@@ -107,34 +107,25 @@ class Plugin(pyworkflow.em.Plugin):
     #             cls._cryoloVersionSupported = False
     @classmethod
     def getCondaActivationCmd(cls):
-        condaActivationCmd = os.environ.get('CONDA_ACTIVATION_CMD', "")
-        correctCondaActivationCmd = condaActivationCmd.replace(pw.Config.SCIPION_HOME + "/", "")
-        if not correctCondaActivationCmd:
-            print("WARNING!!: CONDA_ACTIVATION_CMD variable not defined. "
-                   "Relying on conda being in the PATH")
-        elif correctCondaActivationCmd[-1] != ";":
-            correctCondaActivationCmd += ";"
-        return correctCondaActivationCmd
+
+        if cls._condaActivationCmd is None:
+            condaActivationCmd = os.environ.get(CONDA_ACTIVATION_CMD_VAR, "")
+            correctCondaActivationCmd = condaActivationCmd.replace(pw.Config.SCIPION_HOME + "/", "")
+            if not correctCondaActivationCmd:
+                print("WARNING!!: %s variable not defined. "
+                       "Relying on conda being in the PATH" % CONDA_ACTIVATION_CMD_VAR)
+            elif correctCondaActivationCmd[-1] not in [";", "&"]:
+                correctCondaActivationCmd += "&&"
+
+            cls._condaActivationCmd = correctCondaActivationCmd
+
+        return cls._condaActivationCmd
 
     @classmethod
     def defineBinaries(cls, env):
 
-        # try to get CONDA activation command
-        condaActivationCmd = cls.getCondaActivationCmd()
-        neededProgs = ['wget']
-        if not condaActivationCmd:
-            neededProgs.append('conda')
-
-        cryolo_commands = cls.getInstallationCmd()
-
-        envPath = os.environ.get('PATH', "")  # keep path since conda likely in there
-        installEnvVars = {'PATH': envPath} if envPath else None
-        env.addPackage('cryolo', version='1.4.0',
-                       tar='void.tgz',
-                       commands=cryolo_commands,
-                       neededProgs=neededProgs,
-                       default=False,
-                       vars=installEnvVars)
+        cls.addCryoloPackage(env, V1_5_3, default=bool(cls.getCondaActivationCmd()))
+        # Leave commented until released: cls.addCryoloPackage(env, V1_5_4_rc3)
 
         env.addPackage(CRYOLO_GENMOD, version=CRYOLO_GENMOD_20190516,
                        tar='void.tgz',
@@ -142,39 +133,63 @@ class Plugin(pyworkflow.em.Plugin):
                        neededProgs=["wget"],
                        default=False)
 
+        env.addPackage(CRYOLO_GENMOD, version=CRYOLO_GENMOD_201909,
+                       tar='void.tgz',
+                       commands=[(
+                                 "wget ftp://ftp.gwdg.de/pub/misc/sphire/crYOLO-GENERAL-MODELS/" + CRYOLO_GENMOD_201909_FN,
+                                 CRYOLO_GENMOD_201909_FN)],
+                       neededProgs=["wget"],
+                       default=True)
 
     @classmethod
-    def getInstallationCmd(cls):
+    def getDependencies(cls):
+        # try to get CONDA activation command
+        condaActivationCmd = cls.getCondaActivationCmd()
+        neededProgs = ['wget']
+        if not condaActivationCmd:
+            neededProgs.append('conda')
 
-        CRYOLO_INSTALLED = 'cryolo_installed'
+        return neededProgs
 
+    @classmethod
+    def addCryoloPackage(cls, env, version, default=False):
+
+        CRYOLO_INSTALLED = 'cryolo_%s_installed' % version
+        ENV_NAME = getCryoloEnvName(version)
         # try to get CONDA activation command
         installationCmd = cls.getCondaActivationCmd()
 
         # Create the environment
-        installationCmd += 'conda create -y -n %s -c anaconda python=3.6 pyqt=5 cudnn=7.1.2 cython;' % DEFAULT_ENV_NAME
+        installationCmd += 'conda create -y -n %s -c anaconda python=3.6 ' \
+                           'pyqt=5 cudnn=7.1.2 numpy==1.14.5 cython ' \
+                           'wxPython==4.0.4 intel-openmp==2019.4 &&' \
+                           % ENV_NAME
 
         # Activate new the environment
-        installationCmd += 'conda activate %s;' % DEFAULT_ENV_NAME
-
-        # Install numpy==1.15.4
-        installationCmd += 'pip install numpy==1.15.4;'
-
-        # Download cryolo code
-        installationCmd += 'wget ftp://ftp.gwdg.de/pub/misc/sphire/crYOLO_V1_4_0/cryolo-1.4.0.tar.gz;'
+        installationCmd += 'conda activate %s &&' % ENV_NAME
 
         # Install downloaded code
-        installationCmd += 'pip install cryolo-1.4.0.tar.gz[gpu];'
+        installationCmd += 'pip install cryolo[gpu]==%s &&' % version
 
         # Flag installation finished
         installationCmd += 'touch %s' % CRYOLO_INSTALLED
 
-        return [(installationCmd, CRYOLO_INSTALLED)]
+        cryolo_commands = [(installationCmd, CRYOLO_INSTALLED)]
+
+        envPath = os.environ.get('PATH', "")  # keep path since conda likely in there
+        installEnvVars = {'PATH': envPath} if envPath else None
+        env.addPackage('cryolo', version=version,
+                       tar='void.tgz',
+                       commands=cryolo_commands,
+                       neededProgs=cls.getDependencies(),
+                       default=default,
+                       vars=installEnvVars)
+
 
     @classmethod
     def runCryolo(cls, protocol, program, args, cwd=None):
         """ Run crYOLO command from a given protocol. """
-        fullProgram = '%s %s; %s' % (cls.getCondaActivationCmd(), cls.getCryoloEnvActivation(), program)
+        fullProgram = '%s %s && %s' % (cls.getCondaActivationCmd(), cls.getCryoloEnvActivation(), program)
         protocol.runJob(fullProgram, args, env=cls.getEnviron(), cwd=cwd)
 
 

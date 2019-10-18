@@ -27,10 +27,9 @@
 
 import os
 import json
-import csv
 
 import pyworkflow.utils as pwutils
-from pyworkflow.em.data import Coordinate
+from pyworkflow.em.data import Integer
 import pyworkflow.protocol.params as params
 import pyworkflow.protocol.constants as cons
 from pyworkflow.em.protocol import ProtParticlePickingAuto
@@ -126,6 +125,8 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
         form.addParallelSection(threads=1, mpi=1)
 
         self._defineStreamingParams(form)
+        # Default batch size --> 16
+        form.getParam('streamingBatchSize').default = Integer(16)
 
     # --------------------------- INSERT steps functions -----------------------
     def _insertInitialSteps(self):
