@@ -35,6 +35,7 @@ import pyworkflow.utils as pwutils
 
 import sphire.convert as convert
 import sphire.protocols as protocols
+from sphire.constants import INPUT_MODEL_GENERAL, INPUT_MODEL_OTHER
 
 
 XmippProtPreprocessMicrographs = pwutils.importFromPlugin(
@@ -58,11 +59,11 @@ class TestSphireConvert(BaseTest):
         pwutils.makePath(boxDir)
 
         def _convert(coordsIn, yFlipHeight=None):
-            tmpFile = os.path.join(boxDir, 'tmp.box')
+            tmpFile = os.path.join(boxDir, 'tmp.cbox')
             # Write input coordinates
             writer = convert.CoordBoxWriter(boxSize, yFlipHeight=yFlipHeight)
             writer.open(tmpFile)
-            for x, y in coordsIn:
+            for x, y, _ in coordsIn:
                 writer.writeCoord(pwem.Coordinate(x=x, y=y))
             writer.close()
 
@@ -73,7 +74,7 @@ class TestSphireConvert(BaseTest):
 
             return coordsOut
 
-        coordsIn = [(100, 100), (100, 200), (200, 100), (200, 200)]
+        coordsIn = [(100, 100, 0.), (100, 200, 0.), (200, 100, 0.), (200, 200, 0.)]
 
         # Case 1: No flip
         coordsOut = _convert(coordsIn)
@@ -214,6 +215,7 @@ class TestSphireConvert(BaseTest):
         self.assertEqual(rounded, 320,
                          "input size rounding to exact is wrong.")
 
+
 class TestCryolo(BaseTest):
     """ Test cryolo protocol"""
 
@@ -244,9 +246,6 @@ class TestCryolo(BaseTest):
             sphericalAberration=2)
 
         cls.launchProtocol(protImport)
-        #cls.assertSetSize(protImport.outputMicrographs, 20,
-        #                   "There was a problem with the import")
-
         cls.protImport = protImport
 
     @classmethod
@@ -258,8 +257,6 @@ class TestCryolo(BaseTest):
         protPreprocess.inputMicrographs.set(cls.protImport.outputMicrographs)
         protPreprocess.setObjLabel('crop 50px')
         cls.launchProtocol(protPreprocess)
-        # self.assertSetSize(protPreprocess.outputMicrographs, 20,
-        #                    "There was a problem with the preprocessing")
         cls.protPreprocess = protPreprocess
 
     @classmethod
@@ -274,8 +271,6 @@ class TestCryolo(BaseTest):
             filesPattern='*.json',
             boxSize=65)
         cls.launchProtocol(protImportCoords)
-        #cls.assertSetSize(protImportCoords.outputCoordinates,
-        #                   msg="There was a problem importing eman coordinates")
         cls.protImportCoords = protImportCoords
 
     def testPicking(self):
@@ -306,14 +301,17 @@ class TestCryolo(BaseTest):
             nb_epochVal=2)
         self.launchProtocol(protTraining)
 
+        outputModel = getattr(protTraining, 'outputModel', None)
+        self.assertTrue(outputModel is not None)
+
         # Training mode picking
         protPicking = self.newProtocol(
             protocols.SphireProtCRYOLOPicking,
             label="Picking after Training 1",
             inputMicrographs=self.protPreprocess.outputMicrographs,
 
-            useGenMod=False,
-            sphireTraining=protTraining,
+            inputModelFrom=INPUT_MODEL_OTHER,
+            inputModel=protTraining.outputModel,
             boxSize=65,
             input_size=750,
             streamingBatchSize=10)
