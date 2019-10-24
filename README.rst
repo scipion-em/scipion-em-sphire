@@ -1,10 +1,14 @@
 Sphire Scipion plugin
 =====================
 
-This plugin allows to use sphire programs within the Scipion framework.
+This plugin allows to use cryolo within Scipion framework.
 So far we have implemented:
 
-- crYOLO particle picker (current version: 1.4.0)
+- crYOLO particle picker (current version: 1.5.3)
+
+This plugin will be able to install cryolo 1.5.3 and the generic model.
+
+
 
 `crYOLO`_ is a pipeline for particle detection in cryo-electron
 microscopy images which is based on the deep learning object detection system "You Only Look Once" (YOLO).
@@ -12,6 +16,8 @@ microscopy images which is based on the deep learning object detection system "Y
 
 Setup
 =====
+
+Requires to have conda installed and not initialized in the shell.
 
 For Users
 ---------
@@ -28,7 +34,7 @@ For developers
    ::
 
       cd
-      git clone https://github.com/scipion-em/scipion-em-spire
+      git clone https://github.com/scipion-em/scipion-em-sphire
    
 4. Install the sphire plugin in devel mode:
    ::
@@ -72,14 +78,14 @@ crYOLO general model is not installed by default. You may install it by
 expanding the plugin in the plugin manager and install it.
 This will install the general model to a default location: ``~/scipion/software/em/cryolo_model-20190516``.
 
-If you wish to install the latest general model manually please visit `crYOLO`_ website:
-Download the general model and set **CRYOLO_GENERIC_MODEL** variable in the ``~/.config/scipion.conf`` variables section:
+If you wish to provide a different general model:
+Set **CRYOLO_GENERIC_MODEL** variable in the ``~/.config/scipion.conf`` variables section:
 
 For example:
 
 ::
 
- CRYOLO_GENERIC_MODEL = /your/desired/location/generalmodelname.h5
+ CRYOLO_GENERIC_MODEL = /your/desired/location/myownmodelname.h5
 
 
 Running crYOLO tests

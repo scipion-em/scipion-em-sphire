@@ -1,9 +1,12 @@
 # **************************************************************************
 # *
-# * Authors:     David Maluenda (dmaluenda@cnb.csic.es)
-# *              Peter Horvath (phorvath@cnb.csic.es)
+# * Authors:    David Maluenda (dmaluenda@cnb.csic.es) [1]
+# *             Peter Horvath [1]
+# *             J.M. De la Rosa Trevin (delarosatrevin@scilifelab.se) [2]
 # *
-# * Unidad de  Bioinformatica of Centro Nacional de Biotecnologia , CSIC
+# *
+# * [1] Unidad de  Bioinformatica of Centro Nacional de Biotecnologia , CSIC
+# * [2] SciLifeLab, Stockholm University
 # *
 # * This program is free software; you can redistribute it and/or modify
 # * it under the terms of the GNU General Public License as published by
@@ -27,17 +30,17 @@
 
 import os
 import json
-import csv
 
 import pyworkflow.utils as pwutils
-from pyworkflow.em.data import Coordinate
+from pyworkflow.em.data import Integer
 import pyworkflow.protocol.params as params
 import pyworkflow.protocol.constants as cons
 from pyworkflow.em.protocol import ProtParticlePickingAuto
 
+from sphire import Plugin
 import sphire.convert as convert
 from sphire.constants import CRYOLO_GENMOD_VAR
-from sphire import Plugin
+from sphire.constants import INPUT_MODEL_GENERAL
 
 
 class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
@@ -54,22 +57,23 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
     def _defineParams(self, form):
         ProtParticlePickingAuto._defineParams(self, form)
 
-        form.addParam('useGenMod', params.BooleanParam,
-                      default=True,
-                      label='Use general model?',
+        form.addParam('inputModelFrom', params.EnumParam,
+                      default=INPUT_MODEL_GENERAL,
+                      choices=['general', 'other'],
+                      display=params.EnumParam.DISPLAY_HLIST,
+                      label='Use previous model: ',
                       help="You might use a general network model that consists "
-                           "of real, simulated, particle free datasets"
-                      " on various grids with contaminations and skip training "
+                           "of real, simulated, particle free datasets on "
+                           "various grids with contamination and skip training "
                            "completely or if you would like to "
-                           "improve the results you can use the model from the "
-                           "previous training step by answering no. The general"
-                           " model can be found.")
-        form.addParam('sphireTraining', params.PointerParam,
+                           "improve the results you can use the model from a "
+                           "previous training step or an imported one.")
+        form.addParam('inputModel', params.PointerParam,
                       allowsNull=True,
-                      condition="not useGenMod",
-                      label="Cryolo training run",
-                      pointerClass='SphireProtCRYOLOTraining',
-                      help='Select the previous cryolo training run.')
+                      condition="inputModelFrom!=%d" % INPUT_MODEL_GENERAL,
+                      label="Input model",
+                      pointerClass='CryoloModel',
+                      help='Select an existing crYOLO trained model.')
         form.addParam('conservPickVar', params.FloatParam, default=0.3,
                       label="Confidence threshold",
                       help='If you want to pick less conservatively or more '
@@ -126,10 +130,15 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
         form.addParallelSection(threads=1, mpi=1)
 
         self._defineStreamingParams(form)
+        # Default batch size --> 16
+        form.getParam('streamingBatchSize').default = Integer(16)
 
     # --------------------------- INSERT steps functions -----------------------
     def _insertInitialSteps(self):
-        self.particlePickingRun = self.sphireTraining.get()
+        useGeneral = self.inputModelFrom == INPUT_MODEL_GENERAL
+        self.summaryVar.set("Picking using %s model: \n%s"
+                            % ('(GENERAL)' if useGeneral else '',
+                               self.getInputModel()))
         return [self._insertFunctionStep("createConfigStep")]
 
     # --------------------------- STEPS functions ------------------------------
@@ -185,7 +194,7 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
         Plugin.runCryolo(self, 'cryolo_predict.py', args)
 
         # Move output files to a common location
-        outputCoordsDir = os.path.join(workingDir, 'EMAN')
+        outputCoordsDir = os.path.join(workingDir, 'CBOX')
         if os.path.exists(outputCoordsDir):
             self.runJob('mv', '%s/* %s/'
                         % (outputCoordsDir, self.getOutputDir()))
@@ -201,7 +210,7 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
         yFlipHeight = convert.getFlipYHeight(micDoneList[0].getFileName())
 
         for mic in micDoneList:
-            coordsFile = os.path.join(outDir, convert.getMicIdName(mic, '.box'))
+            coordsFile = os.path.join(outDir, convert.getMicIdName(mic, '.cbox'))
             if os.path.exists(coordsFile):
                 convert.readMicrographCoords(mic, outputCoords, coordsFile, boxSize,
                                              yFlipHeight=yFlipHeight)
@@ -212,46 +221,40 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
 
     # --------------------------- INFO functions -------------------------------
     def _summary(self):
-        summary = []
-
-        if self.useGenMod:
-            summary.append("Coordinates were picked by the general model: "
-                           "%s \n" % (Plugin.getVar(CRYOLO_GENMOD_VAR)))
-        else:
-            summary.append("Coordinates were picked by the trained model: "
-                           "%s \n" % (self.sphireTraining.get().getOutputModel()))
-        return summary
+        return [self.summaryVar.get()]
 
     def _validate(self):
         validateMsgs = []
 
-        if self.useGenMod:
-            if Plugin.getVar(CRYOLO_GENMOD_VAR) == '':
+        modelPath = self.getInputModel()
+        if not os.path.exists(modelPath):
+            validateMsgs.append("Input model file '%s' does not exists."
+                                % modelPath)
+            if self.inputModelFrom == INPUT_MODEL_GENERAL:
                 validateMsgs.append(
                     "The general model for cryolo must be download from Sphire "
                     "website and ~/.config/scipion/scipion.conf must contain "
                     "the '%s' parameter pointing to the downloaded file."
                     % CRYOLO_GENMOD_VAR)
-            elif not os.path.isfile(Plugin.getVar(CRYOLO_GENMOD_VAR)):
+            else:
                 validateMsgs.append(
-                    "General model not found at '%s' and needed when you would "
-                    "like to use the general network (i.e.: non-training mode). "
-                    "Please check the path in the ~/.config/scipion/scipion.conf.\n"
-                    "You can download the file from the Sphire website."
-                    % Plugin.getVar(CRYOLO_GENMOD_VAR))
+                    "Input model path seems to be wrong. If you have moved the "
+                    "project of location, restore the link to the place where "
+                    "you have the correct model or use the general model for "
+                    "picking. ")
         return validateMsgs
 
     # -------------------------- UTILS functions ------------------------------
     def getInputModel(self):
-        if self.useGenMod:
-            m = Plugin.getVar(CRYOLO_GENMOD_VAR)
+        if self.inputModelFrom == INPUT_MODEL_GENERAL:
+            m = Plugin.getCryoloGeneralModel()
         else:
-            m = self.particlePickingRun.getOutputModel()
+            m = self.inputModel.get().getPath()
 
         return os.path.abspath(m) if m else ''
 
     def getOutputDir(self):
-        return self._getTmpPath('outputEMAN')
+        return self._getTmpPath('outputCBOX')
 
     def getMicsWorkingDir(self, micList):
         wd = 'micrographs_%s' % micList[0].strId()
