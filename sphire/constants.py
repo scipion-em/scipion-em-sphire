@@ -1,8 +1,10 @@
+# -*- coding: utf-8 -*
 # **************************************************************************
 # *
 # * Authors:    Peter Horvath [1]
 # *             Pablo Conesa  [1]
 # *             J.M. De la Rosa Trevin (delarosatrevin@scilifelab.se) [2]
+# *             Jorge Jiménez [1]
 # *
 # *
 # * [1] Unidad de  Bioinformatica of Centro Nacional de Biotecnologia , CSIC
@@ -31,6 +33,7 @@
 # we declare global constants to multiple usage
 import os
 
+# crYOLO ###############################################################################################################
 
 def getCryoloEnvName(version):
     return "cryolo-%s" % version
@@ -67,3 +70,32 @@ CRYOLO_SUPPORTED_FORMATS = [".mrc", ".tif", ".tiff", ".jpg"]
 # Input options for the training model
 INPUT_MODEL_GENERAL = 0
 INPUT_MODEL_OTHER = 1
+
+# JANNI ################################################################################################################
+
+# # Execution environment
+# def getJanniEnvName(version):
+#     return "janni-{}".format(version)
+#
+#
+# V0_1_1 = "0.1.1"
+# DEFAULT_VER = V0_1_1
+# DEFAULT_ENV_NAME = getJanniEnvName(DEFAULT_VER)
+# DEFAULT_ACTIVATION_CMD = 'conda activate ' + DEFAULT_ENV_NAME
+# JANNI_ENV_ACTIVATION = 'JANNI_ENV_ACTIVATION'
+# CONDA_ACTIVATION_CMD_VAR = 'CONDA_ACTIVATION_CMD'
+
+# Model
+def _janniModelFn(modelKey):
+    return 'gmodel_janni_{}.h5'.format(modelKey)
+
+JANNI_GENMOD_VAR = 'JANNI_GENERIC_MODEL'
+JANNI_GENMOD = "janni_model"  # Name
+JANNI_GENMOD_20190703 = "20190703"  # Version
+JANNI_GENMOD_20190703_FN = _janniModelFn(JANNI_GENMOD_20190703)  # File name with extension
+JANNI_GENMOD_DEFAULT = os.path.join("{}-{}".format(JANNI_GENMOD, JANNI_GENMOD_20190703), JANNI_GENMOD_20190703_FN)
+
+
+
+# # JANNI supported input formats for micrographs
+# JANNI_SUPPORTED_FORMATS = [".mrc", ".tiff"]

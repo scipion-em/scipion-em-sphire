@@ -1,8 +1,10 @@
+# -*- coding: utf-8 -*
 # **************************************************************************
 # *
 # * Authors:     Peter Horvath
 # *              Pablo Conesa
-
+# *              Jorge Jiménez
+# *
 # * Unidad de  Bioinformatica of Centro Nacional de Biotecnologia , CSIC
 # *
 # * This program is free software; you can redistribute it and/or modify
@@ -45,7 +47,7 @@ class Plugin(pyworkflow.em.Plugin):
         # CRYOLO do NOT need EmVar because it uses a conda environment.
         cls._defineEmVar(CRYOLO_GENMOD_VAR, CRYOLO_GENMOD_DEFAULT)
         cls._defineVar(CRYOLO_ENV_ACTIVATION, DEFAULT_ACTIVATION_CMD)
-
+        cls._defineEmVar(JANNI_GENMOD_VAR, JANNI_GENMOD_DEFAULT)  # EmVar is used instead of Var because method getVar
 
     @classmethod
     def getCryoloEnvActivation(cls):
@@ -57,6 +59,10 @@ class Plugin(pyworkflow.em.Plugin):
     @classmethod
     def getCryoloGeneralModel(cls):
         return os.path.abspath(cls.getVar(CRYOLO_GENMOD_VAR))
+
+    @classmethod
+    def getJanniGeneralModel(cls):
+        return os.path.abspath(cls.getVar(JANNI_GENMOD_VAR))
 
     @classmethod
     def getEnviron(cls):
@@ -129,15 +135,24 @@ class Plugin(pyworkflow.em.Plugin):
 
         env.addPackage(CRYOLO_GENMOD, version=CRYOLO_GENMOD_20190516,
                        tar='void.tgz',
-                       commands=[("wget ftp://ftp.gwdg.de/pub/misc/sphire/crYOLO-GENERAL-MODELS/" + CRYOLO_GENMOD_20190516_FN, CRYOLO_GENMOD_20190516_FN)],
+                       commands=[("wget ftp://ftp.gwdg.de/pub/misc/sphire/crYOLO-GENERAL-MODELS/" +
+                                  CRYOLO_GENMOD_20190516_FN, CRYOLO_GENMOD_20190516_FN)],
                        neededProgs=["wget"],
                        default=False)
 
         env.addPackage(CRYOLO_GENMOD, version=CRYOLO_GENMOD_201909,
                        tar='void.tgz',
                        commands=[(
-                                 "wget ftp://ftp.gwdg.de/pub/misc/sphire/crYOLO-GENERAL-MODELS/" + CRYOLO_GENMOD_201909_FN,
-                                 CRYOLO_GENMOD_201909_FN)],
+                                 "wget ftp://ftp.gwdg.de/pub/misc/sphire/crYOLO-GENERAL-MODELS/" +
+                                 CRYOLO_GENMOD_201909_FN, CRYOLO_GENMOD_201909_FN)],
+                       neededProgs=["wget"],
+                       default=True)
+
+        env.addPackage(JANNI_GENMOD,
+                       version=JANNI_GENMOD_20190703,
+                       tar='void.tgz',
+                       commands=[("wget https://github.com/MPI-Dortmund/sphire-janni/raw/master/janni_general_models/"
+                                  + JANNI_GENMOD_20190703_FN, JANNI_GENMOD_20190703_FN)],
                        neededProgs=["wget"],
                        default=True)
 
