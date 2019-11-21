@@ -111,6 +111,7 @@ class TestJanniMRC(BaseTest):
         out_mics = protJanni.outputMicrographs
         # Check if the generated files exist
         for mic in out_mics:
+            print("JORGE ============================> {}".format(os.path.abspath(mic.getFileName())))
             self.assertTrue(os.path.exists(os.path.abspath(mic.getFileName())))
             # self.assertTrue(os.path.exists(os.path.abspath(mic._filename)))
 

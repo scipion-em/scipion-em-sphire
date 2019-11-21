@@ -39,30 +39,30 @@ def getCryoloEnvName(version):
     return "cryolo-%s" % version
 
 V1_5_3 = "1.5.3"
-V1_5_4_rc3 = "1.5.4.rc3"
-VERSIONS = [V1_5_3, V1_5_4_rc3]
+V1_5_4 = "1.5.4"
+VERSIONS = [V1_5_3, V1_5_4]
+CRYOLO_DEFAULT_VER_NUM = V1_5_4
 
-DEFAULT_ENV_NAME = getCryoloEnvName(V1_5_3)
+DEFAULT_ENV_NAME = getCryoloEnvName(V1_5_4)
 DEFAULT_ACTIVATION_CMD = 'conda activate ' + DEFAULT_ENV_NAME
 CRYOLO_ENV_ACTIVATION = 'CRYOLO_ENV_ACTIVATION'
-CRYOLO_GENMOD_VAR = 'CRYOLO_GENERIC_MODEL'
 CONDA_ACTIVATION_CMD_VAR = 'CONDA_ACTIVATION_CMD'
 
-CRYOLO_GENMOD = 'cryolo_model'
 # Model constants
-
-
 def _modelFn(modelKey):
     return 'gmodel_phosnet_%s.h5' % modelKey
 
-CRYOLO_GENMOD_20190516 = '20190516'
-CRYOLO_GENMOD_20190516_FN = _modelFn(CRYOLO_GENMOD_20190516)
+CRYOLO_GENMOD_VAR = 'CRYOLO_GENERIC_MODEL'
+CRYOLO_GENMOD = 'cryolo_model'
 
 CRYOLO_GENMOD_201909 = '201909'
 CRYOLO_GENMOD_201909_FN = _modelFn(CRYOLO_GENMOD_201909)
 
+CRYOLO_GENMOD_201910 = '201910'
+CRYOLO_GENMOD_201910_FN = _modelFn(CRYOLO_GENMOD_201910)
+
 # Default model (latest usually)
-CRYOLO_GENMOD_DEFAULT = os.path.join(CRYOLO_GENMOD + "-" + CRYOLO_GENMOD_201909, CRYOLO_GENMOD_201909_FN)
+CRYOLO_GENMOD_DEFAULT = os.path.join(CRYOLO_GENMOD + "-" + CRYOLO_GENMOD_201910, CRYOLO_GENMOD_201910_FN)
 
 # crYOLO supported input formats for micrographs
 CRYOLO_SUPPORTED_FORMATS = [".mrc", ".tif", ".tiff", ".jpg"]
@@ -73,7 +73,6 @@ INPUT_MODEL_OTHER = 1
 
 # JANNI ################################################################################################################
 
-# Model
 def _janniModelFn(modelKey):
     return 'gmodel_janni_{}.h5'.format(modelKey)
 

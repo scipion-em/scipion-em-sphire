@@ -130,15 +130,8 @@ class Plugin(pyworkflow.em.Plugin):
     @classmethod
     def defineBinaries(cls, env):
 
-        cls.addCryoloPackage(env, V1_5_3, default=bool(cls.getCondaActivationCmd()))
+        cls.addCryoloPackage(env, CRYOLO_DEFAULT_VER_NUM, default=bool(cls.getCondaActivationCmd()))
         # Leave commented until released: cls.addCryoloPackage(env, V1_5_4_rc3)
-
-        env.addPackage(CRYOLO_GENMOD, version=CRYOLO_GENMOD_20190516,
-                       tar='void.tgz',
-                       commands=[("wget ftp://ftp.gwdg.de/pub/misc/sphire/crYOLO-GENERAL-MODELS/" +
-                                  CRYOLO_GENMOD_20190516_FN, CRYOLO_GENMOD_20190516_FN)],
-                       neededProgs=["wget"],
-                       default=False)
 
         env.addPackage(CRYOLO_GENMOD, version=CRYOLO_GENMOD_201909,
                        tar='void.tgz',
@@ -146,7 +139,23 @@ class Plugin(pyworkflow.em.Plugin):
                                  "wget ftp://ftp.gwdg.de/pub/misc/sphire/crYOLO-GENERAL-MODELS/" +
                                  CRYOLO_GENMOD_201909_FN, CRYOLO_GENMOD_201909_FN)],
                        neededProgs=["wget"],
+                       default=False)
+
+        env.addPackage(CRYOLO_GENMOD, version=CRYOLO_GENMOD_201910,
+                       tar='void.tgz',
+                       commands=[(
+                                 "wget ftp://ftp.gwdg.de/pub/misc/sphire/crYOLO-GENERAL-MODELS/" +
+                                 CRYOLO_GENMOD_201910_FN, CRYOLO_GENMOD_201910_FN)],
+                       neededProgs=["wget"],
                        default=True)
+
+        # env.addPackage(JANNI_GENMOD,
+        #                version=JANNI_GENMOD_201910,
+        #                tar='void.tgz',
+        #                commands=[("wget ftp://ftp.gwdg.de/pub/misc/sphire/crYOLO-GENERAL-MODELS/"
+        #                           + JANNI_GENMOD_201910_FN, JANNI_GENMOD_201910_FN)],
+        #                neededProgs=["wget"],
+        #                default=True)
 
         env.addPackage(JANNI_GENMOD,
                        version=JANNI_GENMOD_20190703,

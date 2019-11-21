@@ -4,11 +4,11 @@ Sphire Scipion plugin
 This plugin allows to use cryolo within Scipion framework.
 So far we have implemented:
 
-- crYOLO particle picker (current version: 1.5.3)
-- JANNI denoising (current version 0.1.1)
+- crYOLO particle picker
+- JANNI denoising
 
-This plugin will be able to install cryolo 1.5.3, janni 0.1.1 and both generic models.
-
+This plugin is able to install cryolo (which includes janni) and the generic models for both picking
+and denoising.
 
 `crYOLO`_ is a pipeline for particle detection in cryo-electron
 microscopy images which is based on the deep learning object detection system "You Only Look Once" (YOLO).
@@ -72,17 +72,6 @@ Downloaded crYOLO and JANNI general models can be found, respectively, in the fo
 ``~/scipion/software/em/cryolo_model-[model_version]``.
 
 ``~/scipion/software/em/janni_model-[model_version]``.
-
-If you wish to provide a different general model,
-set variable **CRYOLO_GENERIC_MODEL** for crYOLO and **JANNI_GENERIC_MODEL** for JANNI in the
-``~/.config/scipion.conf`` variables section:
-
-For example:
-
-::
-
- CRYOLO_GENERIC_MODEL = /your/desired/location/myownmodelname.h5
-
 
 Running plugin tests
 --------------------
