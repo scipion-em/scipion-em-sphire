@@ -251,7 +251,7 @@ class TestCryolo(BaseTest):
     @classmethod
     def runMicPreprocessing(cls):
 
-        print "Preprocessing the micrographs..."
+        print("Preprocessing the micrographs...")
         protPreprocess = cls.newProtocol(XmippProtPreprocessMicrographs,
                                           doCrop=True, cropPixels=25)
         protPreprocess.inputMicrographs.set(cls.protImport.outputMicrographs)

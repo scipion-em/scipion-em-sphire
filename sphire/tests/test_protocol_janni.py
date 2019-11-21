@@ -75,7 +75,7 @@ class TestJanniMRC(BaseTest):
     @classmethod
     def runMicPreprocessing(cls):
 
-        print "Preprocessing the micrographs..."
+        print("Preprocessing the micrographs...")
 
         # Create protocol of the desired type (in this case it belongs to another plugin, which is xmipp3)
         XmippProtPreprocessMicrographs = pwutils.importFromPlugin(
@@ -168,7 +168,7 @@ class TestJanniTIF(BaseTest):
     @classmethod
     def runMicPreprocessing(cls):
 
-        print "Preprocessing the micrographs..."
+        print("Preprocessing the micrographs...")
 
         # Create protocol of the desired type (in this case it belongs to another plugin, which is xmipp3)
         XmippProtPreprocessMicrographs = pwutils.importFromPlugin(

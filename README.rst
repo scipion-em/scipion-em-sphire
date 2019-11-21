@@ -5,50 +5,48 @@ This plugin allows to use cryolo within Scipion framework.
 So far we have implemented:
 
 - crYOLO particle picker (current version: 1.5.3)
+- JANNI denoising (current version 0.1.1)
 
-This plugin will be able to install cryolo 1.5.3 and the generic model.
-
+This plugin will be able to install cryolo 1.5.3, janni 0.1.1 and both generic models.
 
 
 `crYOLO`_ is a pipeline for particle detection in cryo-electron
 microscopy images which is based on the deep learning object detection system "You Only Look Once" (YOLO).
 
+`JANNI`_ (Just Another Noise 2 Noise Implementation) implements a neural network denoising tool based on
+deep learning.
 
 Setup
 =====
 
-Requires to have conda installed and not initialized in the shell.
+It is assumed that `Scipion2`_ is currently installed. If not, follow the instructions `here`_.
 
-For Users
----------
+Plugin scipion-em-sphire requires to have Conda (Anaconda or Miniconda) installed and not initialized in
+the shell.
 
-Install `Scipion2`_, follow the 'crYOLO integration' instructions below and `install`_ the cryolo plugin.
+- **Install this plugin in user mode:**
 
-For developers
---------------
+    It can be installed in user mode via Scipion main window (**Configuration** >
+    **Plugins**) or using the command line:
 
-1. For testing and develop this plugin, you need to use the Scipion v2.0 in devel. 
-   For that, just install Scipion from `GitHub`_, using the ‘devel’ branch. 
-2. Follow the 'crYOLO integration' instructions below.
-3. Clone this repository in you system: 
-   ::
+.. code-block::
 
-      cd
-      git clone https://github.com/scipion-em/scipion-em-sphire
-   
-4. Install the sphire plugin in devel mode:
-   ::
-      
-      scipion installp -p ~/scipion-em-sphire --devel
+    scipion installp -p local/path/to/scipion-em-sphire
+
+- **Install this plugin in developer mode:**
+
+.. code-block::
+
+    scipion installp -p local/path/to/scipion-em-sphire --devel
 
 
-crYOLO integration
+Plugin integration
 ------------------
 
 The following steps presuppose that you have Anaconda or Miniconda installed on
 your computer.
-In ``~/.config/scipion/scipion.conf`` set **CONDA_ACTIVATION_CMD** variable in
-the Packages section.
+In ``~/.config/scipion/scipion.conf`` (Option View > Show Hidden Files must be enabled) set
+**CONDA_ACTIVATION_CMD** variable in the Packages section.
 
 For example:
 
@@ -56,16 +54,11 @@ For example:
 
  CONDA_ACTIVATION_CMD = . ~/anaconda2/etc/profile.d/conda.sh
 
-Notice the command starts with a period! This will source the conda.sh script.
-This is needed to activate the conda environment.
-For further information please visit the following website
-`[here] <https://github.com/conda/conda/blob/master/CHANGELOG.md#440-2017-12-20>`_
-
 If you wish to install the plugin with the default settings just go to plugin
 manager and install scipion-em-sphire. This will create the default environment
-named cryolo and download version 1.4.0 for you.
+named cryolo-x.x.x (where x.x.x is referred to the downloaded version of cryolo) for you.
 
-You are ready to use crYOLO.
+You are ready to use crYOLO and JANNI.
 If you wish to change the environment name you can introduce
 **CRYOLO_ENV_ACTIVATION** variable in the ``~/.config/scipion.conf`` variables section:
 
@@ -74,12 +67,15 @@ For example:
 
  CRYOLO_ENV_ACTIVATION = conda activate yourdesiredname
 
-crYOLO general model is not installed by default. You may install it by
-expanding the plugin in the plugin manager and install it.
-This will install the general model to a default location: ``~/scipion/software/em/cryolo_model-20190516``.
+Downloaded crYOLO and JANNI general models can be found, respectively, in the following locations:
 
-If you wish to provide a different general model:
-Set **CRYOLO_GENERIC_MODEL** variable in the ``~/.config/scipion.conf`` variables section:
+``~/scipion/software/em/cryolo_model-[model_version]``.
+
+``~/scipion/software/em/janni_model-[model_version]``.
+
+If you wish to provide a different general model,
+set variable **CRYOLO_GENERIC_MODEL** for crYOLO and **JANNI_GENERIC_MODEL** for JANNI in the
+``~/.config/scipion.conf`` variables section:
 
 For example:
 
@@ -88,19 +84,23 @@ For example:
  CRYOLO_GENERIC_MODEL = /your/desired/location/myownmodelname.h5
 
 
-Running crYOLO tests
-----------------------
+Running plugin tests
+--------------------
 To check that everything is properly installed and configured, you might want
 to run some tests:
 
 .. code-block::
 
-   scipion test --grep cryolo --run
+   scipion test --grep sphire --run
    
    
 .. _crYOLO: http://sphire.mpg.de/wiki/doku.php?id=downloads:cryolo_1&redirect=1
 
-.. _Scipion2: https://scipion-em.github.io/docs/docs/scipion-modes/how-to-install.html
+.. _JANNI: https://sphire.mpg.de/wiki/doku.php?id=janni
+
+.. _Scipion2: http://scipion.i2pc.es/
+
+.. _here: https://scipion-em.github.io/docs/docs/scipion-modes/how-to-install.html
 
 .. _install: https://scipion-em.github.io/docs/release-2.0.0/docs/scipion-modes/install-from-sources#step-4-installing-xmipp3-and-other-em-plugins
 

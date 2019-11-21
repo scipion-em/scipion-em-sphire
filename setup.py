@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """A setuptools based setup module.
 
 See:
@@ -40,13 +41,12 @@ setup(
     # For a discussion on single-sourcing the version across setup.py and the
     # project code, see
     # https://packaging.python.org/en/latest/single_source_version.html
-    version='1.2.9',  # Required
+    version='1.3.0',  # Required
 
     # This is a one-line description or tagline of what your project does. This
     # corresponds to the "Summary" metadata field:
     # https://packaging.python.org/specifications/core-metadata/#summary
-    description='Cryolo picker, training and custom model importer.'
-                ,
+    description='Cryolo picker, training and custom model importer. Janni denoising.',
 
     # This is an optional longer description of your project that represents
     # the body of text which users will see when they visit PyPI.
@@ -66,7 +66,7 @@ setup(
 
     # This should be your name or the name of the organization which owns the
     # project.
-    author='I2PC, Jose Miguel de La Rosa',  # Optional
+    author='I2PC, Jose Miguel de La Rosa, Jorge Jiménez',  # Optional
 
     # This should be a valid email address corresponding to the author listed
     # above.
@@ -98,7 +98,7 @@ setup(
     # project page. What does your project relate to?
     #
     # Note that this is a string of words separated by whitespace, not a list.
-    keywords='scipion cryoem imageprocessing scipion-2.0',  # Optional
+    keywords='scipion cryoem imageprocessing picking denoise scipion-2.0',  # Optional
 
     # You can just specify package directories manually here if your project is
     # simple. Or you can use find_packages().
