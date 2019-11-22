@@ -40,7 +40,7 @@ software whithin Scipion framework
 class SphireProtJanniDenoising(ProtMicrographs):
     """ Protocol to denoise a set of micrographs in the project.
     """
-    _label = 'Denoising'
+    _label = 'janni denoising'
     _input_path = ""
     _output_path = ""
 
