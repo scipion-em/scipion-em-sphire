@@ -107,19 +107,17 @@ class TestJanniMRC(BaseTest):
         # Launch protocol
         self.launchProtocol(protJanni)
 
-        in_mics = self.protPreprocess.outputMicrographs
-        out_mics = protJanni.outputMicrographs
         # Check if the generated files exist
+        out_mics = protJanni.outputMicrographs
         for mic in out_mics:
-            print("JORGE ============================> {}".format(os.path.abspath(mic.getFileName())))
             self.assertTrue(os.path.exists(os.path.abspath(mic.getFileName())))
-            # self.assertTrue(os.path.exists(os.path.abspath(mic._filename)))
 
         # Check that the number of generated files is equal than the number of input files
         self.assertSetSize(out_mics, size=self.protImport.outputMicrographs.getSize())
 
         # Check the attributes of input and output set of mics: they all should be equal excepting the image
         tol = 1e-3
+        in_mics = self.protPreprocess.outputMicrographs
         self.assertTrue(abs(in_mics.getSamplingRate() - out_mics.getSamplingRate()) <= tol)
         self.assertEqual(in_mics.hasCTF(), out_mics.hasCTF())
         self.assertEqual(in_mics.getAlignment(), out_mics.getAlignment())

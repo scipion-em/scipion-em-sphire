@@ -26,7 +26,7 @@
 # **************************************************************************
 
 import os
-from pyworkflow.protocol import params
+from pyworkflow.protocol import params, ValidationException
 from pyworkflow.utils.properties import Message
 from pyworkflow.em.protocol import ProtMicrographs
 from sphire import Plugin
@@ -43,6 +43,7 @@ class SphireProtJanniDenoising(ProtMicrographs):
     _label = 'janni denoising'
     _input_path = ""
     _output_path = ""
+    _some_mics_failed = ""
 
     # -------------------------- DEFINE param functions ----------------------
     def _defineParams(self, form):
@@ -79,15 +80,32 @@ class SphireProtJanniDenoising(ProtMicrographs):
         Plugin.runCryolo(self, 'janni_denoise.py', args)
 
     def createOutputStep(self):
-        in_mics = self.inputMicrographs.get()  # Get input set of micgrographs
+        in_mics = self.inputMicrographs.get()  # Get input set of micrographs
         out_mics = self._createSetOfMicrographs()  # Create an empty set of micrographs
         out_mics.copyInfo(in_mics)  # Copy all the info of the inputs, then the filename attribute will be edited with
         # the path of the output files
 
         # Update micrograph name and append to the new Set
+        n_failed_mics = 0
         for mic in in_mics:
-            mic.setFileName(self._getOutputMicrograph(mic))
-            out_mics.append(mic)
+            current_out_mic = self._getOutputMicrograph(mic)
+            if os.path.exists(current_out_mic):
+                mic.setFileName(current_out_mic)
+                out_mics.append(mic)
+
+            else:
+                n_failed_mics += 1
+                print("Denoised mic wasn't correctly generated --> {}", mic.getFileName())
+                continue
+
+        # Check if the output list is empty
+        if n_failed_mics > 0:
+            n_mics_in = len(in_mics)
+            if n_failed_mics == n_mics_in:
+                raise ValidationException("No output micrographs were generated.")
+            else:
+                _some_mics_failed = "{} of {} micrographs weren't correctly processed. Please check the log for more " \
+                                    "details".format(n_failed_mics, n_mics_in)
 
         self._defineOutputs(outputMicrographs=out_mics)
         self._defineTransformRelation(self.inputMicrographs, out_mics)
@@ -100,6 +118,7 @@ class SphireProtJanniDenoising(ProtMicrographs):
         if self.isFinished():
             summary.append("Denoising using general model: {}".format(self.getInputModel()))
             summary.append("Micrographs processed: {}".format(self.outputMicrographs.getSize()))
+            summary.append(self._some_mics_failed)
 
         return summary
 
@@ -140,3 +159,4 @@ class SphireProtJanniDenoising(ProtMicrographs):
         return os.path.join(self._getExtraPath(),  # Relative path to output dir (rel. paths are required in DDBB)
                             os.path.split(in_file_path)[-1],  # Deeper folder name in the input path
                             in_file_name)  # File name and extension
+
