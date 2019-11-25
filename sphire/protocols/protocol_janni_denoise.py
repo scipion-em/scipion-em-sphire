@@ -139,6 +139,10 @@ class SphireProtJanniDenoising(ProtMicrographs):
 
         return validateMsgs
 
+    def _citations(self):
+        cites = ['thorsten_wagner_2019_3378300']
+        return cites
+
     # -------------------------- UTILS functions ------------------------------
     def getInputModel(self):
 

@@ -69,7 +69,23 @@ CRYOLO_SUPPORTED_FORMATS = [".mrc", ".tif", ".tiff", ".jpg"]
 
 # Input options for the training model
 INPUT_MODEL_GENERAL = 0
-INPUT_MODEL_OTHER = 1
+INPUT_MODEL_GENERAL_NS = 1
+INPUT_MODEL_OTHER = 2
+
+# crYOLO - NEGATIVE STAIN ##############################################################################################
+
+def _negStainModelFn(modelKey):
+    return 'gmodel_phosnet_negstain_{}.h5'.format(modelKey)
+
+CRYOLO_NS_GENMOD_VAR = 'CRYOLO_NS_GENERIC_MODEL'
+CRYOLO_NS_GENMOD = 'cryolo_negstain_model'
+CRYOLO_NS_GENMOD_20190226 = '20190226'
+CRYOLO_NS_GENMOD_20190226_FN = _negStainModelFn(CRYOLO_NS_GENMOD_20190226)
+CRYOLO_NS_GENMOD_DEFAULT = os.path.join(CRYOLO_NS_GENMOD + "-" + CRYOLO_NS_GENMOD_20190226,
+                                        CRYOLO_NS_GENMOD_20190226_FN)
+
+
+
 
 # JANNI ################################################################################################################
 

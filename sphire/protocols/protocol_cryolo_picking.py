@@ -39,8 +39,8 @@ from pyworkflow.em.protocol import ProtParticlePickingAuto
 
 from sphire import Plugin
 import sphire.convert as convert
-from sphire.constants import CRYOLO_GENMOD_VAR
-from sphire.constants import INPUT_MODEL_GENERAL
+from sphire.constants import CRYOLO_GENMOD_VAR, CRYOLO_NS_GENMOD_VAR, INPUT_MODEL_GENERAL, \
+    INPUT_MODEL_GENERAL_NS, INPUT_MODEL_OTHER
 
 
 class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
@@ -59,18 +59,19 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
 
         form.addParam('inputModelFrom', params.EnumParam,
                       default=INPUT_MODEL_GENERAL,
-                      choices=['general', 'other'],
+                      choices=['general cryoem', 'general neg stain', 'other'],
                       display=params.EnumParam.DISPLAY_HLIST,
-                      label='Use previous model: ',
+                      label='Picking model: ',
                       help="You might use a general network model that consists "
-                           "of real, simulated, particle free datasets on "
-                           "various grids with contamination and skip training "
-                           "completely or if you would like to "
+                           "of\n   -cryo-em: real, simulated, particle free datasets on "
+                           "various grids with contamination\n   -negative stain: trained with"
+                           "negative stain images\nand skip training "
+                           "completely,\nor,\nif you would like to "
                            "improve the results you can use the model from a "
                            "previous training step or an imported one.")
         form.addParam('inputModel', params.PointerParam,
                       allowsNull=True,
-                      condition="inputModelFrom!=%d" % INPUT_MODEL_GENERAL,
+                      condition="inputModelFrom==%d" % INPUT_MODEL_OTHER,
                       label="Input model",
                       pointerClass='CryoloModel',
                       help='Select an existing crYOLO trained model.')
@@ -80,6 +81,10 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
                            'conservatively you might want to change the threshold '
                            'from the default of 0.3 to a less conservative value '
                            'like 0.2 or more conservative value like 0.4.')
+        # form.addParam("isNegStain", params.BooleanParam,
+        #               default=False,
+        #               label="Negative stain data",
+        #               help="It is used to use a model trained for negative stain images.")
         form.addParam('lowPassFilter', params.BooleanParam,
                       default=False,
                       label="Low-pass filter",
@@ -135,10 +140,14 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
 
     # --------------------------- INSERT steps functions -----------------------
     def _insertInitialSteps(self):
-        useGeneral = self.inputModelFrom == INPUT_MODEL_GENERAL
-        self.summaryVar.set("Picking using %s model: \n%s"
-                            % ('(GENERAL)' if useGeneral else '',
-                               self.getInputModel()))
+        if self.inputModelFrom == INPUT_MODEL_GENERAL:
+            model_chosen_str = '(GENERAL)'
+        elif self.inputModelFrom == INPUT_MODEL_GENERAL_NS:
+            model_chosen_str = '(GENERAL_NS)'
+        else:
+            model_chosen_str = '(CUSTOM)'
+
+        self.summaryVar.set("Picking using %s model: \n%s" % (model_chosen_str, self.getInputModel()))
         return [self._insertFunctionStep("createConfigStep")]
 
     # --------------------------- STEPS functions ------------------------------
@@ -156,7 +165,6 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
             "max_box_per_image": maxBoxPerImage,
             "num_patches": numPatches
         }
-
         if self.lowPassFilter:
             model.update({"filter": [absCutOfffreq, "filtered"]})
 
@@ -236,6 +244,12 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
                     "website and ~/.config/scipion/scipion.conf must contain "
                     "the '%s' parameter pointing to the downloaded file."
                     % CRYOLO_GENMOD_VAR)
+            elif self.inputModelFrom == INPUT_MODEL_GENERAL_NS:
+                validateMsgs.append(
+                    "The general model for cryolo (negative stain) must be download from Sphire "
+                    "website and ~/.config/scipion/scipion.conf must contain "
+                    "the '%s' parameter pointing to the downloaded file."
+                    % CRYOLO_NS_GENMOD_VAR)
             else:
                 validateMsgs.append(
                     "Input model path seems to be wrong. If you have moved the "
@@ -248,6 +262,8 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
     def getInputModel(self):
         if self.inputModelFrom == INPUT_MODEL_GENERAL:
             m = Plugin.getCryoloGeneralModel()
+        elif self.inputModelFrom == INPUT_MODEL_GENERAL_NS:
+            m = Plugin.getCryoloGeneralNSModel()
         else:
             m = self.inputModel.get().getPath()
 

@@ -48,6 +48,7 @@ class Plugin(pyworkflow.em.Plugin):
         cls._defineEmVar(CRYOLO_GENMOD_VAR, CRYOLO_GENMOD_DEFAULT)
         cls._defineVar(CRYOLO_ENV_ACTIVATION, DEFAULT_ACTIVATION_CMD)
         cls._defineEmVar(JANNI_GENMOD_VAR, JANNI_GENMOD_DEFAULT)  # EmVar is used instead of Var because method getVar
+        cls._defineEmVar(CRYOLO_NS_GENMOD_VAR, CRYOLO_NS_GENMOD_DEFAULT)
 
     @classmethod
     def getCryoloEnvActivation(cls):
@@ -59,6 +60,10 @@ class Plugin(pyworkflow.em.Plugin):
     @classmethod
     def getCryoloGeneralModel(cls):
         return os.path.abspath(cls.getVar(CRYOLO_GENMOD_VAR))
+
+    @classmethod
+    def getCryoloGeneralNSModel(cls):
+        return os.path.abspath(cls.getVar(CRYOLO_NS_GENMOD_VAR))
 
     @classmethod
     def getJanniGeneralModel(cls):
@@ -146,6 +151,14 @@ class Plugin(pyworkflow.em.Plugin):
                        commands=[(
                                  "wget ftp://ftp.gwdg.de/pub/misc/sphire/crYOLO-GENERAL-MODELS/" +
                                  CRYOLO_GENMOD_201910_FN, CRYOLO_GENMOD_201910_FN)],
+                       neededProgs=["wget"],
+                       default=True)
+
+        env.addPackage(CRYOLO_NS_GENMOD, version=CRYOLO_NS_GENMOD_20190226,
+                       tar='void.tgz',
+                       commands=[(
+                                 "wget ftp://ftp.gwdg.de/pub/misc/sphire/crYOLO-GENERAL-MODELS/" +
+                                 CRYOLO_NS_GENMOD_20190226_FN, CRYOLO_NS_GENMOD_20190226_FN)],
                        neededProgs=["wget"],
                        default=True)
 

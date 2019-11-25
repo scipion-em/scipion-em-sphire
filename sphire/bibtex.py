@@ -40,4 +40,15 @@ _bibtexStr = """
   publisher={Nature Publishing Group},
   doi = {http://dx.doi.org/10.1038/nmeth.2727}
 }
+@misc{thorsten_wagner_2019_3378300,
+    title = "MPI-Dortmund/sphire-janni: JANNI 0.0.5",
+    journal = "Zenodo",
+    year = "2019",
+    month = "aug",
+    publisher = "Zenodo",
+    version = "0.0.5",
+    doi = "http://doi.org/10.5281/zenodo.3378300",
+    url = "http://zenodo.org/record/3378300#.XcvDWXVKhhE",
+    author = "Thorsten Wagner",
+}
 """
