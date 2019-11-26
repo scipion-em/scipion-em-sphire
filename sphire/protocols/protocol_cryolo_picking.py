@@ -81,10 +81,6 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
                            'conservatively you might want to change the threshold '
                            'from the default of 0.3 to a less conservative value '
                            'like 0.2 or more conservative value like 0.4.')
-        # form.addParam("isNegStain", params.BooleanParam,
-        #               default=False,
-        #               label="Negative stain data",
-        #               help="It is used to use a model trained for negative stain images.")
         form.addParam('lowPassFilter', params.BooleanParam,
                       default=False,
                       label="Low-pass filter",
