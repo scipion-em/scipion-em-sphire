@@ -59,7 +59,7 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
 
         form.addParam('inputModelFrom', params.EnumParam,
                       default=INPUT_MODEL_GENERAL,
-                      choices=['general cryoem', 'general neg stain', 'other'],
+                      choices=['general cryoem', 'other', 'general neg stain'],
                       display=params.EnumParam.DISPLAY_HLIST,
                       label='Picking model: ',
                       help="You might use a general network model that consists "
@@ -257,6 +257,10 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
                     "you have the correct model or use the general model for "
                     "picking. ")
         return validateMsgs
+
+    def _citations(self):
+        cites = ['Wagner2019']
+        return cites
 
     # -------------------------- UTILS functions ------------------------------
     def getInputModel(self):

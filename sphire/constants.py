@@ -69,8 +69,8 @@ CRYOLO_SUPPORTED_FORMATS = [".mrc", ".tif", ".tiff", ".jpg"]
 
 # Input options for the training model
 INPUT_MODEL_GENERAL = 0
-INPUT_MODEL_GENERAL_NS = 1
-INPUT_MODEL_OTHER = 2
+INPUT_MODEL_GENERAL_NS = 2
+INPUT_MODEL_OTHER = 1
 
 # crYOLO - NEGATIVE STAIN ##############################################################################################
 
