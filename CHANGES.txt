@@ -1,1 +1,1 @@
-v1.3.0, 21/11/2019 -- Janni denoising protocol added.
+v1.3.0, 21/11/2019 -- Janni denoising protocol added. Picking in negative stain micrographs added.
