@@ -24,20 +24,29 @@
 # *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
-"""
-Bibtex string file for Sphire package.
-"""
 
-_bibtexStr = """
-@article{Wagner2018,
-  title={Quantifying the local resolution of cryo-EM density maps},
-  author={Kucukelbir, Alp and Sigworth, Fred J and Tagare, Hemant D},
-  journal={Nature methods},
-  volume={11},
-  number={1},
-  pages={63--65},
-  year={2014},
-  publisher={Nature Publishing Group},
-  doi = {http://dx.doi.org/10.1038/nmeth.2727}
+"""
+@article{Wagner2019,
+  title = "SPHIRE-crYOLO is a fast and accurate fully automated particle picker for cryo-EM",
+  author = {Thorsten Wagner, Felipe Merino, Markus Stabrin},
+  journal = "Communications Biology",
+  volume = "2",
+  number = "218",
+  year = "2019 ",
+  publisher = "Nature Publishing Group",
+  doi = "http://doi.org/10.1038/s42003-019-0437-z",
+  url = "http://www.nature.com/articles/s42003-019-0437-z",
+}
+
+@misc{thorsten_wagner_2019_3378300,
+    title = "MPI-Dortmund/sphire-janni: JANNI 0.0.5",
+    journal = "Zenodo",
+    year = "2019",
+    month = "aug",
+    publisher = "Zenodo",
+    version = "0.0.5",
+    doi = "http://doi.org/10.5281/zenodo.3378300",
+    url = "http://zenodo.org/record/3378300#.XcvDWXVKhhE",
+    author = {Thorsten Wagner},
 }
 """

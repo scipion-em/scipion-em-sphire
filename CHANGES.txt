@@ -1,1 +1,1 @@
-28-August-2018 - New version of plugin version
+v1.3.0, 21/11/2019 -- Janni denoising protocol added. Picking in negative stain micrographs added.

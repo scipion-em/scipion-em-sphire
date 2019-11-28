@@ -265,6 +265,10 @@ class SphireProtCRYOLOTraining(ProtParticlePicking):
 
         return validateMsgs
 
+    def _citations(self):
+        cites = ['Wagner2019']
+        return cites
+
     # -------------------------- UTILS functions ------------------------------
     def _getWorkDir(self, *paths):
         return self._getExtraPath(*paths)

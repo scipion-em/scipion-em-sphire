@@ -35,8 +35,7 @@ import pyworkflow.utils as pwutils
 
 import sphire.convert as convert
 import sphire.protocols as protocols
-from sphire.constants import INPUT_MODEL_GENERAL, INPUT_MODEL_OTHER
-
+from sphire.constants import INPUT_MODEL_OTHER, INPUT_MODEL_GENERAL_NS
 
 XmippProtPreprocessMicrographs = pwutils.importFromPlugin(
     'xmipp3.protocols', 'XmippProtPreprocessMicrographs', doRaise=True)
@@ -251,7 +250,7 @@ class TestCryolo(BaseTest):
     @classmethod
     def runMicPreprocessing(cls):
 
-        print "Preprocessing the micrographs..."
+        print("Preprocessing the micrographs...")
         protPreprocess = cls.newProtocol(XmippProtPreprocessMicrographs,
                                           doCrop=True, cropPixels=25)
         protPreprocess.inputMicrographs.set(cls.protImport.outputMicrographs)
@@ -309,7 +308,6 @@ class TestCryolo(BaseTest):
             protocols.SphireProtCRYOLOPicking,
             label="Picking after Training 1",
             inputMicrographs=self.protPreprocess.outputMicrographs,
-
             inputModelFrom=INPUT_MODEL_OTHER,
             inputModel=protTraining.outputModel,
             boxSize=65,
@@ -325,4 +323,57 @@ class TestCryolo(BaseTest):
 
     def testTraningFineTune(self):
         self._runTraing(fineTune=True)
+
+class TestCryoloNegStain(BaseTest):
+    """ Test cryolo protocol for negative stain images"""
+
+    @classmethod
+    def setData(cls):
+        cls.ds = DataSet.getDataSet('negative_stain')
+
+    @classmethod
+    def setUpClass(cls):
+        # Prepare test project
+        setupTestProject(cls)
+        # Prepare the test data
+        cls.setData()
+        # Run needed protocols
+        cls.runImportMicrograph()
+
+    @classmethod
+    def runImportMicrograph(cls):
+
+        """ Run an Import micrograph protocol. """
+        protImport = cls.newProtocol(
+            pwem.ProtImportMicrographs,
+            samplingRateMode=0,
+            filesPath=TestCryoloNegStain.ds.getFile('allMics'),
+            samplingRate=3.54,
+            magnification=59000,
+            voltage=300,
+            sphericalAberration=2)
+
+        cls.launchProtocol(protImport)
+        cls.protImport = protImport
+
+
+    def testPickingNS(self):
+
+        # Create protocol of the desired type
+        protPickingNS = self.newProtocol(protocols.SphireProtCRYOLOPicking,
+                                         label="Picking after Training 1",
+                                         inputMicrographs=self.protImport.outputMicrographs,
+                                         inputModelFrom=INPUT_MODEL_GENERAL_NS,
+                                         boxSize=100,
+                                         lowPassFilter=False,
+                                         conservPickVar=0.3)
+
+        # Set the value of the required attributes
+        protPickingNS.inputMicrographs.set(self.protImport.outputMicrographs)
+
+        # Launch protocol
+        self.launchProtocol(protPickingNS)
+
+        # Check results
+        self.assertSetSize(protPickingNS.outputCoordinates, msg="There was a problem picking with crYOLO")
 
