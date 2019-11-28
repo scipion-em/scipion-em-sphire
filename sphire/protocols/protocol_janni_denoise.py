@@ -58,7 +58,7 @@ class SphireProtJanniDenoising(ProtMicrographs):
                       pointerClass='SetOfMicrographs',
                       label='Input Micrographs',
                       important=True,
-                      help='Path of the directory which contains the images to denoise. Aligned averages works better.')
+                      help='Path of the directory which contains the images to denoise.')
 
 
     # --------------------------- STEPS functions ------------------------------

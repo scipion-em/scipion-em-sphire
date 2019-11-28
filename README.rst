@@ -69,9 +69,9 @@ For example:
 
 Downloaded crYOLO and JANNI general models can be found, respectively, in the following locations:
 
-``~/scipion/software/em/cryolo_model-[model_version]``.
+``<SCIPION_HOME>/software/em/cryolo_model-[model_version]``.
 
-``~/scipion/software/em/janni_model-[model_version]``.
+``<SCIPION_HOME>/software/em/janni_model-[model_version]``.
 
 Running plugin tests
 --------------------

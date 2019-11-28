@@ -160,7 +160,7 @@ class Plugin(pyworkflow.em.Plugin):
                                  "wget ftp://ftp.gwdg.de/pub/misc/sphire/crYOLO-GENERAL-MODELS/" +
                                  CRYOLO_NS_GENMOD_20190226_FN, CRYOLO_NS_GENMOD_20190226_FN)],
                        neededProgs=["wget"],
-                       default=True)
+                       default=False)
 
         # env.addPackage(JANNI_GENMOD,
         #                version=JANNI_GENMOD_201910,
