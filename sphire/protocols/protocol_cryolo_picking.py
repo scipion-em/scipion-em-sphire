@@ -33,10 +33,10 @@ import json
 
 import pyworkflow.utils as pwutils
 from pyworkflow import Config
-from pyworkflow.em.data import Integer
+from pyworkflow.object import Integer
 import pyworkflow.protocol.params as params
 import pyworkflow.protocol.constants as cons
-from pyworkflow.em.protocol import ProtParticlePickingAuto
+from pwem.protocols import ProtParticlePickingAuto
 
 from sphire import Plugin
 import sphire.convert as convert

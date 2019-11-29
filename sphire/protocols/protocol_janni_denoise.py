@@ -28,7 +28,7 @@
 import os
 from pyworkflow.protocol import params, ValidationException
 from pyworkflow.utils.properties import Message
-from pyworkflow.em.protocol import ProtMicrographs
+from pwem.protocols import ProtMicrographs
 from sphire import Plugin
 
 """

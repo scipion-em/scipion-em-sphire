@@ -27,17 +27,20 @@
 
 import os
 
-from pyworkflow.tests import (BaseTest, setupTestProject, DataSet,
-                              setupTestOutput)
-import pyworkflow.em as pwem
-from pyworkflow.em.convert import Ccp4Header
 import pyworkflow.utils as pwutils
+from pyworkflow.tests import (BaseTest, setupTestProject, DataSet, setupTestOutput)
+from pyworkflow.plugin import Domain
+
+import pwem.objects as emobj
+from pwem.protocols.protocol_import import ProtImportMicrographs, ProtImportCoordinates
+from pwem.convert.image_handler import ImageHandler
+from pwem.convert import Ccp4Header
 
 import sphire.convert as convert
 import sphire.protocols as protocols
 from sphire.constants import INPUT_MODEL_OTHER, INPUT_MODEL_GENERAL_NS
 
-XmippProtPreprocessMicrographs = pwutils.importFromPlugin(
+XmippProtPreprocessMicrographs = Domain.importFromPlugin(
     'xmipp3.protocols', 'XmippProtPreprocessMicrographs', doRaise=True)
 
 
@@ -63,7 +66,7 @@ class TestSphireConvert(BaseTest):
             writer = convert.CoordBoxWriter(boxSize, yFlipHeight=yFlipHeight)
             writer.open(tmpFile)
             for x, y, _ in coordsIn:
-                writer.writeCoord(pwem.Coordinate(x=x, y=y))
+                writer.writeCoord(emobj.Coordinate(x=x, y=y))
             writer.close()
 
             reader = convert.CoordBoxReader(boxSize, yFlipHeight=yFlipHeight)
@@ -93,9 +96,9 @@ class TestSphireConvert(BaseTest):
 
         mrcMic = TestSphireConvert.ds.getFile('micrographs/006.mrc')
         spiMic = os.path.join(micDir, "mic.spi")
-        pwem.ImageHandler().convert(mrcMic, spiMic)
+        ImageHandler().convert(mrcMic, spiMic)
 
-        mic = pwem.Micrograph(objId=1, location=spiMic)
+        mic = emobj.Micrograph(objId=1, location=spiMic)
         # Invoke the createMic function
         convert.convertMicrographs([mic], micDir)
         expectedDest = os.path.join(micDir, convert.getMicIdName(mic, '.mrc'))
@@ -108,11 +111,11 @@ class TestSphireConvert(BaseTest):
         # Define a temporary sqlite file for micrographs
         fn = self.getOutputPath('convert_mics.sqlite')
 
-        mics = pwem.SetOfMicrographs(filename=fn)
+        mics = emobj.SetOfMicrographs(filename=fn)
         # Create SetOfCoordinates data
         # Define a temporary sqlite file for coordinates
         fn = self.getOutputPath('convert_coordinates.sqlite')
-        coordSet = pwem.SetOfCoordinates(filename=fn)
+        coordSet = emobj.SetOfCoordinates(filename=fn)
         coordSet.setBoxSize(60)
         coordSet.setMicrographs(mics)
 
@@ -122,14 +125,14 @@ class TestSphireConvert(BaseTest):
         }
 
         micList = []
-        for key, coords in data.iteritems():
-            mic = pwem.Micrograph(self.ds.getFile('micrographs/%s.mrc' % key))
+        for key, coords in data.items():
+            mic = emobj.Micrograph(self.ds.getFile('micrographs/%s.mrc' % key))
             mics.append(mic)
             micList.append(mic)
             print("Adding mic: %s, id: %s" % (key, mic.getObjId()))
 
             for x, y in coords:
-                coord = pwem.Coordinate(x=x, y=y)
+                coord = emobj.Coordinate(x=x, y=y)
                 coord.setMicrograph(mic)
                 coordSet.append(coord)
 
@@ -236,7 +239,7 @@ class TestCryolo(BaseTest):
 
         """ Run an Import micrograph protocol. """
         protImport = cls.newProtocol(
-            pwem.ProtImportMicrographs,
+            ProtImportMicrographs,
             samplingRateMode=0,
             filesPath=TestCryolo.ds.getFile('micrographs/*.mrc'),
             samplingRate=3.54,
@@ -262,8 +265,8 @@ class TestCryolo(BaseTest):
     def runImportCoords(cls):
         """ Run an Import coords protocol. """
         protImportCoords = cls.newProtocol(
-            pwem.ProtImportCoordinates,
-            importFrom=pwem.ProtImportCoordinates.IMPORT_FROM_EMAN,
+            ProtImportCoordinates,
+            importFrom=ProtImportCoordinates.IMPORT_FROM_EMAN,
             objLabel='import EMAN coordinates',
             filesPath=TestCryolo.ds.getFile('pickingEman/info/'),
             inputMicrographs=cls.protPreprocess.outputMicrographs,
@@ -345,7 +348,7 @@ class TestCryoloNegStain(BaseTest):
 
         """ Run an Import micrograph protocol. """
         protImport = cls.newProtocol(
-            pwem.ProtImportMicrographs,
+            ProtImportMicrographs,
             samplingRateMode=0,
             filesPath=TestCryoloNegStain.ds.getFile('allMics'),
             samplingRate=3.54,

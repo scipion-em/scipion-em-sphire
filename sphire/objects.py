@@ -25,7 +25,7 @@
 # **************************************************************************
 
 import pyworkflow.object as pwobj
-from pyworkflow.em.data import EMObject
+from pwem import EMObject
 
 
 class CryoloModel(EMObject):

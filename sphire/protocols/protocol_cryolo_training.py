@@ -27,7 +27,7 @@
 import os
 import json
 
-from pyworkflow.em.protocol import ProtParticlePicking
+from pwem.protocols import ProtParticlePicking
 import pyworkflow.protocol.constants as cons
 import pyworkflow.protocol.params as params
 import pyworkflow.utils as pwutils

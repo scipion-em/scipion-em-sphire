@@ -28,7 +28,7 @@ import os
 import json
 
 import pyworkflow.utils as pwutils
-from pyworkflow.em.protocol import ProtImport
+from pwem.protocols import ProtImport
 import pyworkflow.protocol.params as params
 
 from sphire import Plugin

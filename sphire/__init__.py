@@ -29,7 +29,7 @@
 """
 This package contains the protocols and data for crYOLO
 """
-import pyworkflow.em
+import pwem
 import pyworkflow.utils as pwutils
 import pyworkflow as pw
 from sphire.constants import *
@@ -38,7 +38,7 @@ _logo = "sphire_logo.png"
 _sphirePluginDir = os.path.dirname(os.path.abspath(__file__))
 
 
-class Plugin(pyworkflow.em.Plugin):
+class Plugin(pwem.Plugin):
     _cryoloVersion = None  # Means not detected yet
     _cryoloVersionSupported = None
     _condaActivationCmd = None
@@ -230,4 +230,4 @@ class Plugin(pyworkflow.em.Plugin):
         protocol.runJob(fullProgram, args, env=cls.getEnviron(), cwd=cwd)
 
 
-pyworkflow.em.Domain.registerPlugin(__name__)
+pwem.Domain.registerPlugin(__name__)
