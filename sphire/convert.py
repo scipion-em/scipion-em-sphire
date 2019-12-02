@@ -29,7 +29,7 @@ import os
 import csv
 
 import pyworkflow.object as pwobj
-import pwem
+import pwem.objects as emobj
 import pwem.convert as emconv
 import pyworkflow.utils as pwutils
 from pwem.convert import Ccp4Header
@@ -148,7 +148,7 @@ def readMicrographCoords(mic, coordSet, coordsFile, boxSize, yFlipHeight=None):
     reader = CoordBoxReader(boxSize, yFlipHeight=yFlipHeight)
     reader.open(coordsFile)
 
-    coord = pwem.Coordinate()
+    coord = emobj.Coordinate()
 
     for x, y, score in reader.iterCoords():
         # Clean up objId to add as a new coordinate

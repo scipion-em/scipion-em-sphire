@@ -129,13 +129,8 @@ class TestJanniMRC(BaseTest):
         in_acq_dict = in_mics.getAcquisition().getMappedDict()
         out_acq_dict = out_mics.getAcquisition().getMappedDict()
         self.assertEqual(in_acq_dict.keys(), out_acq_dict.keys())
-        # print('JORGE----------->', in_acq_dict.keys())
         for key in in_acq_dict.keys():
-            # print('JORGE----------->', key, out_acq_dict[key]._objValue)
-            # print('JORGE----------->', key, in_acq_dict[key]._objValue)
             self.assertTrue(out_acq_dict[key].equalAttributes(in_acq_dict[key]))
-
-        # self.assertDictEqual(in_mics.getAcquisition().getMappedDict(), out_mics.getAcquisition().getMappedDict())
 
 class TestJanniTIF(BaseTest):
     """ Test Janni protocol with TIF files"""
