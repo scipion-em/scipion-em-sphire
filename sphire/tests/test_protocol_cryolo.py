@@ -108,6 +108,9 @@ class TestSphireConvert(BaseTest):
                         "spi file wasn't converted to mrc.")
 
     def testWriteSetOfCoordinatesWithoutFlip(self):
+
+        from collections import OrderedDict
+
         # Define a temporary sqlite file for micrographs
         fn = self.getOutputPath('convert_mics.sqlite')
 
@@ -119,10 +122,9 @@ class TestSphireConvert(BaseTest):
         coordSet.setBoxSize(60)
         coordSet.setMicrographs(mics)
 
-        data = {
-            '006': [(30, 30)],
-            '016': [(40, 40)]
-        }
+        data = OrderedDict()
+        data['006'] = [(30, 30)]
+        data['016'] = [(40, 40)]
 
         micList = []
         for key, coords in data.items():
@@ -158,11 +160,16 @@ class TestSphireConvert(BaseTest):
             self.assertTrue(os.path.exists(micFile),
                             'Missing box file: %s' % micFile)
 
+        fh = open(os.path.join(boxFolder, 'mic00001.box'))
+        # box1 = fh.readline()
+        print(fh.readlines())
+
         # Assert coordinates in box files
         fh = open(os.path.join(boxFolder, 'mic00001.box'))
         box1 = fh.readline()
         fh.close()
         box1 = box1.split('\t')
+        print('JORGE---->box1 = ', box1)
         self.assertEquals(box1[0], '0')
         self.assertEquals(box1[1], '964')
 
@@ -286,8 +293,8 @@ class TestCryolo(BaseTest):
             streamingBatchSize=10)
 
         self.launchProtocol(protcryolo)
-        # self.assertSetSize(protcryolo.outputCoordinates,
-        #                    msg="There was a problem picking with crYOLO")
+        self.assertSetSize(protcryolo.outputCoordinates,
+                           msg="There was a problem picking with crYOLO")
 
     def _runTraing(self, fineTune):
         # crYOLO training
