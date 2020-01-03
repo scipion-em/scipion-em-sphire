@@ -37,6 +37,7 @@ This module implements the integration of the denoising functionality of Sphire-
 software whithin Scipion framework
 """
 
+
 class SphireProtJanniDenoising(ProtMicrographs):
     """ Protocol to denoise a set of micrographs in the project.
     """
@@ -59,7 +60,6 @@ class SphireProtJanniDenoising(ProtMicrographs):
                       label='Input Micrographs',
                       important=True,
                       help='Path of the directory which contains the images to denoise.')
-
 
     # --------------------------- STEPS functions ------------------------------
     # Main

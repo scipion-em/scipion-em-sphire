@@ -213,8 +213,8 @@ def roundInputSize(inputSize):
     rounded = roundTo(inputSize, 32)
 
     if rounded != inputSize:
-        print ("Input size (%s) will be rounded to %s, the closest "
-               "multiple of 32." % (inputSize, rounded))
+        print("Input size (%s) will be rounded to %s, the closest "
+              "multiple of 32." % (inputSize, rounded))
     return rounded
 
 

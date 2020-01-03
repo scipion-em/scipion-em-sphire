@@ -42,6 +42,7 @@ class Plugin(pwem.Plugin):
     _cryoloVersion = None  # Means not detected yet
     _cryoloVersionSupported = None
     _condaActivationCmd = None
+
     @classmethod
     def _defineVariables(cls):
         # CRYOLO do NOT need EmVar because it uses a conda environment.
@@ -124,7 +125,7 @@ class Plugin(pwem.Plugin):
             correctCondaActivationCmd = condaActivationCmd.replace(pw.Config.SCIPION_HOME + "/", "")
             if not correctCondaActivationCmd:
                 print("WARNING!!: %s variable not defined. "
-                       "Relying on conda being in the PATH" % CONDA_ACTIVATION_CMD_VAR)
+                      "Relying on conda being in the PATH" % CONDA_ACTIVATION_CMD_VAR)
             elif correctCondaActivationCmd[-1] not in [";", "&"]:
                 correctCondaActivationCmd += "&&"
 
@@ -221,7 +222,6 @@ class Plugin(pwem.Plugin):
                        neededProgs=cls.getDependencies(),
                        default=default,
                        vars=installEnvVars)
-
 
     @classmethod
     def runCryolo(cls, protocol, program, args, cwd=None):

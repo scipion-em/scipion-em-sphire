@@ -262,7 +262,7 @@ class TestCryolo(BaseTest):
 
         print("Preprocessing the micrographs...")
         protPreprocess = cls.newProtocol(XmippProtPreprocessMicrographs,
-                                          doCrop=True, cropPixels=25)
+                                         doCrop=True, cropPixels=25)
         protPreprocess.inputMicrographs.set(cls.protImport.outputMicrographs)
         protPreprocess.setObjLabel('crop 50px')
         cls.launchProtocol(protPreprocess)
@@ -334,6 +334,7 @@ class TestCryolo(BaseTest):
     def testTraningFineTune(self):
         self._runTraing(fineTune=True)
 
+
 class TestCryoloNegStain(BaseTest):
     """ Test cryolo protocol for negative stain images"""
 
@@ -365,7 +366,6 @@ class TestCryoloNegStain(BaseTest):
 
         cls.launchProtocol(protImport)
         cls.protImport = protImport
-
 
     def testPickingNS(self):
 

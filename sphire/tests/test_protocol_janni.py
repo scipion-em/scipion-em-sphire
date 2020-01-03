@@ -27,7 +27,6 @@
 
 import os.path
 from pyworkflow.tests import (BaseTest, setupTestProject, DataSet)
-import pyworkflow.utils as pwutils
 from pyworkflow.plugin import Domain
 import pwem.protocols as emprot
 import pwem.constants as emcons
@@ -96,7 +95,6 @@ class TestJanniMRC(BaseTest):
         # Store it
         cls.protPreprocess = protPreprocess
 
-
     def testJanniMRC(self):
 
         # Create protocol of the desired type
@@ -131,6 +129,7 @@ class TestJanniMRC(BaseTest):
         self.assertEqual(in_acq_dict.keys(), out_acq_dict.keys())
         for key in in_acq_dict.keys():
             self.assertTrue(out_acq_dict[key].equalAttributes(in_acq_dict[key]))
+
 
 class TestJanniTIF(BaseTest):
     """ Test Janni protocol with TIF files"""
@@ -193,7 +192,6 @@ class TestJanniTIF(BaseTest):
         cls.launchProtocol(protPreprocess)
         # Store it
         cls.protPreprocess = protPreprocess
-
 
     def testJanniTIF(self):
 

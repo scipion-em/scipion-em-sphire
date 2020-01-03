@@ -25,14 +25,11 @@
 # **************************************************************************
 
 import os
-import json
 
 import pyworkflow.utils as pwutils
 from pwem.protocols import ProtImport
 import pyworkflow.protocol.params as params
 
-from sphire import Plugin
-import sphire.convert as convert
 from sphire.objects import CryoloModel
 
 

@@ -33,7 +33,7 @@
 # we declare global constants to multiple usage
 import os
 
-# crYOLO ###############################################################################################################
+# crYOLO
 
 def getCryoloEnvName(version):
     return "cryolo-%s" % version
@@ -84,9 +84,6 @@ CRYOLO_NS_GENMOD_20190226_FN = _negStainModelFn(CRYOLO_NS_GENMOD_20190226)
 CRYOLO_NS_GENMOD_DEFAULT = os.path.join(CRYOLO_NS_GENMOD + "-" + CRYOLO_NS_GENMOD_20190226,
                                         CRYOLO_NS_GENMOD_20190226_FN)
 
-
-
-
 # JANNI ################################################################################################################
 
 def _janniModelFn(modelKey):
@@ -97,4 +94,3 @@ JANNI_GENMOD = "janni_model"  # Name
 JANNI_GENMOD_20190703 = "20190703"  # Version
 JANNI_GENMOD_20190703_FN = _janniModelFn(JANNI_GENMOD_20190703)  # File name with extension
 JANNI_GENMOD_DEFAULT = os.path.join("{}-{}".format(JANNI_GENMOD, JANNI_GENMOD_20190703), JANNI_GENMOD_20190703_FN)
-
