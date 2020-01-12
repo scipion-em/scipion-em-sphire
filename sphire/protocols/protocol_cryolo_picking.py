@@ -240,13 +240,13 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
                     "The general model for cryolo must be download from Sphire "
                     "website and %s must contain "
                     "the '%s' parameter pointing to the downloaded file."
-                    % Config.SCIPION_LOCAL_CONFIG, CRYOLO_GENMOD_VAR)
+                    % (Config.SCIPION_LOCAL_CONFIG, CRYOLO_GENMOD_VAR))
             elif self.inputModelFrom == INPUT_MODEL_GENERAL_NS:
                 validateMsgs.append(
                     "The general model for cryolo (negative stain) must be download from Sphire "
                     "website and %s must contain "
                     "the '%s' parameter pointing to the downloaded file."
-                    % Config.SCIPION_LOCAL_CONFIG, CRYOLO_NS_GENMOD_VAR)
+                    % (Config.SCIPION_LOCAL_CONFIG, CRYOLO_NS_GENMOD_VAR))
             else:
                 validateMsgs.append(
                     "Input model path seems to be wrong. If you have moved the "
