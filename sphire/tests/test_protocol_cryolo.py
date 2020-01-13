@@ -28,6 +28,7 @@
 import os
 
 import pyworkflow.utils as pwutils
+from pyworkflow import Config
 from pyworkflow.tests import (BaseTest, setupTestProject, DataSet, setupTestOutput)
 from pyworkflow.plugin import Domain
 
@@ -38,7 +39,7 @@ from pwem.convert import Ccp4Header
 
 import sphire.convert as convert
 import sphire.protocols as protocols
-from sphire.constants import INPUT_MODEL_OTHER, INPUT_MODEL_GENERAL_NS
+from sphire.constants import INPUT_MODEL_OTHER, INPUT_MODEL_GENERAL_NS, CRYOLO_GENMOD_VAR
 
 XmippProtPreprocessMicrographs = Domain.importFromPlugin(
     'xmipp3.protocols', 'XmippProtPreprocessMicrographs', doRaise=True)
@@ -169,7 +170,6 @@ class TestSphireConvert(BaseTest):
         box1 = fh.readline()
         fh.close()
         box1 = box1.split('\t')
-        print('JORGE---->box1 = ', box1)
         self.assertEquals(box1[0], '0')
         self.assertEquals(box1[1], '964')
 
@@ -239,7 +239,6 @@ class TestCryolo(BaseTest):
         # Run needed protocols
         cls.runImportMicrograph()
         cls.runMicPreprocessing()
-        # cls.runImportCoords()
 
     @classmethod
     def runImportMicrograph(cls):
@@ -296,7 +295,40 @@ class TestCryolo(BaseTest):
         self.assertSetSize(protcryolo.outputCoordinates,
                            msg="There was a problem picking with crYOLO")
 
+    def testPickingValidationGeneral(self):
+        # No training mode picking
+        protcryolo = self.newProtocol(
+            protocols.SphireProtCRYOLOPicking,
+            useGenMod=True,
+            inputMicrographs=self.protPreprocess.outputMicrographs,
+            boxSize=65,
+            input_size=750,
+            streamingBatchSize=10)
+
+        # Get model
+        model_file_original = protcryolo.getInputModel()
+        model_path, model_file = os.path.split(model_file_original)
+        model_basename = os.path.dirname(model_file)
+        _, model_ext = os.path.splitext(model_file)
+        # Rename it in order to make the protocol not able to find it
+        model_file_test = os.path.join(model_path, model_basename + 'test' + model_ext)
+        os.rename(model_file_original, model_file_test)
+
+        try:
+            error_msg = protcryolo._validate()
+            test_error_msg = ["Input model file '{}' does not exists.".format(model_file_original),
+                              (
+                                      "The general model for cryolo must be downloaded from Sphire website and {} " +
+                                      "must contain the '{}' parameter pointing to the downloaded file.").format(
+                                  Config.SCIPION_LOCAL_CONFIG, CRYOLO_GENMOD_VAR)]
+            self.assertEqual(error_msg, test_error_msg)
+
+        finally:
+            # Clean-up action: rename the model to its original name
+            os.rename(model_file_test, model_file_original)
+
     def _runTraing(self, fineTune):
+        self.runImportCoords()
         # crYOLO training
         protTraining = self.newProtocol(
             protocols.SphireProtCRYOLOTraining,
