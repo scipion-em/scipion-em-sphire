@@ -161,10 +161,6 @@ class TestSphireConvert(BaseTest):
             self.assertTrue(os.path.exists(micFile),
                             'Missing box file: %s' % micFile)
 
-        fh = open(os.path.join(boxFolder, 'mic00001.box'))
-        # box1 = fh.readline()
-        print(fh.readlines())
-
         # Assert coordinates in box files
         fh = open(os.path.join(boxFolder, 'mic00001.box'))
         box1 = fh.readline()
@@ -415,7 +411,6 @@ class TestCryoloNegStain(BaseTest):
 
         # Launch protocol
         self.launchProtocol(protPickingNS)
-        #
-        # # Check results
-        # self.assertSetSize(protPickingNS.outputCoordinates, msg="There was a problem picking with crYOLO")
 
+        # Check results
+        self.assertSetSize(protPickingNS.outputCoordinates, msg="There was a problem picking with crYOLO")
