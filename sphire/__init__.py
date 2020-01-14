@@ -229,5 +229,3 @@ class Plugin(pwem.Plugin):
         fullProgram = '%s %s && %s' % (cls.getCondaActivationCmd(), cls.getCryoloEnvActivation(), program)
         protocol.runJob(fullProgram, args, env=cls.getEnviron(), cwd=cwd)
 
-
-pwem.Domain.registerPlugin(__name__)
