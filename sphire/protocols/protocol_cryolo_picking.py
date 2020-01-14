@@ -233,21 +233,21 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
 
         modelPath = self.getInputModel()
         if not os.path.exists(modelPath):
-            validateMsgs.append("Input model file '%s' does not exists."
-                                % modelPath)
+            validateMsgs.append("Input model file '{}' does not exists.".format(modelPath))
+
             if self.inputModelFrom == INPUT_MODEL_GENERAL:
                 validateMsgs.append(
                     "The general model for cryolo must be downloaded from Sphire "
-                    "website and %s must contain "
-                    "the '%s' parameter pointing to the downloaded file.".format(
+                    "website and {} must contain "
+                    "the '{}' parameter pointing to the downloaded file.".format(
                         Config.SCIPION_LOCAL_CONFIG, CRYOLO_GENMOD_VAR))
 
             elif self.inputModelFrom == INPUT_MODEL_GENERAL_NS:
                 validateMsgs.append(
                     "The general model for cryolo (negative stain) must be downloaded from Sphire "
-                    "website and %s must contain "
-                    "the '%s' parameter pointing to the downloaded file.".format(Config.SCIPION_LOCAL_CONFIG,
-                                                                                         CRYOLO_NS_GENMOD_VAR))
+                    "website and {} must contain "
+                    "the '{}' parameter pointing to the downloaded file.".format(
+                        Config.SCIPION_LOCAL_CONFIG, CRYOLO_NS_GENMOD_VAR))
             else:
                 validateMsgs.append(
                     "Input model path seems to be wrong. If you have moved the "

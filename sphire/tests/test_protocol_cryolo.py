@@ -317,6 +317,7 @@ class TestCryolo(BaseTest):
                                       "The general model for cryolo must be downloaded from Sphire website and {} " +
                                       "must contain the '{}' parameter pointing to the downloaded file.").format(
                                   Config.SCIPION_LOCAL_CONFIG, CRYOLO_GENMOD_VAR)]
+
             self.assertEqual(error_msg, test_error_msg)
 
         finally:
