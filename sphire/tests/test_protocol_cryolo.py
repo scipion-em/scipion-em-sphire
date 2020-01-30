@@ -34,7 +34,7 @@ from pyworkflow.plugin import Domain
 
 import pwem.objects as emobj
 from pwem.protocols.protocol_import import ProtImportMicrographs, ProtImportCoordinates
-from pwem.convert.image_handler import ImageHandler
+from pwem.emlib.image import ImageHandler
 from pwem.convert import Ccp4Header
 
 import sphire.convert as convert
