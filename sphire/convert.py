@@ -30,7 +30,7 @@ import csv
 
 import pyworkflow.object as pwobj
 import pwem.objects as emobj
-import pwem.convert as emconv
+from pwem.emlib.image import ImageHandler
 import pyworkflow.utils as pwutils
 from pwem.convert import Ccp4Header
 
@@ -175,7 +175,7 @@ def needToFlipOnY(filename):
 
 def getFlipYHeight(filename):
     """ Return y-Height if flipping is needed, None otherwise """
-    x, y, z, n = emlib.image.ImageHandler().getDimensions(filename)
+    x, y, z, n = ImageHandler().getDimensions(filename)
     return y if needToFlipOnY(filename) else None
 
 
@@ -183,7 +183,7 @@ def convertMicrographs(micList, micDir):
     """ Convert (or simply link) input micrographs into the given directory
     in a format that is compatible with crYOLO.
     """
-    ih = emlib.image.ImageHandler()
+    ih = ImageHandler()
     ext = pwutils.getExt(micList[0].getFileName())
 
     def _convert(mic, newName):
