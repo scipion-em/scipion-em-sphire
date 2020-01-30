@@ -175,7 +175,7 @@ def needToFlipOnY(filename):
 
 def getFlipYHeight(filename):
     """ Return y-Height if flipping is needed, None otherwise """
-    x, y, z, n = emconv.ImageHandler().getDimensions(filename)
+    x, y, z, n = emlib.image.ImageHandler().getDimensions(filename)
     return y if needToFlipOnY(filename) else None
 
 
@@ -183,7 +183,7 @@ def convertMicrographs(micList, micDir):
     """ Convert (or simply link) input micrographs into the given directory
     in a format that is compatible with crYOLO.
     """
-    ih = emconv.ImageHandler()
+    ih = emlib.image.ImageHandler()
     ext = pwutils.getExt(micList[0].getFileName())
 
     def _convert(mic, newName):
