@@ -79,60 +79,6 @@ class Plugin(pwem.Plugin):
             del environ['PYTHONPATH']
         return environ
 
-    #Ignore validateInstallation and __parseCryoloVersion due to the decrease in performance. Although they are functional.
-    # @classmethod
-    # def validateInstallation(cls):
-    #     """
-    #     Check we can activate the crYOLO environment using the provided
-    #     command via variable CRYOLO_ENV_ACTIVATION and the version can be
-    #     parsed.
-    #     """
-    #     errors = []
-    #     cls.__parseCryoloVersion()
-    #
-    #     if cls._cryoloVersion is None:
-    #         errors.append("crYOLO environment could not be activated.\n"
-    #                       "or the version could not be parsed. \n"
-    #                       "Using %s=%s" % (CRYOLO_ENV_ACTIVATION,
-    #                                        cls.getCryoloEnvActivation()))
-    #     elif not cls._cryoloVersionSupported:
-    #         errors.append("crYOLO version %s unsupported" % cls._cryoloVersion)
-    #
-    #     return errors
-    #
-    # @classmethod
-    # def __parseCryoloVersion(cls):
-    #     # If the version has not been detected, try to load the environment
-    #     if cls._cryoloVersionSupported is None:
-    #         try:
-    #             # check if is crYOLO is installed or not
-    #             cmd = cls.getCryoloEnvActivation()
-    #             cmd += '; pip list | grep cryolo'
-    #             p = subprocess.Popen(["bash", "-c", cmd], env=cls.getEnviron(),
-    #                                  stdin=subprocess.PIPE, stdout=subprocess.PIPE)
-    #             output, err = p.communicate()
-    #             cls._cryoloVersion = output.split()[1]
-    #             from pkg_resources import parse_version
-    #             cls._cryoloVersionSupported = parse_version(cls._cryoloVersion) >= parse_version("1.2")
-    #         except Exception as e:
-    #             cls._cryoloVersion = None
-    #             cls._cryoloVersionSupported = False
-    @classmethod
-    def getCondaActivationCmd(cls):
-
-        if cls._condaActivationCmd is None:
-            condaActivationCmd = os.environ.get(CONDA_ACTIVATION_CMD_VAR, "")
-            correctCondaActivationCmd = condaActivationCmd.replace(pw.Config.SCIPION_HOME + "/", "")
-            if not correctCondaActivationCmd:
-                print("WARNING!!: %s variable not defined. "
-                      "Relying on conda being in the PATH" % CONDA_ACTIVATION_CMD_VAR)
-            elif correctCondaActivationCmd[-1] not in [";", "&"]:
-                correctCondaActivationCmd += "&&"
-
-            cls._condaActivationCmd = correctCondaActivationCmd
-
-        return cls._condaActivationCmd
-
     @classmethod
     def defineBinaries(cls, env):
 
