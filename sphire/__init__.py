@@ -83,7 +83,6 @@ class Plugin(pwem.Plugin):
     def defineBinaries(cls, env):
 
         cls.addCryoloPackage(env, CRYOLO_DEFAULT_VER_NUM, default=bool(cls.getCondaActivationCmd()))
-        # Leave commented until released: cls.addCryoloPackage(env, V1_5_4_rc3)
 
         env.addPackage(CRYOLO_GENMOD, version=CRYOLO_GENMOD_201909,
                        tar='void.tgz',
@@ -108,14 +107,6 @@ class Plugin(pwem.Plugin):
                                  CRYOLO_NS_GENMOD_20190226_FN, CRYOLO_NS_GENMOD_20190226_FN)],
                        neededProgs=["wget"],
                        default=False)
-
-        # env.addPackage(JANNI_GENMOD,
-        #                version=JANNI_GENMOD_201910,
-        #                tar='void.tgz',
-        #                commands=[("wget ftp://ftp.gwdg.de/pub/misc/sphire/crYOLO-GENERAL-MODELS/"
-        #                           + JANNI_GENMOD_201910_FN, JANNI_GENMOD_201910_FN)],
-        #                neededProgs=["wget"],
-        #                default=True)
 
         env.addPackage(JANNI_GENMOD,
                        version=JANNI_GENMOD_20190703,
