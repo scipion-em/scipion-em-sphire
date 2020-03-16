@@ -33,17 +33,17 @@
 # we declare global constants to multiple usage
 import os
 
-# crYOLO
+# crYOLO ###############################################################################################################
 
 def getCryoloEnvName(version):
     return "cryolo-%s" % version
 
-V1_5_3 = "1.5.3"
 V1_5_4 = "1.5.4"
-VERSIONS = [V1_5_3, V1_5_4]
-CRYOLO_DEFAULT_VER_NUM = V1_5_4
+V1_5_6 = "1.5.6"
+VERSIONS = [V1_5_4, V1_5_6]
+CRYOLO_DEFAULT_VER_NUM = V1_5_6
 
-DEFAULT_ENV_NAME = getCryoloEnvName(V1_5_4)
+DEFAULT_ENV_NAME = getCryoloEnvName(CRYOLO_DEFAULT_VER_NUM)
 DEFAULT_ACTIVATION_CMD = 'conda activate ' + DEFAULT_ENV_NAME
 CRYOLO_ENV_ACTIVATION = 'CRYOLO_ENV_ACTIVATION'
 
