@@ -90,15 +90,26 @@ class CoordBoxReader:
     def iterCoords(self):
         reader = csv.reader(self._file, delimiter='\t')
 
-        for x, y, _, _, score in reader:
-            # USE the imageHeight to flip or not to flip!
-            sciX = round(float(x) + self._halfBox)
-            sciY = round(float(y) + self._halfBox)
+        try:
+            for x, y, _, _, score in reader:
+                # USE the imageHeight to flip or not to flip!
+                sciX = round(float(x) + self._halfBox)
+                sciY = round(float(y) + self._halfBox)
 
-            if self._yFlipHeight is not None:
-                sciY = self._yFlipHeight - sciY
+                if self._yFlipHeight is not None:
+                    sciY = self._yFlipHeight - sciY
 
-            yield sciX, sciY, float(score)
+                yield sciX, sciY, float(score)
+        except:
+            for x, y, _, _, score, _, _ in reader:
+                # USE the imageHeight to flip or not to flip!
+                sciX = round(float(x) + self._halfBox)
+                sciY = round(float(y) + self._halfBox)
+
+                if self._yFlipHeight is not None:
+                    sciY = self._yFlipHeight - sciY
+
+                yield sciX, sciY, float(score)
 
     def close(self):
         if self._file:
