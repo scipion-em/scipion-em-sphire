@@ -30,6 +30,7 @@
 
 import os
 import json
+import glob
 
 import pyworkflow.utils as pwutils
 from pyworkflow import Config
@@ -102,11 +103,12 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
                            "before passed through the network."
                            "For example the default value would be 1024x1024.")
         form.addParam('boxSize', params.IntParam,
-                      default=100,
-                      label='Box Size',
+                      default=0,
+                      label='Box Size (optional)',
                       allowsPointers=True,
                       help='Box size in pixels. It should be the size of '
-                           'the minimum particle enclosing square in pixel.')
+                           'the minimum particle enclosing square in pixel. '
+                           'If introduced value is zero, it is estimated.')
         form.addParam('max_box_per_image', params.IntParam,
                       default=600,
                       expertLevel=cons.LEVEL_ADVANCED,
@@ -150,18 +152,18 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
     # --------------------------- STEPS functions ------------------------------
     def createConfigStep(self):
         inputSize = convert.roundInputSize(self.input_size.get())
-        boxSize = self.boxSize.get()
         maxBoxPerImage = self.max_box_per_image.get()
         numPatches = self.num_patches.get()
         absCutOfffreq = self.absCutOffFreq.get()
-
         model = {
             "architecture": "PhosaurusNet",
             "input_size": inputSize,
-            "anchors": [boxSize, boxSize],
             "max_box_per_image": maxBoxPerImage,
             "num_patches": numPatches
         }
+        boxSize = self.boxSize.get()
+        if boxSize:
+            model.update({"anchors": [boxSize, boxSize]})
         if self.lowPassFilter:
             model.update({"filter": [absCutOfffreq, "filtered"]})
 
@@ -170,19 +172,16 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
         with open(self._getExtraPath('config.json'), 'w') as fp:
             json.dump(jsonDict, fp, indent=4)
 
-        # Create a temporary folder to store all coordinates files
-        outDir = self.getOutputDir()
-        pwutils.cleanPath(outDir)
-        pwutils.makePath(outDir)
-
     def _pickMicrograph(self, micrograph, *args):
         """This function picks from a given micrograph"""
         self._pickMicrographList([micrograph], args)
 
     def _pickMicrographList(self, micList, *args):
+        def cleanAndMakePath(inDirectory):
+            pwutils.cleanPath(inDirectory)
+            pwutils.makePath(inDirectory)
         workingDir = self._getTmpPath(self.getMicsWorkingDir(micList))
-        pwutils.cleanPath(workingDir)
-        pwutils.makePath(workingDir)
+        cleanAndMakePath(workingDir)
 
         # Create folder with linked mics
         convert.convertMicrographs(micList, workingDir)
@@ -199,16 +198,31 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
         Plugin.runCryolo(self, 'cryolo_predict.py', args)
 
         # Move output files to a common location
-        outputCoordsDir = os.path.join(workingDir, 'CBOX')
-        if os.path.exists(outputCoordsDir):
-            self.runJob('mv', '%s/* %s/'
-                        % (outputCoordsDir, self.getOutputDir()))
-        # pwutils.cleanPath(workingDir)
+        dirs2Move = [os.path.join(workingDir, dir) for dir in ['CBOX', 'DISTR']]
+        outputDirs = [self.getOutpuCBOXtDir(), self.getOutputDISTRDir()]
+        [cleanAndMakePath(dir) for dir in outputDirs]
+        [self.runJob('mv', '%s/* %s/' % (indDir, outputDir))
+         for indDir, outputDir in zip(dirs2Move, outputDirs) if os.path.exists(indDir)]
 
     def readCoordsFromMics(self, outputDir, micDoneList, outputCoords):
         """This method read coordinates from a given list of micrographs"""
-        outDir = self.getOutputDir()
-        boxSize = self.boxSize.get()
+        outDir = self.getOutpuCBOXtDir()
+        boxSizeEstimated = False
+
+        # Si hay box size en output cojo el boxsize de ahí (straming)
+
+        # Si hay box size dado por el usuario
+                                        # y añado al set
+        # Si no
+        if self.boxSize.get():
+            boxSize = self.boxSize.get()
+        else:
+            boxSizeEstimated = True
+            boxSize = self._getEstimatedBoxSize() # y se lo añado al set
+
+
+        outputCoords.setBoxSize(boxSize)
+
         # Calculate if flip is needed
         # JMRT: Let's assume that all mics have same dims, so we avoid
         # to open the image file each time for checking this
@@ -218,8 +232,8 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
             coordsFile = os.path.join(outDir, convert.getMicIdName(mic, '.cbox'))
             if os.path.exists(coordsFile):
                 convert.readMicrographCoords(mic, outputCoords, coordsFile, boxSize,
-                                             yFlipHeight=yFlipHeight)
-        outputCoords.setBoxSize(boxSize)
+                                             yFlipHeight=yFlipHeight,
+                                             boxSizeEstimated=boxSizeEstimated)
 
     def createOutputStep(self):
         pass
@@ -271,14 +285,42 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
 
         return os.path.abspath(m) if m else ''
 
-    def getOutputDir(self):
+    def getOutpuCBOXtDir(self):
         return self._getTmpPath('outputCBOX')
+
+    def getOutputDISTRDir(self):
+        return self._getTmpPath('outputDISTR')
 
     def getMicsWorkingDir(self, micList):
         wd = 'micrographs_%s' % micList[0].strId()
         if len(micList) > 1:
             wd += '-%s' % micList[-1].strId()
         return wd
+
+    def _getEstimatedBoxSize(self):
+        sizeSummaryFilePattern = os.path.join(self.getOutputDISTRDir(), 'size_distribution_summary*.txt')
+        lineFilterPattern = 'mean,'
+        boxSize = None
+        try:
+            distrSummaryFile = glob.glob(sizeSummaryFilePattern)[0]
+            with open(distrSummaryFile) as f:
+                for line in f:
+                    if line.lower().startswith(lineFilterPattern):
+                        boxSize = int(line.lower().replace(lineFilterPattern, ''))
+                        break
+            if not boxSize:
+                raise ValueError
+
+            return boxSize
+
+        except IndexError:
+            print('File not found:\n{}'.format(sizeSummaryFilePattern))
+        except ValueError:
+            print('Boxsize not found in file:\n{}'.format(f.name))
+        except Exception as e:
+            print(type(e).__name__)
+
+
 
 
 

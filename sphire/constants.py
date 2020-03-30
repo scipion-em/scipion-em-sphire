@@ -40,10 +40,9 @@ def getCryoloEnvName(version):
 
 
 V1_5_4 = "1.5.4"
-V1_5_6 = "1.5.6"
-V1_6_0 = "1.6.0"
-VERSIONS = [V1_5_4, V1_5_6, V1_6_0]
-CRYOLO_DEFAULT_VER_NUM = V1_6_0
+V1_6_1 = "1.6.1"
+VERSIONS = [V1_5_4, V1_6_1]
+CRYOLO_DEFAULT_VER_NUM = V1_6_1
 
 DEFAULT_ENV_NAME = getCryoloEnvName(CRYOLO_DEFAULT_VER_NUM)
 DEFAULT_ACTIVATION_CMD = 'conda activate ' + DEFAULT_ENV_NAME

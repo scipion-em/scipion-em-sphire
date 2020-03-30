@@ -72,7 +72,7 @@ class CoordBoxWriter:
 
 class CoordBoxReader:
     """ Helper class to read coordinates from .BOX files. """
-    def __init__(self, boxSize, yFlipHeight=None):
+    def __init__(self, boxSize, yFlipHeight=None, boxSizeEstimated=False):
         """
         :param boxSize: The box size of the coordinates that will be read
         :param yFlipHeight: if not None, the y coordinates will be flipped
@@ -81,6 +81,7 @@ class CoordBoxReader:
         self._boxSize = boxSize
         self._halfBox = boxSize / 2.0
         self._yFlipHeight = yFlipHeight
+        self._boxSizeEstimated = boxSizeEstimated
 
     def open(self, filename):
         """ Open a new filename to write, close previous one if open. """
@@ -90,17 +91,17 @@ class CoordBoxReader:
     def iterCoords(self):
         reader = csv.reader(self._file, delimiter='\t')
 
-        try:
-            for x, y, _, _, score in reader:
+        if self._boxSizeEstimated:
+            for x, y, _, _, score, _, _ in reader:
                 # USE the imageHeight to flip or not to flip!
-                sciX = round(float(x) + self._halfBox)
-                sciY = round(float(y) + self._halfBox)
+                sciX = round(float(x))
+                sciY = round(float(y))
 
                 if self._yFlipHeight is not None:
                     sciY = self._yFlipHeight - sciY
 
                 yield sciX, sciY, float(score)
-        except:
+        else:
             for x, y, _, _, score, _, _ in reader:
                 # USE the imageHeight to flip or not to flip!
                 sciX = round(float(x) + self._halfBox)
@@ -155,8 +156,8 @@ def writeSetOfCoordinates(boxDir, coordSet, micList=None):
     writer.close()
 
 
-def readMicrographCoords(mic, coordSet, coordsFile, boxSize, yFlipHeight=None):
-    reader = CoordBoxReader(boxSize, yFlipHeight=yFlipHeight)
+def readMicrographCoords(mic, coordSet, coordsFile, boxSize, yFlipHeight=None, boxSizeEstimated=False):
+    reader = CoordBoxReader(boxSize, yFlipHeight=yFlipHeight, boxSizeEstimated=boxSizeEstimated)
     reader.open(coordsFile)
 
     coord = emobj.Coordinate()
