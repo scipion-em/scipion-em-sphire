@@ -39,9 +39,6 @@ _sphirePluginDir = os.path.dirname(os.path.abspath(__file__))
 
 
 class Plugin(pwem.Plugin):
-    _cryoloVersion = None  # Means not detected yet
-    _cryoloVersionSupported = None
-    _condaActivationCmd = None
 
     @classmethod
     def _defineVariables(cls):

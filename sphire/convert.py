@@ -27,6 +27,7 @@
 
 import os
 import csv
+import re
 
 import pyworkflow.object as pwobj
 import pwem.objects as emobj
@@ -88,21 +89,38 @@ class CoordBoxReader:
         self.close()
         self._file = open(filename, 'r')
 
+    def _getDataLength(self):
+        head = next(self._file)  # Read the first line
+        cols = re.split(r'\t+', head.rstrip('\t'))  # Strip it by tab
+        self._file.seek(0)  # Return to the top of the file
+        return len(cols)
+
     def iterCoords(self):
         reader = csv.reader(self._file, delimiter='\t')
 
-        if self._boxSizeEstimated:
-            for x, y, _, _, score, _, _ in reader:
-                # USE the imageHeight to flip or not to flip!
-                sciX = round(float(x))
-                sciY = round(float(y))
+        if self._getDataLength() == 7:  # crYOLO generates .cbox files with 7 columns from version > 1.5.4
+            if self._boxSizeEstimated:
+                for x, y, _, _, score, _, _ in reader:
+                    # USE the imageHeight to flip or not to flip!
+                    sciX = round(float(x))
+                    sciY = round(float(y))
 
-                if self._yFlipHeight is not None:
-                    sciY = self._yFlipHeight - sciY
+                    if self._yFlipHeight is not None:
+                        sciY = self._yFlipHeight - sciY
 
-                yield sciX, sciY, float(score)
-        else:
-            for x, y, _, _, score, _, _ in reader:
+                    yield sciX, sciY, float(score)
+            else:
+                for x, y, _, _, score, _, _ in reader:
+                    # USE the imageHeight to flip or not to flip!
+                    sciX = round(float(x) + self._halfBox)
+                    sciY = round(float(y) + self._halfBox)
+
+                    if self._yFlipHeight is not None:
+                        sciY = self._yFlipHeight - sciY
+
+                    yield sciX, sciY, float(score)
+        else:   # crYOLO generates .cbox files with 7 columns from version <= 1.5.4
+            for x, y, _, _, score in reader:
                 # USE the imageHeight to flip or not to flip!
                 sciX = round(float(x) + self._halfBox)
                 sciY = round(float(y) + self._halfBox)

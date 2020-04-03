@@ -208,20 +208,15 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
         """This method read coordinates from a given list of micrographs"""
         outDir = self.getOutpuCBOXtDir()
         boxSizeEstimated = False
-
-        # Si hay box size en output cojo el boxsize de ahí (straming)
-
-        # Si hay box size dado por el usuario
-                                        # y añado al set
-        # Si no
-        if self.boxSize.get():
-            boxSize = self.boxSize.get()
-        else:
-            boxSizeEstimated = True
-            boxSize = self._getEstimatedBoxSize() # y se lo añado al set
-
-
-        outputCoords.setBoxSize(boxSize)
+        # Coordinates may have a boxSize (e. g. streaming case)
+        boxSize = outputCoords.getBoxSize()
+        if not boxSize:
+            if self.boxSize.get():                  # Box size can be provided by the user
+                boxSize = self.boxSize.get()
+            else:                                   # If not crYOLO estimates it
+                boxSizeEstimated = True
+                boxSize = self._getEstimatedBoxSize()
+            outputCoords.setBoxSize(boxSize)
 
         # Calculate if flip is needed
         # JMRT: Let's assume that all mics have same dims, so we avoid
@@ -237,6 +232,18 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
 
     def createOutputStep(self):
         pass
+        # outputDir = self._getExtraPath()
+        # micSet = self.getInputMicrographs()
+        # suffix = ''#self.__getOutputSuffix()
+        # outputName = self.OUTPUT_PREFIX + suffix
+        # coordSet = self._createSetOfCoordinates(micSet, suffix)
+        # self.readSetOfCoordinates(outputDir, coordSet)
+        # coordSet.setObjComment(self.getSummary(coordSet))
+        # boxSize = Integer(coordSet.getBoxSize())
+        # outputs = {outputName: coordSet, 'boxSize': boxSize}
+        # self._defineOutputs(**outputs)
+        # self._defineSourceRelation(self.getInputMicrographsPointer(), coordSet)
+        # self._defineSourceRelation(micSet, boxSize)
 
     # --------------------------- INFO functions -------------------------------
     def _summary(self):
@@ -289,7 +296,7 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
         return self._getTmpPath('outputCBOX')
 
     def getOutputDISTRDir(self):
-        return self._getTmpPath('outputDISTR')
+        return self._getExtraPath('outputDISTR')
 
     def getMicsWorkingDir(self, micList):
         wd = 'micrographs_%s' % micList[0].strId()
@@ -314,11 +321,11 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
             return boxSize
 
         except IndexError:
-            print('File not found:\n{}'.format(sizeSummaryFilePattern))
+            raise Exception('File not found:\n{}'.format(sizeSummaryFilePattern))
         except ValueError:
-            print('Boxsize not found in file:\n{}'.format(f.name))
+            raise Exception('Boxsize not found in file:\n{}'.format(f.name))
         except Exception as e:
-            print(type(e).__name__)
+            raise e
 
 
 
