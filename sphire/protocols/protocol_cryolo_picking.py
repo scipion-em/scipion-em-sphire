@@ -231,19 +231,11 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
                                              boxSizeEstimated=boxSizeEstimated)
 
     def createOutputStep(self):
-        pass
-        # outputDir = self._getExtraPath()
-        # micSet = self.getInputMicrographs()
-        # suffix = ''#self.__getOutputSuffix()
-        # outputName = self.OUTPUT_PREFIX + suffix
-        # coordSet = self._createSetOfCoordinates(micSet, suffix)
-        # self.readSetOfCoordinates(outputDir, coordSet)
-        # coordSet.setObjComment(self.getSummary(coordSet))
-        # boxSize = Integer(coordSet.getBoxSize())
-        # outputs = {outputName: coordSet, 'boxSize': boxSize}
-        # self._defineOutputs(**outputs)
-        # self._defineSourceRelation(self.getInputMicrographsPointer(), coordSet)
-        # self._defineSourceRelation(micSet, boxSize)
+        """ The output is just an Integer. Other protocols can use it in those
+            IntParam if it has set allowsPointer=True
+        """
+        boxSize = Integer(self.outputCoordinates.getBoxSize())
+        self._defineOutputs(boxsize=boxSize)
 
     # --------------------------- INFO functions -------------------------------
     def _summary(self):
