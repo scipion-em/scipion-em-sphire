@@ -277,16 +277,24 @@ class TestCryolo(BaseTest):
         cls.launchProtocol(protImportCoords)
         cls.protImportCoords = protImportCoords
 
-    def testPicking(self):
-        # No training mode picking
+    def testPickingNoBoxSize(self):
+        # No training mode picking, box size not provided by user
+        self._runPickingTest(boxSize=0, label='Picking - Box size estimated')
+
+    def testPickingBoxSize(self):
+        # No training mode picking, box size provided by user
+        self._runPickingTest(boxSize=50, label='Picking - Box size provided')
+
+    def _runPickingTest(self, boxSize, label):
         protcryolo = self.newProtocol(
             protocols.SphireProtCRYOLOPicking,
             useGenMod=True,
             inputMicrographs=self.protPreprocess.outputMicrographs,
-            boxSize=65,
+            boxSize=boxSize,
             input_size=750,
             streamingBatchSize=10)
 
+        protcryolo.setObjLabel(label)
         self.launchProtocol(protcryolo)
         self.assertSetSize(protcryolo.outputCoordinates,
                            msg="There was a problem picking with crYOLO")
@@ -297,7 +305,6 @@ class TestCryolo(BaseTest):
             protocols.SphireProtCRYOLOPicking,
             useGenMod=True,
             inputMicrographs=self.protPreprocess.outputMicrographs,
-            boxSize=65,
             input_size=750,
             streamingBatchSize=10)
 
@@ -349,12 +356,14 @@ class TestCryolo(BaseTest):
             inputMicrographs=self.protPreprocess.outputMicrographs,
             inputModelFrom=INPUT_MODEL_OTHER,
             inputModel=protTraining.outputModel,
-            boxSize=65,
+            boxSize=50,
             input_size=750,
             streamingBatchSize=10)
 
         self.launchProtocol(protPicking)
         self.assertSetSize(protPicking.outputCoordinates,
+                           size=5692,  # Size of the output set of crYOLO picking (using the general model)
+                           diffDelta=0.3,  # Diff percentage (base 1) allowed between the set obtained and the test set
                            msg="There was a problem picking with crYOLO")
 
     def testTraining(self):
@@ -403,9 +412,8 @@ class TestCryoloNegStain(BaseTest):
                                          label="Picking after Training 1",
                                          inputMicrographs=self.protImport.outputMicrographs,
                                          inputModelFrom=INPUT_MODEL_GENERAL_NS,
-                                         boxSize=100,
                                          lowPassFilter=False,
-                                         conservPickVar=0.3)
+                                         conservPickVar=0.2)
 
         # Set the value of the required attributes
         protPickingNS.inputMicrographs.set(self.protImport.outputMicrographs)

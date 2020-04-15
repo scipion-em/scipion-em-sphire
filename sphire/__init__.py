@@ -39,9 +39,6 @@ _sphirePluginDir = os.path.dirname(os.path.abspath(__file__))
 
 
 class Plugin(pwem.Plugin):
-    _cryoloVersion = None  # Means not detected yet
-    _cryoloVersionSupported = None
-    _condaActivationCmd = None
 
     @classmethod
     def _defineVariables(cls):
@@ -84,13 +81,13 @@ class Plugin(pwem.Plugin):
 
         cls.addCryoloPackage(env, CRYOLO_DEFAULT_VER_NUM, default=bool(cls.getCondaActivationCmd()))
 
-        env.addPackage(CRYOLO_GENMOD, version=CRYOLO_GENMOD_201909,
+        env.addPackage(CRYOLO_GENMOD, version=CRYOLO_GENMOD_202002_N63,
                        tar='void.tgz',
                        commands=[(
                                  "wget ftp://ftp.gwdg.de/pub/misc/sphire/crYOLO-GENERAL-MODELS/" +
-                                 CRYOLO_GENMOD_201909_FN, CRYOLO_GENMOD_201909_FN)],
+                                 CRYOLO_GENMOD_202002_N63_FN, CRYOLO_GENMOD_202002_N63_FN)],
                        neededProgs=["wget"],
-                       default=False)
+                       default=True)
 
         env.addPackage(CRYOLO_GENMOD, version=CRYOLO_GENMOD_201910,
                        tar='void.tgz',
@@ -98,7 +95,7 @@ class Plugin(pwem.Plugin):
                                  "wget ftp://ftp.gwdg.de/pub/misc/sphire/crYOLO-GENERAL-MODELS/" +
                                  CRYOLO_GENMOD_201910_FN, CRYOLO_GENMOD_201910_FN)],
                        neededProgs=["wget"],
-                       default=True)
+                       default=False)
 
         env.addPackage(CRYOLO_NS_GENMOD, version=CRYOLO_NS_GENMOD_20190226,
                        tar='void.tgz',

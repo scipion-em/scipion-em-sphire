@@ -27,6 +27,7 @@
 
 import os
 import csv
+import re
 
 import pyworkflow.object as pwobj
 import pwem.objects as emobj
@@ -72,7 +73,7 @@ class CoordBoxWriter:
 
 class CoordBoxReader:
     """ Helper class to read coordinates from .BOX files. """
-    def __init__(self, boxSize, yFlipHeight=None):
+    def __init__(self, boxSize, yFlipHeight=None, boxSizeEstimated=False):
         """
         :param boxSize: The box size of the coordinates that will be read
         :param yFlipHeight: if not None, the y coordinates will be flipped
@@ -81,24 +82,53 @@ class CoordBoxReader:
         self._boxSize = boxSize
         self._halfBox = boxSize / 2.0
         self._yFlipHeight = yFlipHeight
+        self._boxSizeEstimated = boxSizeEstimated
 
     def open(self, filename):
         """ Open a new filename to write, close previous one if open. """
         self.close()
         self._file = open(filename, 'r')
 
+    def _getDataLength(self):
+        head = next(self._file)  # Read the first line
+        cols = re.split(r'\t+', head.rstrip('\t'))  # Strip it by tab
+        self._file.seek(0)  # Return to the top of the file
+        return len(cols)
+
     def iterCoords(self):
         reader = csv.reader(self._file, delimiter='\t')
 
-        for x, y, _, _, score in reader:
-            # USE the imageHeight to flip or not to flip!
-            sciX = round(float(x) + self._halfBox)
-            sciY = round(float(y) + self._halfBox)
+        if self._getDataLength() == 7:  # crYOLO generates .cbox files with 7 columns from version > 1.5.4
+            if self._boxSizeEstimated:
+                for x, y, _, _, score, _, _ in reader:
+                    # USE the imageHeight to flip or not to flip!
+                    sciX = round(float(x))
+                    sciY = round(float(y))
 
-            if self._yFlipHeight is not None:
-                sciY = self._yFlipHeight - sciY
+                    if self._yFlipHeight is not None:
+                        sciY = self._yFlipHeight - sciY
 
-            yield sciX, sciY, float(score)
+                    yield sciX, sciY, float(score)
+            else:
+                for x, y, _, _, score, _, _ in reader:
+                    # USE the imageHeight to flip or not to flip!
+                    sciX = round(float(x) + self._halfBox)
+                    sciY = round(float(y) + self._halfBox)
+
+                    if self._yFlipHeight is not None:
+                        sciY = self._yFlipHeight - sciY
+
+                    yield sciX, sciY, float(score)
+        else:   # crYOLO generates .cbox files with 7 columns from version <= 1.5.4
+            for x, y, _, _, score in reader:
+                # USE the imageHeight to flip or not to flip!
+                sciX = round(float(x) + self._halfBox)
+                sciY = round(float(y) + self._halfBox)
+
+                if self._yFlipHeight is not None:
+                    sciY = self._yFlipHeight - sciY
+
+                yield sciX, sciY, float(score)
 
     def close(self):
         if self._file:
@@ -144,8 +174,8 @@ def writeSetOfCoordinates(boxDir, coordSet, micList=None):
     writer.close()
 
 
-def readMicrographCoords(mic, coordSet, coordsFile, boxSize, yFlipHeight=None):
-    reader = CoordBoxReader(boxSize, yFlipHeight=yFlipHeight)
+def readMicrographCoords(mic, coordSet, coordsFile, boxSize, yFlipHeight=None, boxSizeEstimated=False):
+    reader = CoordBoxReader(boxSize, yFlipHeight=yFlipHeight, boxSizeEstimated=boxSizeEstimated)
     reader.open(coordsFile)
 
     coord = emobj.Coordinate()

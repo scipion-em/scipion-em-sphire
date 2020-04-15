@@ -161,7 +161,6 @@ class SphireProtCRYOLOTraining(ProtParticlePicking):
                                 % ('(GENERAL)' if useGeneral else '',
                                    self.getInputModel()))
         else:
-            self._insertFunctionStep("warmUpNetworkStep")
             self._insertFunctionStep("cryoloModelingStep")
 
         self._insertFunctionStep("createOutputStep")
@@ -210,7 +209,6 @@ class SphireProtCRYOLOTraining(ProtParticlePicking):
                  "batch_size": self.batchSize.get(),
                  "learning_rate": self.learning_rates.get(),
                  "nb_epoch": self.nb_epochVal.get(),
-                 "warmup_epochs": 0,
                  "object_scale": 5.0,
                  "no_object_scale": 1.0,
                  "coord_scale": 1.0,
@@ -236,18 +234,16 @@ class SphireProtCRYOLOTraining(ProtParticlePicking):
 
     def runCryoloTrain(self, w, extraArgs=''):
         params = "-c config.json"
-        params += " -w %s " % w  # FIXME: Check this param
+        params += " -w %s " % w  # Since cryolo 1.5 -w 3 will first do 3 warmups and starts
+        # automatically the current training
         params += " -g %(GPU)s"
         params += " -e %d" % self.eFlagParam
         params += extraArgs
         Plugin.runCryolo(self, 'cryolo_train.py', params,
                          cwd=self._getWorkDir())
 
-    def warmUpNetworkStep(self):
-        self.runCryoloTrain(3)
-
     def cryoloModelingStep(self, extraArgs=''):
-        self.runCryoloTrain(0, extraArgs=extraArgs)
+        self.runCryoloTrain(5, extraArgs=extraArgs)
         pwutils.moveFile(self._getWorkDir(self.MODEL), self.getOutputModelPath())
 
     # --------------------------- INFO functions -------------------------------
