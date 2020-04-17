@@ -27,11 +27,14 @@
 
 import os
 import csv
+import re
 
 import pyworkflow.object as pwobj
-import pyworkflow.em as pwem
+import pyworkflow.em as emobj
 import pyworkflow.utils as pwutils
+from pyworkflow.em import ImageHandler
 from pyworkflow.em.convert import Ccp4Header
+from pyworkflow.utils.path import createAbsLink, getExt
 
 import sphire.constants as constants
 
@@ -71,7 +74,7 @@ class CoordBoxWriter:
 
 class CoordBoxReader:
     """ Helper class to read coordinates from .BOX files. """
-    def __init__(self, boxSize, yFlipHeight=None):
+    def __init__(self, boxSize, yFlipHeight=None, boxSizeEstimated=False):
         """
         :param boxSize: The box size of the coordinates that will be read
         :param yFlipHeight: if not None, the y coordinates will be flipped
@@ -80,24 +83,53 @@ class CoordBoxReader:
         self._boxSize = boxSize
         self._halfBox = boxSize / 2.0
         self._yFlipHeight = yFlipHeight
+        self._boxSizeEstimated = boxSizeEstimated
 
     def open(self, filename):
         """ Open a new filename to write, close previous one if open. """
         self.close()
         self._file = open(filename, 'r')
 
+    def _getDataLength(self):
+        head = next(self._file)  # Read the first line
+        cols = re.split(r'\t+', head.rstrip('\t'))  # Strip it by tab
+        self._file.seek(0)  # Return to the top of the file
+        return len(cols)
+
     def iterCoords(self):
         reader = csv.reader(self._file, delimiter='\t')
 
-        for x, y, _, _, score in reader:
-            # USE the imageHeight to flip or not to flip!
-            sciX = round(float(x) + self._halfBox)
-            sciY = round(float(y) + self._halfBox)
+        if self._getDataLength() == 7:  # crYOLO generates .cbox files with 7 columns from version > 1.5.4
+            if self._boxSizeEstimated:
+                for x, y, _, _, score, _, _ in reader:
+                    # USE the imageHeight to flip or not to flip!
+                    sciX = round(float(x))
+                    sciY = round(float(y))
 
-            if self._yFlipHeight is not None:
-                sciY = self._yFlipHeight - sciY
+                    if self._yFlipHeight is not None:
+                        sciY = self._yFlipHeight - sciY
 
-            yield sciX, sciY, float(score)
+                    yield sciX, sciY, float(score)
+            else:
+                for x, y, _, _, score, _, _ in reader:
+                    # USE the imageHeight to flip or not to flip!
+                    sciX = round(float(x) + self._halfBox)
+                    sciY = round(float(y) + self._halfBox)
+
+                    if self._yFlipHeight is not None:
+                        sciY = self._yFlipHeight - sciY
+
+                    yield sciX, sciY, float(score)
+        else:   # crYOLO generates .cbox files with 7 columns from version <= 1.5.4
+            for x, y, _, _, score in reader:
+                # USE the imageHeight to flip or not to flip!
+                sciX = round(float(x) + self._halfBox)
+                sciY = round(float(y) + self._halfBox)
+
+                if self._yFlipHeight is not None:
+                    sciY = self._yFlipHeight - sciY
+
+                yield sciX, sciY, float(score)
 
     def close(self):
         if self._file:
@@ -143,18 +175,18 @@ def writeSetOfCoordinates(boxDir, coordSet, micList=None):
     writer.close()
 
 
-def readMicrographCoords(mic, coordSet, coordsFile, boxSize, yFlipHeight=None):
-    reader = CoordBoxReader(boxSize, yFlipHeight=yFlipHeight)
+def readMicrographCoords(mic, coordSet, coordsFile, boxSize, yFlipHeight=None, boxSizeEstimated=False):
+    reader = CoordBoxReader(boxSize, yFlipHeight=yFlipHeight, boxSizeEstimated=boxSizeEstimated)
     reader.open(coordsFile)
 
-    coord = pwem.Coordinate()
+    coord = emobj.Coordinate()
 
     for x, y, score in reader.iterCoords():
         # Clean up objId to add as a new coordinate
         coord.setObjId(None)
         coord.setPosition(x, y)
         coord.setMicrograph(mic)
-        coord._cryoloScore = pwobj.Float(score)
+        coord._cryoloScore = emobj.Float(score)
         # Add it to the set
         coordSet.append(coord)
 
@@ -163,7 +195,7 @@ def readMicrographCoords(mic, coordSet, coordsFile, boxSize, yFlipHeight=None):
 
 def needToFlipOnY(filename):
     """ Returns true if need to flip coordinates on Y"""
-    ext = pwutils.getExt(filename)
+    ext = getExt(filename)
 
     if ext in ".mrc":
         header = Ccp4Header(filename, readHeader=True)
@@ -174,7 +206,7 @@ def needToFlipOnY(filename):
 
 def getFlipYHeight(filename):
     """ Return y-Height if flipping is needed, None otherwise """
-    x, y, z, n = pwem.ImageHandler().getDimensions(filename)
+    x, y, z, n = ImageHandler().getDimensions(filename)
     return y if needToFlipOnY(filename) else None
 
 
@@ -182,14 +214,14 @@ def convertMicrographs(micList, micDir):
     """ Convert (or simply link) input micrographs into the given directory
     in a format that is compatible with crYOLO.
     """
-    ih = pwem.ImageHandler()
-    ext = pwutils.getExt(micList[0].getFileName())
+    ih = ImageHandler()
+    ext = getExt(micList[0].getFileName())
 
     def _convert(mic, newName):
         ih.convert(mic, os.path.join(micDir, newName))
 
     def _link(mic, newName):
-        pwutils.createAbsLink(os.path.abspath(mic.getFileName()),
+        createAbsLink(os.path.abspath(mic.getFileName()),
                               os.path.join(micDir, newName))
 
     if ext in constants.CRYOLO_SUPPORTED_FORMATS:
@@ -212,8 +244,8 @@ def roundInputSize(inputSize):
     rounded = roundTo(inputSize, 32)
 
     if rounded != inputSize:
-        print ("Input size (%s) will be rounded to %s, the closest "
-               "multiple of 32." % (inputSize, rounded))
+        print("Input size (%s) will be rounded to %s, the closest "
+              "multiple of 32." % (inputSize, rounded))
     return rounded
 
 

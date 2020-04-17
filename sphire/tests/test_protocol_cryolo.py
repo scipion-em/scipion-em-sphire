@@ -26,19 +26,19 @@
 # **************************************************************************
 
 import os
-
-from pyworkflow import Config
-from pyworkflow.tests import (BaseTest, setupTestProject, DataSet,
-                              setupTestOutput)
-import pyworkflow.em as pwem
+from pyworkflow.em import ImageHandler, copyFile, ProtImportMicrographs, ProtImportCoordinates
 from pyworkflow.em.convert import Ccp4Header
-import pyworkflow.utils as pwutils
+from pyworkflow import Config
+from pyworkflow.tests import (BaseTest, setupTestProject, DataSet, setupTestOutput)
+
+import pyworkflow.em.data as emobj
+from pyworkflow.utils import importFromPlugin, makePath
 
 import sphire.convert as convert
 import sphire.protocols as protocols
 from sphire.constants import INPUT_MODEL_OTHER, INPUT_MODEL_GENERAL_NS, CRYOLO_GENMOD_VAR
 
-XmippProtPreprocessMicrographs = pwutils.importFromPlugin(
+XmippProtPreprocessMicrographs = importFromPlugin(
     'xmipp3.protocols', 'XmippProtPreprocessMicrographs', doRaise=True)
 
 
@@ -56,7 +56,7 @@ class TestSphireConvert(BaseTest):
     def testConvertCoords(self):
         boxSize = 100
         boxDir = self.getOutputPath('boxDir')
-        pwutils.makePath(boxDir)
+        makePath(boxDir)
 
         def _convert(coordsIn, yFlipHeight=None):
             tmpFile = os.path.join(boxDir, 'tmp.cbox')
@@ -64,7 +64,7 @@ class TestSphireConvert(BaseTest):
             writer = convert.CoordBoxWriter(boxSize, yFlipHeight=yFlipHeight)
             writer.open(tmpFile)
             for x, y, _ in coordsIn:
-                writer.writeCoord(pwem.Coordinate(x=x, y=y))
+                writer.writeCoord(emobj.Coordinate(x=x, y=y))
             writer.close()
 
             reader = convert.CoordBoxReader(boxSize, yFlipHeight=yFlipHeight)
@@ -94,9 +94,9 @@ class TestSphireConvert(BaseTest):
 
         mrcMic = TestSphireConvert.ds.getFile('micrographs/006.mrc')
         spiMic = os.path.join(micDir, "mic.spi")
-        pwem.ImageHandler().convert(mrcMic, spiMic)
+        ImageHandler().convert(mrcMic, spiMic)
 
-        mic = pwem.Micrograph(objId=1, location=spiMic)
+        mic = emobj.Micrograph(objId=1, location=spiMic)
         # Invoke the createMic function
         convert.convertMicrographs([mic], micDir)
         expectedDest = os.path.join(micDir, convert.getMicIdName(mic, '.mrc'))
@@ -106,31 +106,33 @@ class TestSphireConvert(BaseTest):
                         "spi file wasn't converted to mrc.")
 
     def testWriteSetOfCoordinatesWithoutFlip(self):
+
+        from collections import OrderedDict
+
         # Define a temporary sqlite file for micrographs
         fn = self.getOutputPath('convert_mics.sqlite')
 
-        mics = pwem.SetOfMicrographs(filename=fn)
+        mics = emobj.SetOfMicrographs(filename=fn)
         # Create SetOfCoordinates data
         # Define a temporary sqlite file for coordinates
         fn = self.getOutputPath('convert_coordinates.sqlite')
-        coordSet = pwem.SetOfCoordinates(filename=fn)
+        coordSet = emobj.SetOfCoordinates(filename=fn)
         coordSet.setBoxSize(60)
         coordSet.setMicrographs(mics)
 
-        data = {
-            '006': [(30, 30)],
-            '016': [(40, 40)]
-        }
+        data = OrderedDict()
+        data['006'] = [(30, 30)]
+        data['016'] = [(40, 40)]
 
         micList = []
-        for key, coords in data.iteritems():
-            mic = pwem.Micrograph(self.ds.getFile('micrographs/%s.mrc' % key))
+        for key, coords in data.items():
+            mic = emobj.Micrograph(self.ds.getFile('micrographs/%s.mrc' % key))
             mics.append(mic)
             micList.append(mic)
             print("Adding mic: %s, id: %s" % (key, mic.getObjId()))
 
             for x, y in coords:
-                coord = pwem.Coordinate(x=x, y=y)
+                coord = emobj.Coordinate(x=x, y=y)
                 coord.setMicrograph(mic)
                 coordSet.append(coord)
 
@@ -139,7 +141,7 @@ class TestSphireConvert(BaseTest):
         os.mkdir(boxFolder)
 
         micFolder = self.getOutputPath('micFolder')
-        pwutils.makePath(micFolder)
+        makePath(micFolder)
 
         # Invoke the write set of coordinates method
         convert.writeSetOfCoordinates(boxFolder, coordSet)
@@ -180,7 +182,7 @@ class TestSphireConvert(BaseTest):
         # Test right ispg value (0 in mrc file)
         # Copy 006
         goodMrc = self.getOutputPath('good_ispg.mrc')
-        pwutils.copyFile(mrcFile, goodMrc)
+        copyFile(mrcFile, goodMrc)
 
         # Change the ISPG value in the file header
         header = Ccp4Header(goodMrc, readHeader=True)
@@ -230,14 +232,13 @@ class TestCryolo(BaseTest):
         # Run needed protocols
         cls.runImportMicrograph()
         cls.runMicPreprocessing()
-        cls.runImportCoords()
 
     @classmethod
     def runImportMicrograph(cls):
 
         """ Run an Import micrograph protocol. """
         protImport = cls.newProtocol(
-            pwem.ProtImportMicrographs,
+            ProtImportMicrographs,
             samplingRateMode=0,
             filesPath=TestCryolo.ds.getFile('micrographs/*.mrc'),
             samplingRate=3.54,
@@ -263,8 +264,8 @@ class TestCryolo(BaseTest):
     def runImportCoords(cls):
         """ Run an Import coords protocol. """
         protImportCoords = cls.newProtocol(
-            pwem.ProtImportCoordinates,
-            importFrom=pwem.ProtImportCoordinates.IMPORT_FROM_EMAN,
+            ProtImportCoordinates,
+            importFrom=ProtImportCoordinates.IMPORT_FROM_EMAN,
             objLabel='import EMAN coordinates',
             filesPath=TestCryolo.ds.getFile('pickingEman/info/'),
             inputMicrographs=cls.protPreprocess.outputMicrographs,
@@ -273,27 +274,34 @@ class TestCryolo(BaseTest):
         cls.launchProtocol(protImportCoords)
         cls.protImportCoords = protImportCoords
 
-    def testPicking(self):
-        # No training mode picking
+    def testPickingNoBoxSize(self):
+        # No training mode picking, box size not provided by user
+        self._runPickingTest(boxSize=0, label='Picking - Box size estimated')
+
+    def testPickingBoxSize(self):
+        # No training mode picking, box size provided by user
+        self._runPickingTest(boxSize=50, label='Picking - Box size provided')
+
+    def _runPickingTest(self, boxSize, label):
         protcryolo = self.newProtocol(
             protocols.SphireProtCRYOLOPicking,
             useGenMod=True,
             inputMicrographs=self.protPreprocess.outputMicrographs,
-            boxSize=65,
+            boxSize=boxSize,
             input_size=750,
             streamingBatchSize=10)
 
+        protcryolo.setObjLabel(label)
         self.launchProtocol(protcryolo)
         self.assertSetSize(protcryolo.outputCoordinates,
                            msg="There was a problem picking with crYOLO")
 
-    def testPickingValidation(self):
+    def testPickingValidationGeneral(self):
         # No training mode picking
         protcryolo = self.newProtocol(
             protocols.SphireProtCRYOLOPicking,
             useGenMod=True,
             inputMicrographs=self.protPreprocess.outputMicrographs,
-            boxSize=65,
             input_size=750,
             streamingBatchSize=10)
 
@@ -313,6 +321,7 @@ class TestCryolo(BaseTest):
                                       "The general model for cryolo must be downloaded from Sphire website and {} " +
                                       "must contain the '{}' parameter pointing to the downloaded file.").format(
                                   Config.SCIPION_LOCAL_CONFIG, CRYOLO_GENMOD_VAR)]
+
             self.assertEqual(error_msg, test_error_msg)
 
         finally:
@@ -320,6 +329,7 @@ class TestCryolo(BaseTest):
             os.rename(model_file_test, model_file_original)
 
     def _runTraing(self, fineTune):
+        self.runImportCoords()
         # crYOLO training
         protTraining = self.newProtocol(
             protocols.SphireProtCRYOLOTraining,
@@ -343,12 +353,14 @@ class TestCryolo(BaseTest):
             inputMicrographs=self.protPreprocess.outputMicrographs,
             inputModelFrom=INPUT_MODEL_OTHER,
             inputModel=protTraining.outputModel,
-            boxSize=65,
+            boxSize=50,
             input_size=750,
             streamingBatchSize=10)
 
         self.launchProtocol(protPicking)
         self.assertSetSize(protPicking.outputCoordinates,
+                           size=5692,  # Size of the output set of crYOLO picking (using the general model)
+                           diffDelta=0.3,  # Diff percentage (base 1) allowed between the set obtained and the test set
                            msg="There was a problem picking with crYOLO")
 
     def testTraining(self):
@@ -376,9 +388,10 @@ class TestCryoloNegStain(BaseTest):
 
     @classmethod
     def runImportMicrograph(cls):
+
         """ Run an Import micrograph protocol. """
         protImport = cls.newProtocol(
-            pwem.ProtImportMicrographs,
+            ProtImportMicrographs,
             samplingRateMode=0,
             filesPath=TestCryoloNegStain.ds.getFile('allMics'),
             samplingRate=3.54,
@@ -390,14 +403,14 @@ class TestCryoloNegStain(BaseTest):
         cls.protImport = protImport
 
     def testPickingNS(self):
+
         # Create protocol of the desired type
         protPickingNS = self.newProtocol(protocols.SphireProtCRYOLOPicking,
                                          label="Picking after Training 1",
                                          inputMicrographs=self.protImport.outputMicrographs,
                                          inputModelFrom=INPUT_MODEL_GENERAL_NS,
-                                         boxSize=100,
                                          lowPassFilter=False,
-                                         conservPickVar=0.3)
+                                         conservPickVar=0.2)
 
         # Set the value of the required attributes
         protPickingNS.inputMicrographs.set(self.protImport.outputMicrographs)
