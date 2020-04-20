@@ -74,6 +74,8 @@ class Plugin(pwem.Plugin):
         if 'PYTHONPATH' in environ:
             # this is required for python virtual env to work
             del environ['PYTHONPATH']
+        cudaLib = environ.get(CRYOLO_CUDA_LIB, pwem.Config.CUDA_LIB)
+        environ.addLibrary(cudaLib)
         return environ
 
     @classmethod
