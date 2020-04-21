@@ -32,7 +32,7 @@
   journal = "Communications Biology",
   volume = "2",
   number = "218",
-  year = "2019 ",
+  year = "2019",
   publisher = "Nature Publishing Group",
   doi = "http://doi.org/10.1038/s42003-019-0437-z",
   url = "http://www.nature.com/articles/s42003-019-0437-z",
