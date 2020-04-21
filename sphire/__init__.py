@@ -76,6 +76,8 @@ class Plugin(pyworkflow.em.Plugin):
         if 'PYTHONPATH' in environ:
             # this is required for python virtual env to work
             del environ['PYTHONPATH']
+        cudaLib = environ.get(CRYOLO_CUDA_LIB, os.environ.get('CUDA_LIB'))
+        environ.addLibrary(cudaLib)
         return environ
 
     #Ignore validateInstallation and __parseCryoloVersion due to the decrease in performance. Although they are functional.
