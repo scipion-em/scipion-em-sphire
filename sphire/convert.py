@@ -185,7 +185,7 @@ def readMicrographCoords(mic, coordSet, coordsFile, boxSize, yFlipHeight=None, b
         coord.setObjId(None)
         coord.setPosition(x, y)
         coord.setMicrograph(mic)
-        coord._cryoloScore = pwobj.Float(score)
+        coord._cryoloScore = emobj.Float(score)
         # Add it to the set
         coordSet.append(coord)
 
@@ -194,7 +194,7 @@ def readMicrographCoords(mic, coordSet, coordsFile, boxSize, yFlipHeight=None, b
 
 def needToFlipOnY(filename):
     """ Returns true if need to flip coordinates on Y"""
-    ext = pwutils.getExt(filename)
+    ext = getExt(filename)
 
     if ext in ".mrc":
         header = Ccp4Header(filename, readHeader=True)
@@ -220,7 +220,7 @@ def convertMicrographs(micList, micDir):
         ih.convert(mic, os.path.join(micDir, newName))
 
     def _link(mic, newName):
-        pwutils.createAbsLink(os.path.abspath(mic.getFileName()),
+        createAbsLink(os.path.abspath(mic.getFileName()),
                               os.path.join(micDir, newName))
 
     if ext in constants.CRYOLO_SUPPORTED_FORMATS:
