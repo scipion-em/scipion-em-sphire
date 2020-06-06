@@ -96,6 +96,12 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
                       label="Absolute cut off frequency",
                       help="Specifies the absolute cut-off frequency for the "
                            "low-pass filter.")
+        form.addParam('numCpus', params.IntParam, default=4,
+                      label="Number of CPUs",
+                      help="*Important!* This is different from number of threads "
+                           "above as threads are used for GPU parallelization. "
+                           "Provide here the number of CPU cores for each cryolo "
+                           "process.")
         form.addParam('input_size', params.IntParam,
                       default=1024,
                       expertLevel=cons.LEVEL_ADVANCED,
@@ -126,7 +132,7 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
                             " crYOLO can use multiple GPUs - in that case"
                             " set to i.e. *0 1 2*.")
 
-        form.addParallelSection(threads=4, mpi=1)
+        form.addParallelSection(threads=1, mpi=1)
 
         self._defineStreamingParams(form)
         # Default batch size --> 16
@@ -187,7 +193,7 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
         args += " -o %s/" % workingDir
         args += " -t %0.3f" % self.conservPickVar
         args += " -g %(GPU)s"  # Add GPU that will be set by the executor
-        args += " -nc %d" % self.numberOfThreads.get()
+        args += " -nc %d" % self.numCpus.get()
         if self.lowPassFilter:
             args += ' --otf'
 

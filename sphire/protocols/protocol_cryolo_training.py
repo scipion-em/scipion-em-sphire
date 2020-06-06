@@ -92,6 +92,13 @@ class SphireProtCRYOLOTraining(ProtParticlePicking):
                       pointerClass='CryoloModel',
                       help='Select an existing crYOLO trained model.')
 
+        form.addParam('numCpus', params.IntParam, default=4,
+                      label="Number of CPUs",
+                      help="*Important!* This is different from number of threads "
+                           "above as threads are used for GPU parallelization. "
+                           "Provide here the number of CPU cores for each cryolo "
+                           "process.")
+
         form.addParam('eFlagParam', params.IntParam, default=10,
                       expertLevel=cons.LEVEL_ADVANCED,
                       label="Stop when not changed (times in a row)",
@@ -237,7 +244,7 @@ class SphireProtCRYOLOTraining(ProtParticlePicking):
         params += " -w %s" % w  # Since cryolo 1.5 -w 3 will first do 3 warmups and starts
         # automatically the current training
         params += " -g %(GPU)s"
-        params += " -nc %d" % self.numberOfThreads.get()
+        params += " -nc %d" % self.numCpus.get()
         params += " -e %d " % self.eFlagParam
         params += extraArgs
         Plugin.runCryolo(self, 'cryolo_train.py', params,
