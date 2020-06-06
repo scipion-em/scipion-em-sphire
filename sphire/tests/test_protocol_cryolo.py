@@ -288,7 +288,6 @@ class TestCryolo(BaseTest):
     def _runPickingTest(self, boxSize, label):
         protcryolo = self.newProtocol(
             protocols.SphireProtCRYOLOPicking,
-            useGenMod=True,
             inputMicrographs=self.protPreprocess.outputMicrographs,
             boxSize=boxSize,
             input_size=750,
@@ -303,7 +302,6 @@ class TestCryolo(BaseTest):
         # No training mode picking
         protcryolo = self.newProtocol(
             protocols.SphireProtCRYOLOPicking,
-            useGenMod=True,
             inputMicrographs=self.protPreprocess.outputMicrographs,
             input_size=750,
             streamingBatchSize=10)
