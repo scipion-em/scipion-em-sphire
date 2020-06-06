@@ -29,7 +29,6 @@ import os
 import csv
 import re
 
-import pyworkflow.object as pwobj
 import pyworkflow.utils as pwutils
 import pwem.objects as emobj
 from pwem.emlib.image import ImageHandler
@@ -194,7 +193,7 @@ def readMicrographCoords(mic, coordSet, coordsFile, boxSize, yFlipHeight=None, b
 
 def needToFlipOnY(filename):
     """ Returns true if need to flip coordinates on Y"""
-    ext = getExt(filename)
+    ext = pwutils.getExt(filename)
 
     if ext in ".mrc":
         header = Ccp4Header(filename, readHeader=True)
@@ -220,7 +219,7 @@ def convertMicrographs(micList, micDir):
         ih.convert(mic, os.path.join(micDir, newName))
 
     def _link(mic, newName):
-        createAbsLink(os.path.abspath(mic.getFileName()),
+        pwutils.createAbsLink(os.path.abspath(mic.getFileName()),
                               os.path.join(micDir, newName))
 
     if ext in constants.CRYOLO_SUPPORTED_FORMATS:
