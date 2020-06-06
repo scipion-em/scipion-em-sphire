@@ -28,6 +28,7 @@
 # *
 # **************************************************************************
 
+import os
 import json
 import glob
 
@@ -180,12 +181,12 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
         # Create folder with linked mics
         convert.convertMicrographs(micList, workingDir)
 
-        args = "-c %s " % self._getExtraPath('config.json')
-        args += " -w %s " % self.getInputModel()
+        args = "-c %s" % self._getExtraPath('config.json')
+        args += " -w %s" % self.getInputModel()
         args += " -i %s/" % workingDir
         args += " -o %s/" % workingDir
         args += " -t %0.3f" % self.conservPickVar
-        args += " -g %(GPU)s "  # Add GPU that will be set by the executor
+        args += " -g %(GPU)s"  # Add GPU that will be set by the executor
         args += " -nc %d" % self.numberOfThreads.get()
         if self.lowPassFilter:
             args += ' --otf'

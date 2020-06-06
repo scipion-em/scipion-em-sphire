@@ -234,11 +234,11 @@ class SphireProtCRYOLOTraining(ProtParticlePicking):
 
     def runCryoloTrain(self, w, extraArgs=''):
         params = "-c config.json"
-        params += " -w %s " % w  # Since cryolo 1.5 -w 3 will first do 3 warmups and starts
+        params += " -w %s" % w  # Since cryolo 1.5 -w 3 will first do 3 warmups and starts
         # automatically the current training
         params += " -g %(GPU)s"
         params += " -nc %d" % self.numberOfThreads.get()
-        params += " -e %d" % self.eFlagParam
+        params += " -e %d " % self.eFlagParam
         params += extraArgs
         Plugin.runCryolo(self, 'cryolo_train.py', params,
                          cwd=self._getWorkDir())
