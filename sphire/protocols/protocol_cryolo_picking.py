@@ -246,6 +246,11 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
     def _validate(self):
         validateMsgs = []
 
+        nprocs = max(self.numberOfMpi.get(), self.numberOfThreads.get())
+        if nprocs < len(self.getGpuList()):
+            validateMsgs.append("Multiple GPUs can not be used by a single process. "
+                                "Make sure you specify more threads than GPUs.")
+
         modelPath = self.getInputModel()
         if not os.path.exists(modelPath):
             validateMsgs.append("Input model file '{}' does not exists.".format(modelPath))

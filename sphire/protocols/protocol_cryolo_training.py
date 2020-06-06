@@ -261,6 +261,11 @@ class SphireProtCRYOLOTraining(ProtParticlePicking):
     def _validate(self):
         validateMsgs = []
 
+        nprocs = max(self.numberOfMpi.get(), self.numberOfThreads.get())
+        if nprocs < len(self.getGpuList()):
+            validateMsgs.append("Multiple GPUs can not be used by a single process. "
+                                "Make sure you specify more threads than GPUs.")
+
         if self.inputCoordinates.get() is None:
             validateMsgs.append("Please select a set of coordinates, obtained"
                                 " from a previous picking run. Typically the "
