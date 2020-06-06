@@ -147,7 +147,7 @@ class SphireProtCRYOLOTraining(ProtParticlePicking):
                        expertLevel=cons.LEVEL_ADVANCED,
                        label="Choose GPU IDs")
 
-        form.addParallelSection(threads=1, mpi=0)
+        form.addParallelSection(threads=1, mpi=1)
 
     # --------------------------- INSERT steps functions ----------------------
     def _insertAllSteps(self):

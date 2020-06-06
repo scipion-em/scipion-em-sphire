@@ -126,7 +126,7 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
                             " crYOLO can use multiple GPUs - in that case"
                             " set to i.e. *0 1 2*.")
 
-        form.addParallelSection(threads=4, mpi=0)
+        form.addParallelSection(threads=4, mpi=1)
 
         self._defineStreamingParams(form)
         # Default batch size --> 16

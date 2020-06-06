@@ -164,4 +164,5 @@ class Plugin(pwem.Plugin):
         """ Run crYOLO command from a given protocol. """
         fullProgram = '%s %s && %s' % (cls.getCondaActivationCmd(),
                                        cls.getCryoloEnvActivation(), program)
-        protocol.runJob(fullProgram, args, env=cls.getEnviron(), cwd=cwd)
+        protocol.runJob(fullProgram, args, env=cls.getEnviron(), cwd=cwd,
+                        numberOfMpi=1)
