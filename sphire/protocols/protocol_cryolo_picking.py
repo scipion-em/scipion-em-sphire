@@ -41,8 +41,9 @@ from pwem.protocols import ProtParticlePickingAuto
 
 from sphire import Plugin
 import sphire.convert as convert
-from sphire.constants import CRYOLO_GENMOD_VAR, CRYOLO_NS_GENMOD_VAR, INPUT_MODEL_GENERAL, \
-    INPUT_MODEL_GENERAL_NS, INPUT_MODEL_OTHER
+from sphire.constants import (CRYOLO_GENMOD_VAR, CRYOLO_NS_GENMOD_VAR,
+                              INPUT_MODEL_GENERAL, INPUT_MODEL_GENERAL_NS,
+                              INPUT_MODEL_OTHER)
 
 
 class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
@@ -55,7 +56,7 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
         ProtParticlePickingAuto.__init__(self, **args)
         self.stepsExecutionMode = cons.STEPS_PARALLEL
 
-    # --------------------------- DEFINE param functions ------------------------
+    # --------------------------- DEFINE param functions ----------------------
     def _defineParams(self, form):
         ProtParticlePickingAuto._defineParams(self, form)
 
@@ -137,7 +138,7 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
         # Default batch size --> 16
         form.getParam('streamingBatchSize').default = Integer(16)
 
-    # --------------------------- INSERT steps functions -----------------------
+    # --------------------------- INSERT steps functions ----------------------
     def _insertInitialSteps(self):
         if self.inputModelFrom == INPUT_MODEL_GENERAL:
             model_chosen_str = '(GENERAL)'
@@ -146,10 +147,11 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
         else:
             model_chosen_str = '(CUSTOM)'
 
-        self.summaryVar.set("Picking using %s model: \n%s" % (model_chosen_str, self.getInputModel()))
+        self.summaryVar.set("Picking using %s model: \n%s" % (model_chosen_str,
+                                                              self.getInputModel()))
         return [self._insertFunctionStep("createConfigStep")]
 
-    # --------------------------- STEPS functions ------------------------------
+    # --------------------------- STEPS functions -----------------------------
     def createConfigStep(self):
         inputSize = convert.roundInputSize(self.input_size.get())
         maxBoxPerImage = self.max_box_per_image.get()
@@ -211,9 +213,9 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
         # Coordinates may have a boxSize (e. g. streaming case)
         boxSize = outputCoords.getBoxSize()
         if not boxSize:
-            if self.boxSize.get():                  # Box size can be provided by the user
+            if self.boxSize.get():  # Box size can be provided by the user
                 boxSize = self.boxSize.get()
-            else:                                   # If not crYOLO estimates it
+            else:  # If not crYOLO estimates it
                 boxSizeEstimated = True
                 boxSize = self._getEstimatedBoxSize()
             outputCoords.setBoxSize(boxSize)
@@ -237,7 +239,7 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
         boxSize = Integer(self.outputCoordinates.getBoxSize())
         self._defineOutputs(boxsize=boxSize)
 
-    # --------------------------- INFO functions -------------------------------
+    # --------------------------- INFO functions ------------------------------
     def _summary(self):
         return [self.summaryVar.get()]
 
@@ -297,7 +299,8 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
         return wd
 
     def _getEstimatedBoxSize(self):
-        sizeSummaryFilePattern = os.path.join(self.getOutputDISTRDir(), 'size_distribution_summary*.txt')
+        sizeSummaryFilePattern = os.path.join(self.getOutputDISTRDir(),
+                                              'size_distribution_summary*.txt')
         lineFilterPattern = 'mean,'
         boxSize = None
         try:
@@ -318,9 +321,3 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
             raise Exception('Boxsize not found in file:\n{}'.format(f.name))
         except Exception as e:
             raise e
-
-
-
-
-
-

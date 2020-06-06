@@ -29,7 +29,7 @@ import os
 
 import pyworkflow.utils as pwutils
 from pyworkflow import Config
-from pyworkflow.tests import (BaseTest, setupTestProject, DataSet, setupTestOutput)
+from pyworkflow.tests import BaseTest, setupTestProject, DataSet, setupTestOutput
 from pyworkflow.plugin import Domain
 
 import pwem.objects as emobj
@@ -320,9 +320,8 @@ class TestCryolo(BaseTest):
         try:
             error_msg = protcryolo._validate()
             test_error_msg = ["Input model file '{}' does not exists.".format(model_file_original),
-                              (
-                                      "The general model for cryolo must be downloaded from Sphire website and {} " +
-                                      "must contain the '{}' parameter pointing to the downloaded file.").format(
+                              ("The general model for cryolo must be downloaded from Sphire website and {} " +
+                               "must contain the '{}' parameter pointing to the downloaded file.").format(
                                   Config.SCIPION_LOCAL_CONFIG, CRYOLO_GENMOD_VAR)]
 
             self.assertEqual(error_msg, test_error_msg)

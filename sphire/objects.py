@@ -42,4 +42,3 @@ class CryoloModel(EMObject):
 
     def __str__(self):
         return "CryoloModel(path=%s)" % self.getPath()
-

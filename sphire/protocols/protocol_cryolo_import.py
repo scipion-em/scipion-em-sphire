@@ -27,8 +27,8 @@
 import os
 
 import pyworkflow.utils as pwutils
-from pwem.protocols import ProtImport
 import pyworkflow.protocol.params as params
+from pwem.protocols import ProtImport
 
 from sphire.objects import CryoloModel
 
@@ -48,11 +48,11 @@ class SphireProtCryoloImport(ProtImport):
                       help="Provide the path of a previous crYOLO training "
                            "model. ")
 
-    # --------------------------- INSERT steps functions ------------------------
+    # --------------------------- INSERT steps functions ----------------------
     def _insertAllSteps(self):
         self._insertFunctionStep("importModelStep")
 
-    # --------------------------- STEPS functions ------------------------------
+    # --------------------------- STEPS functions -----------------------------
     def importModelStep(self):
         """ Create a link to the provided input model path
         and register the output to be used later for further training

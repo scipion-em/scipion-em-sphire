@@ -30,9 +30,9 @@ import csv
 import re
 
 import pyworkflow.object as pwobj
+import pyworkflow.utils as pwutils
 import pwem.objects as emobj
 from pwem.emlib.image import ImageHandler
-import pyworkflow.utils as pwutils
 from pwem.convert import Ccp4Header
 
 import sphire.constants as constants

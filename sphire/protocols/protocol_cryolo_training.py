@@ -49,7 +49,7 @@ class SphireProtCRYOLOTraining(ProtParticlePicking):
     def __init__(self, **args):
         ProtParticlePicking.__init__(self, **args)
 
-    # -------------------------- DEFINE param functions ------------------------
+    # -------------------------- DEFINE param functions -----------------------
     def _defineParams(self, form):
         ProtParticlePicking._defineParams(self, form)
         form.addParam('inputCoordinates', params.PointerParam,
@@ -149,7 +149,7 @@ class SphireProtCRYOLOTraining(ProtParticlePicking):
 
         form.addParallelSection(threads=1, mpi=1)
 
-    # --------------------------- INSERT steps functions ------------------------
+    # --------------------------- INSERT steps functions ----------------------
     def _insertAllSteps(self):
         self._insertFunctionStep("convertInputStep")
         self._insertFunctionStep("createConfigStep")
@@ -165,7 +165,7 @@ class SphireProtCRYOLOTraining(ProtParticlePicking):
 
         self._insertFunctionStep("createOutputStep")
 
-    # --------------------------- STEPS functions ------------------------------
+    # --------------------------- STEPS functions -----------------------------
     def convertInputStep(self):
         """ Converts a set of coordinates to box files and binaries to mrc
         if needed. It generates 2 folders 1 for the box files and another for
@@ -246,7 +246,7 @@ class SphireProtCRYOLOTraining(ProtParticlePicking):
         self.runCryoloTrain(5, extraArgs=extraArgs)
         pwutils.moveFile(self._getWorkDir(self.MODEL), self.getOutputModelPath())
 
-    # --------------------------- INFO functions -------------------------------
+    # --------------------------- INFO functions ------------------------------
     def _summary(self):
         return [self.summaryVar.get()]
 
@@ -279,6 +279,3 @@ class SphireProtCRYOLOTraining(ProtParticlePicking):
             m = self.inputModel.get().getPath()
 
         return os.path.abspath(m) if m else ''
-
-
-

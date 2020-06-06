@@ -35,6 +35,7 @@ import pyworkflow as pw
 from sphire.constants import *
 
 _logo = "sphire_logo.png"
+_references = ['Wagner2019']
 _sphirePluginDir = os.path.dirname(os.path.abspath(__file__))
 
 
@@ -80,38 +81,37 @@ class Plugin(pwem.Plugin):
 
     @classmethod
     def defineBinaries(cls, env):
-
         cls.addCryoloPackage(env, CRYOLO_DEFAULT_VER_NUM, default=bool(cls.getCondaActivationCmd()))
+        url = "wget ftp://ftp.gwdg.de/pub/misc/sphire/crYOLO-GENERAL-MODELS/"
 
         env.addPackage(CRYOLO_GENMOD, version=CRYOLO_GENMOD_201910,
                        tar='void.tgz',
-                       commands=[(
-                                 "wget ftp://ftp.gwdg.de/pub/misc/sphire/crYOLO-GENERAL-MODELS/" +
-                                 CRYOLO_GENMOD_201910_FN, CRYOLO_GENMOD_201910_FN)],
+                       commands=[(url + CRYOLO_GENMOD_201910_FN, CRYOLO_GENMOD_201910_FN)],
                        neededProgs=["wget"],
                        default=False)
 
-        env.addPackage(CRYOLO_GENMOD, version=CRYOLO_GENMOD_202002_N63,
+        env.addPackage(CRYOLO_GENMOD, version=CRYOLO_GENMOD_202002,
                        tar='void.tgz',
-                       commands=[(
-                                 "wget ftp://ftp.gwdg.de/pub/misc/sphire/crYOLO-GENERAL-MODELS/" +
-                                 CRYOLO_GENMOD_202002_N63_FN, CRYOLO_GENMOD_202002_N63_FN)],
+                       commands=[(url + CRYOLO_GENMOD_202002_FN, CRYOLO_GENMOD_202002_FN)],
+                       neededProgs=["wget"],
+                       default=False)
+
+        env.addPackage(CRYOLO_GENMOD, version=CRYOLO_GENMOD_202005,
+                       tar='void.tgz',
+                       commands=[(url + CRYOLO_GENMOD_202005_FN, CRYOLO_GENMOD_202005_FN)],
                        neededProgs=["wget"],
                        default=True)
 
         env.addPackage(CRYOLO_NS_GENMOD, version=CRYOLO_NS_GENMOD_20190226,
                        tar='void.tgz',
-                       commands=[(
-                                 "wget ftp://ftp.gwdg.de/pub/misc/sphire/crYOLO-GENERAL-MODELS/" +
-                                 CRYOLO_NS_GENMOD_20190226_FN, CRYOLO_NS_GENMOD_20190226_FN)],
+                       commands=[(url + CRYOLO_NS_GENMOD_20190226_FN, CRYOLO_NS_GENMOD_20190226_FN)],
                        neededProgs=["wget"],
                        default=False)
 
         env.addPackage(JANNI_GENMOD,
-                       version=JANNI_GENMOD_20190703,
+                       version=JANNI_GENMOD_202005,
                        tar='void.tgz',
-                       commands=[("wget https://github.com/MPI-Dortmund/sphire-janni/raw/master/janni_general_models/"
-                                  + JANNI_GENMOD_20190703_FN, JANNI_GENMOD_20190703_FN)],
+                       commands=[(url + JANNI_GENMOD_202005_FN, JANNI_GENMOD_202005_FN)],
                        neededProgs=["wget"],
                        default=True)
 
@@ -134,9 +134,9 @@ class Plugin(pwem.Plugin):
         installationCmd = cls.getCondaActivationCmd()
 
         # Create the environment
-        installationCmd += 'conda create -y -n %s -c anaconda python=3.6 ' \
-                           'pyqt=5 cudnn=7.1.2 numpy==1.14.5 cython ' \
-                           'wxPython==4.0.4 intel-openmp==2019.4 &&' \
+        installationCmd += 'conda create -y -n %s -c conda-forge -c anaconda '\
+                           'python=3.6 pyqt=5 cudnn=7.1.2 numpy==1.14.5 '\
+                           'cython wxPython==4.0.4 intel-openmp==2019.4 &&' \
                            % ENV_NAME
 
         # Activate new the environment
@@ -162,6 +162,6 @@ class Plugin(pwem.Plugin):
     @classmethod
     def runCryolo(cls, protocol, program, args, cwd=None):
         """ Run crYOLO command from a given protocol. """
-        fullProgram = '%s %s && %s' % (cls.getCondaActivationCmd(), cls.getCryoloEnvActivation(), program)
+        fullProgram = '%s %s && %s' % (cls.getCondaActivationCmd(),
+                                       cls.getCryoloEnvActivation(), program)
         protocol.runJob(fullProgram, args, env=cls.getEnviron(), cwd=cwd)
-

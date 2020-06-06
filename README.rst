@@ -19,7 +19,7 @@ deep learning.
 Setup
 =====
 
-It is assumed that `Scipion2`_ is currently installed. If not, follow the instructions `here`_.
+It is assumed that `Scipion3`_ is currently installed. If not, follow the instructions `here`_.
 
 Plugin scipion-em-sphire requires to have Conda (Anaconda or Miniconda) installed and not initialized in
 the shell.
@@ -65,13 +65,15 @@ If you wish to change the environment name you can introduce
 For example:
 ::
 
- CRYOLO_ENV_ACTIVATION = conda activate yourdesiredname
+ CRYOLO_ENV_ACTIVATION = conda activate cryoloenvname
 
 Downloaded crYOLO and JANNI general models can be found, respectively, in the following locations:
 
-``<SCIPION_HOME>/software/em/cryolo_model-[model_version]``.
+``<SCIPION_HOME>/software/em/cryolo_model-[model_version]``
 
-``<SCIPION_HOME>/software/em/janni_model-[model_version]``.
+``<SCIPION_HOME>/software/em/cryolo_negstain_model-[model_version]``
+
+``<SCIPION_HOME>/software/em/janni_model-[model_version]``
 
 Running plugin tests
 --------------------
@@ -83,15 +85,15 @@ to run some tests:
    scipion test --grep sphire --run
    
    
-.. _crYOLO: http://sphire.mpg.de/wiki/doku.php?id=downloads:cryolo_1&redirect=1
+.. _crYOLO: https://cryolo.readthedocs.io/en/latest/
 
 .. _JANNI: https://sphire.mpg.de/wiki/doku.php?id=janni
 
-.. _Scipion2: http://scipion.i2pc.es/
+.. _Scipion3: http://scipion.i2pc.es/
 
 .. _here: https://scipion-em.github.io/docs/docs/scipion-modes/how-to-install.html
 
-.. _install: https://scipion-em.github.io/docs/release-2.0.0/docs/scipion-modes/install-from-sources#step-4-installing-xmipp3-and-other-em-plugins
+.. _install: https://scipion-em.github.io/docs/release-3.0.0/docs/scipion-modes/install-from-sources#step-4-installing-xmipp3-and-other-em-plugins
 
 .. _GitHub: https://scipion-em.github.io/docs/docs/scipion-modes/install-from-sources#from-github
    

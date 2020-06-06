@@ -32,9 +32,8 @@ from pwem.protocols import ProtMicrographs
 from sphire import Plugin
 
 """
-Describe your python module here:
-This module implements the integration of the denoising functionality of Sphire-Janni 
-software whithin Scipion framework
+This module implements the denoising functionality of Sphire-Janni 
+software within Scipion framework
 """
 
 
@@ -46,7 +45,7 @@ class SphireProtJanniDenoising(ProtMicrographs):
     _output_path = ""
     _some_mics_failed = ""
 
-    # -------------------------- DEFINE param functions ----------------------
+    # -------------------------- DEFINE param functions -----------------------
     def _defineParams(self, form):
         """ Define the input parameters that will be used.
         Params:
@@ -59,10 +58,10 @@ class SphireProtJanniDenoising(ProtMicrographs):
                       pointerClass='SetOfMicrographs',
                       label='Input Micrographs',
                       important=True,
-                      help='Path of the directory which contains the images to denoise.')
+                      help='Path of the directory which contains '
+                           'the images to denoise.')
 
-    # --------------------------- STEPS functions ------------------------------
-    # Main
+    # --------------------------- STEPS functions -----------------------------
     def _insertAllSteps(self):
         # Insert processing steps
         self._insertFunctionStep('denoisingStep')
@@ -76,13 +75,15 @@ class SphireProtJanniDenoising(ProtMicrographs):
         self._input_path = os.path.abspath(working_dir)
         self._output_path = os.path.abspath(self._getExtraPath())
 
-        args = "denoise {}/ {}/ {}".format(self._input_path, self._output_path, self.getInputModel())
+        args = "denoise {}/ {}/ {}".format(self._input_path,
+                                           self._output_path, self.getInputModel())
         Plugin.runCryolo(self, 'janni_denoise.py', args)
 
     def createOutputStep(self):
         in_mics = self.inputMicrographs.get()  # Get input set of micrographs
         out_mics = self._createSetOfMicrographs()  # Create an empty set of micrographs
-        out_mics.copyInfo(in_mics)  # Copy all the info of the inputs, then the filename attribute will be edited with
+        out_mics.copyInfo(in_mics)  # Copy all the info of the inputs,
+        # then the filename attribute will be edited with
         # the path of the output files
 
         # Update micrograph name and append to the new Set
@@ -95,7 +96,8 @@ class SphireProtJanniDenoising(ProtMicrographs):
 
             else:
                 n_failed_mics += 1
-                print("Denoised mic wasn't correctly generated --> {}", mic.getFileName())
+                print("Denoised mic wasn't correctly generated --> {}",
+                      mic.getFileName())
                 continue
 
         # Check if the output list is empty
@@ -104,13 +106,14 @@ class SphireProtJanniDenoising(ProtMicrographs):
             if n_failed_mics == n_mics_in:
                 raise ValidationException("No output micrographs were generated.")
             else:
-                _some_mics_failed = "{} of {} micrographs weren't correctly processed. Please check the log for more " \
+                _some_mics_failed = "{} of {} micrographs weren't correctly processed. "\
+                                    "Please check the log for more " \
                                     "details".format(n_failed_mics, n_mics_in)
 
         self._defineOutputs(outputMicrographs=out_mics)
         self._defineTransformRelation(self.inputMicrographs, out_mics)
 
-    # --------------------------- INFO functions -----------------------------------
+    # --------------------------- INFO functions ------------------------------
     def _summary(self):
         """ Summarize what the protocol has done"""
         summary = []
@@ -163,4 +166,3 @@ class SphireProtJanniDenoising(ProtMicrographs):
         return os.path.join(self._getExtraPath(),  # Relative path to output dir (rel. paths are required in DDBB)
                             os.path.split(in_file_path)[-1],  # Deeper folder name in the input path
                             in_file_name)  # File name and extension
-
