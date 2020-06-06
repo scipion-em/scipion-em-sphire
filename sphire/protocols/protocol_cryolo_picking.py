@@ -10,7 +10,7 @@
 # *
 # * This program is free software; you can redistribute it and/or modify
 # * it under the terms of the GNU General Public License as published by
-# * the Free Software Foundation; either version 2 of the License, or
+# * the Free Software Foundation; either version 3 of the License, or
 # * (at your option) any later version.
 # *
 # * This program is distributed in the hope that it will be useful,
@@ -41,9 +41,7 @@ from pwem.protocols import ProtParticlePickingAuto
 
 from sphire import Plugin
 import sphire.convert as convert
-from sphire.constants import (CRYOLO_GENMOD_VAR, CRYOLO_NS_GENMOD_VAR,
-                              INPUT_MODEL_GENERAL, INPUT_MODEL_GENERAL_NS,
-                              INPUT_MODEL_OTHER)
+from sphire.constants import *
 
 
 class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
@@ -62,11 +60,13 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
 
         form.addParam('inputModelFrom', params.EnumParam,
                       default=INPUT_MODEL_GENERAL,
-                      choices=['general cryoem', 'other', 'general neg stain'],
-                      display=params.EnumParam.DISPLAY_HLIST,
+                      choices=['general cryo (low-pass filtered)',
+                               'general cryo (denoised)',
+                               'other', 'general neg stain'],
+                      display=params.EnumParam.DISPLAY_COMBO,
                       label='Picking model: ',
                       help="You might use a general network model that consists "
-                           "of\n   -cryo-em: real, simulated, particle free datasets on "
+                           "of\n   -cryo: real, simulated, particle free datasets on "
                            "various grids with contamination\n   -negative stain: trained with"
                            "negative stain images\nand skip training "
                            "completely,\nor,\nif you would like to "
@@ -117,12 +117,6 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
                       help="Maximum number of particles in the image. Only for "
                            "the memory handling. Keep the default value of "
                            "600 or 1000.")
-        form.addParam('num_patches', params.IntParam,
-                      default=1,
-                      expertLevel=cons.LEVEL_ADVANCED,
-                      label='Number of Patches',
-                      help='If specified the patch mode will be used. A value '
-                           'of "2" means, that 2x2 patches will be used.')
         form.addHidden(params.GPU_LIST, params.StringParam, default='0',
                        expertLevel=cons.LEVEL_ADVANCED,
                        label="Choose GPU IDs",
@@ -132,7 +126,7 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
                             " crYOLO can use multiple GPUs - in that case"
                             " set to i.e. *0 1 2*.")
 
-        form.addParallelSection(threads=1, mpi=1)
+        form.addParallelSection(threads=4, mpi=0)
 
         self._defineStreamingParams(form)
         # Default batch size --> 16
@@ -140,7 +134,8 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
 
     # --------------------------- INSERT steps functions ----------------------
     def _insertInitialSteps(self):
-        if self.inputModelFrom == INPUT_MODEL_GENERAL:
+        if self.inputModelFrom in [INPUT_MODEL_GENERAL,
+                                   INPUT_MODEL_GENERAL_DENOISED]:
             model_chosen_str = '(GENERAL)'
         elif self.inputModelFrom == INPUT_MODEL_GENERAL_NS:
             model_chosen_str = '(GENERAL_NS)'
@@ -155,13 +150,11 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
     def createConfigStep(self):
         inputSize = convert.roundInputSize(self.input_size.get())
         maxBoxPerImage = self.max_box_per_image.get()
-        numPatches = self.num_patches.get()
         absCutOfffreq = self.absCutOffFreq.get()
         model = {
             "architecture": "PhosaurusNet",
             "input_size": inputSize,
             "max_box_per_image": maxBoxPerImage,
-            "num_patches": numPatches
         }
         boxSize = self.boxSize.get()
         if boxSize:
@@ -194,6 +187,7 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
         args += " -o %s/" % workingDir
         args += " -t %0.3f" % self.conservPickVar
         args += " -g %(GPU)s "  # Add GPU that will be set by the executor
+        args += " -nc %d" % self.numberOfThreads.get()
         if self.lowPassFilter:
             args += ' --otf'
 
@@ -257,6 +251,13 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
                     "the '{}' parameter pointing to the downloaded file.".format(
                         Config.SCIPION_LOCAL_CONFIG, CRYOLO_GENMOD_VAR))
 
+            elif self.inputModelFrom == INPUT_MODEL_GENERAL_DENOISED:
+                validateMsgs.append(
+                    "The general model for cryolo must be downloaded from Sphire "
+                    "website and {} must contain "
+                    "the '{}' parameter pointing to the downloaded file.".format(
+                        Config.SCIPION_LOCAL_CONFIG, JANNI_GENMOD_VAR))
+
             elif self.inputModelFrom == INPUT_MODEL_GENERAL_NS:
                 validateMsgs.append(
                     "The general model for cryolo (negative stain) must be downloaded from Sphire "
@@ -279,6 +280,8 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
     def getInputModel(self):
         if self.inputModelFrom == INPUT_MODEL_GENERAL:
             m = Plugin.getCryoloGeneralModel()
+        elif self.inputModelFrom == INPUT_MODEL_GENERAL_DENOISED:
+            m = Plugin.getJanniGeneralModel()
         elif self.inputModelFrom == INPUT_MODEL_GENERAL_NS:
             m = Plugin.getCryoloGeneralNSModel()
         else:

@@ -7,7 +7,7 @@
 # *
 # * This program is free software; you can redistribute it and/or modify
 # * it under the terms of the GNU General Public License as published by
-# * the Free Software Foundation; either version 2 of the License, or
+# * the Free Software Foundation; either version 3 of the License, or
 # * (at your option) any later version.
 # *
 # * This program is distributed in the hope that it will be useful,
@@ -147,7 +147,7 @@ class SphireProtCRYOLOTraining(ProtParticlePicking):
                        expertLevel=cons.LEVEL_ADVANCED,
                        label="Choose GPU IDs")
 
-        form.addParallelSection(threads=1, mpi=1)
+        form.addParallelSection(threads=1, mpi=0)
 
     # --------------------------- INSERT steps functions ----------------------
     def _insertAllSteps(self):
@@ -237,6 +237,7 @@ class SphireProtCRYOLOTraining(ProtParticlePicking):
         params += " -w %s " % w  # Since cryolo 1.5 -w 3 will first do 3 warmups and starts
         # automatically the current training
         params += " -g %(GPU)s"
+        params += " -nc %d" % self.numberOfThreads.get()
         params += " -e %d" % self.eFlagParam
         params += extraArgs
         Plugin.runCryolo(self, 'cryolo_train.py', params,

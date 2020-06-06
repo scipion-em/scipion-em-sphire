@@ -12,7 +12,7 @@
 # *
 # * This program is free software; you can redistribute it and/or modify
 # * it under the terms of the GNU General Public License as published by
-# * the Free Software Foundation; either version 2 of the License, or
+# * the Free Software Foundation; either version 3 of the License, or
 # * (at your option) any later version.
 # *
 # * This program is distributed in the hope that it will be useful,
@@ -80,8 +80,9 @@ CRYOLO_SUPPORTED_FORMATS = [".mrc", ".tif", ".tiff", ".jpg"]
 
 # Input options for the training model
 INPUT_MODEL_GENERAL = 0
-INPUT_MODEL_GENERAL_NS = 2
-INPUT_MODEL_OTHER = 1
+INPUT_MODEL_GENERAL_DENOISED = 1
+INPUT_MODEL_OTHER = 2
+INPUT_MODEL_GENERAL_NS = 3
 
 
 # crYOLO - NEGATIVE STAIN ##############################################################################################
