@@ -59,7 +59,7 @@ class TestSphireConvert(BaseTest):
     def testConvertCoords(self):
         boxSize = 100
         boxDir = self.getOutputPath('boxDir')
-        pwutils.makePath(boxDir)
+        makePath(boxDir)
 
         def _convert(coordsIn, yFlipHeight=None):
             tmpFile = os.path.join(boxDir, 'tmp.cbox')
@@ -144,7 +144,7 @@ class TestSphireConvert(BaseTest):
         os.mkdir(boxFolder)
 
         micFolder = self.getOutputPath('micFolder')
-        pwutils.makePath(micFolder)
+        makePath(micFolder)
 
         # Invoke the write set of coordinates method
         convert.writeSetOfCoordinates(boxFolder, coordSet)
@@ -185,7 +185,7 @@ class TestSphireConvert(BaseTest):
         # Test right ispg value (0 in mrc file)
         # Copy 006
         goodMrc = self.getOutputPath('good_ispg.mrc')
-        pwutils.copyFile(mrcFile, goodMrc)
+        copyFile(mrcFile, goodMrc)
 
         # Change the ISPG value in the file header
         header = Ccp4Header(goodMrc, readHeader=True)

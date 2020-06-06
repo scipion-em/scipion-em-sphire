@@ -2,3 +2,5 @@
     - python 3 migration
     - cryolo updated to 1.7.2
 v1.3.0, 21/11/2019 -- Janni denoising protocol added. Picking in negative stain micrographs added.
+v1.4.0, 17/04/2020 -- Updated to crYOLO 1.6.1.
+v1.4.1. 21/04/2020 -- Add variable to select which CUDA to use. Fix bibtex.

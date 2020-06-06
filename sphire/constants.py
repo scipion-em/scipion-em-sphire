@@ -50,7 +50,6 @@ DEFAULT_ACTIVATION_CMD = 'conda activate ' + DEFAULT_ENV_NAME
 CRYOLO_ENV_ACTIVATION = 'CRYOLO_ENV_ACTIVATION'
 CRYOLO_CUDA_LIB = 'CRYOLO_CUDA_LIB'
 
-
 # Model constants
 def _modelFn(modelKey):
     return 'gmodel_phosnet_%s.h5' % modelKey
@@ -98,7 +97,6 @@ CRYOLO_NS_GENMOD_20190226 = '20190226'
 CRYOLO_NS_GENMOD_20190226_FN = _negStainModelFn(CRYOLO_NS_GENMOD_20190226)
 CRYOLO_NS_GENMOD_DEFAULT = os.path.join(CRYOLO_NS_GENMOD + "-" + CRYOLO_NS_GENMOD_20190226,
                                         CRYOLO_NS_GENMOD_20190226_FN)
-
 
 # JANNI ################################################################################################################
 
