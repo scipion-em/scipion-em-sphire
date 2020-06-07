@@ -28,7 +28,6 @@
 # *
 # **************************************************************************
 
-import os
 import json
 import glob
 
@@ -292,7 +291,7 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
         if self.inputModelFrom == INPUT_MODEL_GENERAL:
             m = Plugin.getCryoloGeneralModel()
         elif self.inputModelFrom == INPUT_MODEL_GENERAL_DENOISED:
-            m = Plugin.getJanniGeneralModel()
+            m = Plugin.getCryoloGeneralNNModel()
         elif self.inputModelFrom == INPUT_MODEL_GENERAL_NS:
             m = Plugin.getCryoloGeneralNSModel()
         else:

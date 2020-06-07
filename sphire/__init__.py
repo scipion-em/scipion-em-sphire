@@ -44,8 +44,9 @@ class Plugin(pwem.Plugin):
     @classmethod
     def _defineVariables(cls):
         # CRYOLO do NOT need EmVar because it uses a conda environment.
-        cls._defineEmVar(CRYOLO_GENMOD_VAR, CRYOLO_GENMOD_DEFAULT)
         cls._defineVar(CRYOLO_ENV_ACTIVATION, DEFAULT_ACTIVATION_CMD)
+        cls._defineEmVar(CRYOLO_GENMOD_VAR, CRYOLO_GENMOD_DEFAULT)
+        cls._defineEmVar(CRYOLO_GENMOD_NN_VAR, CRYOLO_GENMOD_NN_DEFAULT)
         cls._defineEmVar(JANNI_GENMOD_VAR, JANNI_GENMOD_DEFAULT)  # EmVar is used instead of Var because method getVar
         cls._defineEmVar(CRYOLO_NS_GENMOD_VAR, CRYOLO_NS_GENMOD_DEFAULT)
 
@@ -59,6 +60,10 @@ class Plugin(pwem.Plugin):
     @classmethod
     def getCryoloGeneralModel(cls):
         return os.path.abspath(cls.getVar(CRYOLO_GENMOD_VAR))
+
+    @classmethod
+    def getCryoloGeneralNNModel(cls):
+        return os.path.abspath(cls.getVar(CRYOLO_GENMOD_NN_VAR))
 
     @classmethod
     def getCryoloGeneralNSModel(cls):
@@ -102,6 +107,12 @@ class Plugin(pwem.Plugin):
                        neededProgs=["wget"],
                        default=True)
 
+        env.addPackage(CRYOLO_GENMOD, version=CRYOLO_GENMOD_202005NN,
+                       tar='void.tgz',
+                       commands=[(url + CRYOLO_GENMOD_202005NN_FN, CRYOLO_GENMOD_202005NN_FN)],
+                       neededProgs=["wget"],
+                       default=True)
+
         env.addPackage(CRYOLO_NS_GENMOD, version=CRYOLO_NS_GENMOD_20190226,
                        tar='void.tgz',
                        commands=[(url + CRYOLO_NS_GENMOD_20190226_FN, CRYOLO_NS_GENMOD_20190226_FN)],
@@ -109,9 +120,10 @@ class Plugin(pwem.Plugin):
                        default=False)
 
         env.addPackage(JANNI_GENMOD,
-                       version=JANNI_GENMOD_202005,
+                       version=JANNI_GENMOD_20190703,
                        tar='void.tgz',
-                       commands=[(url + JANNI_GENMOD_202005_FN, JANNI_GENMOD_202005_FN)],
+                       commands=[("wget https://github.com/MPI-Dortmund/sphire-janni/raw/master/janni_general_models/"
+                                  + JANNI_GENMOD_20190703_FN, JANNI_GENMOD_20190703_FN)],
                        neededProgs=["wget"],
                        default=True)
 
