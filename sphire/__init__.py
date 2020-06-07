@@ -107,9 +107,9 @@ class Plugin(pwem.Plugin):
                        neededProgs=["wget"],
                        default=True)
 
-        env.addPackage(CRYOLO_GENMOD, version=CRYOLO_GENMOD_202005NN,
+        env.addPackage(CRYOLO_GENMOD, version=CRYOLO_GENMOD_NN_202005,
                        tar='void.tgz',
-                       commands=[(url + CRYOLO_GENMOD_202005NN_FN, CRYOLO_GENMOD_202005NN_FN)],
+                       commands=[(url + CRYOLO_GENMOD_NN_202005_FN, CRYOLO_GENMOD_NN_202005_FN)],
                        neededProgs=["wget"],
                        default=True)
 
