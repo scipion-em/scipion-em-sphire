@@ -1,5 +1,6 @@
-from test_protocol_janni import *
-from test_protocol_cryolo import *
+from sphire.tests.test_protocol_janni import *
+from sphire.tests.test_protocol_cryolo import *
+
 DataSet(name='negative_stain',
         folder='negative_stain',
         files={

@@ -6,7 +6,7 @@
 # *
 # * This program is free software; you can redistribute it and/or modify
 # * it under the terms of the GNU General Public License as published by
-# * the Free Software Foundation; either version 2 of the License, or
+# * the Free Software Foundation; either version 3 of the License, or
 # * (at your option) any later version.
 # *
 # * This program is distributed in the hope that it will be useful,
@@ -25,14 +25,11 @@
 # **************************************************************************
 
 import os
-import json
 
 import pyworkflow.utils as pwutils
-from pyworkflow.em.protocol import ProtImport
 import pyworkflow.protocol.params as params
+from pwem.protocols import ProtImport
 
-from sphire import Plugin
-import sphire.convert as convert
 from sphire.objects import CryoloModel
 
 
@@ -51,11 +48,11 @@ class SphireProtCryoloImport(ProtImport):
                       help="Provide the path of a previous crYOLO training "
                            "model. ")
 
-    # --------------------------- INSERT steps functions ------------------------
+    # --------------------------- INSERT steps functions ----------------------
     def _insertAllSteps(self):
         self._insertFunctionStep("importModelStep")
 
-    # --------------------------- STEPS functions ------------------------------
+    # --------------------------- STEPS functions -----------------------------
     def importModelStep(self):
         """ Create a link to the provided input model path
         and register the output to be used later for further training

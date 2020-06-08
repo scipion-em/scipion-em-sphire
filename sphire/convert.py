@@ -7,7 +7,7 @@
 # *
 # * This program is free software; you can redistribute it and/or modify
 # * it under the terms of the GNU General Public License as published by
-# * the Free Software Foundation; either version 2 of the License, or
+# * the Free Software Foundation; either version 3 of the License, or
 # * (at your option) any later version.
 # *
 # * This program is distributed in the hope that it will be useful,
@@ -29,12 +29,10 @@ import os
 import csv
 import re
 
-import pyworkflow.object as pwobj
-import pyworkflow.em as emobj
 import pyworkflow.utils as pwutils
-from pyworkflow.em import ImageHandler
-from pyworkflow.em.convert import Ccp4Header
-from pyworkflow.utils.path import createAbsLink, getExt
+import pwem.objects as emobj
+from pwem.emlib.image import ImageHandler
+from pwem.convert import Ccp4Header
 
 import sphire.constants as constants
 
@@ -195,7 +193,7 @@ def readMicrographCoords(mic, coordSet, coordsFile, boxSize, yFlipHeight=None, b
 
 def needToFlipOnY(filename):
     """ Returns true if need to flip coordinates on Y"""
-    ext = getExt(filename)
+    ext = pwutils.getExt(filename)
 
     if ext in ".mrc":
         header = Ccp4Header(filename, readHeader=True)
@@ -215,13 +213,13 @@ def convertMicrographs(micList, micDir):
     in a format that is compatible with crYOLO.
     """
     ih = ImageHandler()
-    ext = getExt(micList[0].getFileName())
+    ext = pwutils.getExt(micList[0].getFileName())
 
     def _convert(mic, newName):
         ih.convert(mic, os.path.join(micDir, newName))
 
     def _link(mic, newName):
-        createAbsLink(os.path.abspath(mic.getFileName()),
+        pwutils.createAbsLink(os.path.abspath(mic.getFileName()),
                               os.path.join(micDir, newName))
 
     if ext in constants.CRYOLO_SUPPORTED_FORMATS:
