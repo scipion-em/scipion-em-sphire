@@ -7,7 +7,7 @@
 # *
 # * This program is free software; you can redistribute it and/or modify
 # * it under the terms of the GNU General Public License as published by
-# * the Free Software Foundation; either version 2 of the License, or
+# * the Free Software Foundation; either version 3 of the License, or
 # * (at your option) any later version.
 # *
 # * This program is distributed in the hope that it will be useful,
@@ -27,9 +27,9 @@
 
 import os.path
 from pyworkflow.tests import (BaseTest, setupTestProject, DataSet)
-from pyworkflow.em import constants as emcons
-import pyworkflow.em as pwem
-import pyworkflow.utils as pwutils
+from pyworkflow.plugin import Domain
+import pwem.protocols as emprot
+import pwem.constants as emcons
 import sphire.protocols as janniprots
 
 
@@ -57,7 +57,7 @@ class TestJanniMRC(BaseTest):
 
         """ Run an Import micrograph protocol. """
         # Create protocol of the desired type
-        protImport = cls.newProtocol(pwem.ProtImportMicrographs)
+        protImport = cls.newProtocol(emprot.ProtImportMicrographs)
         # Set the value of the required attributes
         protImport.filesPath.set(TestJanniMRC.ds.getFile('allMics'))
         protImport.voltage.set(300)
@@ -78,7 +78,7 @@ class TestJanniMRC(BaseTest):
         print("Preprocessing the micrographs...")
 
         # Create protocol of the desired type (in this case it belongs to another plugin, which is xmipp3)
-        XmippProtPreprocessMicrographs = pwutils.importFromPlugin(
+        XmippProtPreprocessMicrographs = Domain.importFromPlugin(
             'xmipp3.protocols',
             'XmippProtPreprocessMicrographs',
             doRaise=True)
@@ -94,7 +94,6 @@ class TestJanniMRC(BaseTest):
         cls.launchProtocol(protPreprocess)
         # Store it
         cls.protPreprocess = protPreprocess
-
 
     def testJanniMRC(self):
 
@@ -123,7 +122,14 @@ class TestJanniMRC(BaseTest):
         self.assertEqual(in_mics.getAlignment(), out_mics.getAlignment())
         self.assertEqual(in_mics.isPhaseFlipped(), out_mics.isPhaseFlipped())
         self.assertEqual(in_mics.isAmplitudeCorrected(), out_mics.isAmplitudeCorrected())
-        self.assertDictEqual(in_mics.getAcquisition().getMappedDict(), out_mics.getAcquisition().getMappedDict())
+
+        # Check acquisition params
+        in_acq_dict = in_mics.getAcquisition().getMappedDict()
+        out_acq_dict = out_mics.getAcquisition().getMappedDict()
+        self.assertEqual(in_acq_dict.keys(), out_acq_dict.keys())
+        for key in in_acq_dict.keys():
+            self.assertTrue(out_acq_dict[key].equalAttributes(in_acq_dict[key]))
+
 
 class TestJanniTIF(BaseTest):
     """ Test Janni protocol with TIF files"""
@@ -149,7 +155,7 @@ class TestJanniTIF(BaseTest):
 
         """ Run an Import micrograph protocol. """
         # Create protocol of the desired type
-        protImport = cls.newProtocol(pwem.ProtImportMicrographs)
+        protImport = cls.newProtocol(emprot.ProtImportMicrographs)
         # Set the value of the required attributes
         protImport.filesPath.set(TestJanniTIF.ds.getFile('untilted'))
         protImport.voltage.set(300)
@@ -170,7 +176,7 @@ class TestJanniTIF(BaseTest):
         print("Preprocessing the micrographs...")
 
         # Create protocol of the desired type (in this case it belongs to another plugin, which is xmipp3)
-        XmippProtPreprocessMicrographs = pwutils.importFromPlugin(
+        XmippProtPreprocessMicrographs = Domain.importFromPlugin(
             'xmipp3.protocols',
             'XmippProtPreprocessMicrographs',
             doRaise=True)
@@ -186,7 +192,6 @@ class TestJanniTIF(BaseTest):
         cls.launchProtocol(protPreprocess)
         # Store it
         cls.protPreprocess = protPreprocess
-
 
     def testJanniTIF(self):
 
@@ -216,4 +221,11 @@ class TestJanniTIF(BaseTest):
         self.assertEqual(in_mics.getAlignment(), out_mics.getAlignment())
         self.assertEqual(in_mics.isPhaseFlipped(), out_mics.isPhaseFlipped())
         self.assertEqual(in_mics.isAmplitudeCorrected(), out_mics.isAmplitudeCorrected())
-        self.assertDictEqual(in_mics.getAcquisition().getMappedDict(), out_mics.getAcquisition().getMappedDict())
+        # self.assertDictEqual(in_mics.getAcquisition().getMappedDict(), out_mics.getAcquisition().getMappedDict())
+
+        # Check acquisition params
+        in_acq_dict = in_mics.getAcquisition().getMappedDict()
+        out_acq_dict = out_mics.getAcquisition().getMappedDict()
+        self.assertEqual(in_acq_dict.keys(), out_acq_dict.keys())
+        for key in in_acq_dict.keys():
+            self.assertTrue(out_acq_dict[key].equalAttributes(in_acq_dict[key]))

@@ -9,7 +9,7 @@
 # *
 # * This program is free software; you can redistribute it and/or modify
 # * it under the terms of the GNU General Public License as published by
-# * the Free Software Foundation; either version 2 of the License, or
+# * the Free Software Foundation; either version 3 of the License, or
 # * (at your option) any later version.
 # *
 # * This program is distributed in the hope that it will be useful,
@@ -29,24 +29,24 @@
 """
 This package contains the protocols and data for crYOLO
 """
-import pyworkflow.em
+import pwem
 import pyworkflow.utils as pwutils
 import pyworkflow as pw
 from sphire.constants import *
 
 _logo = "sphire_logo.png"
+_references = ['Wagner2019']
 _sphirePluginDir = os.path.dirname(os.path.abspath(__file__))
 
 
-class Plugin(pyworkflow.em.Plugin):
-    _cryoloVersion = None  # Means not detected yet
-    _cryoloVersionSupported = None
-    _condaActivationCmd = None
+class Plugin(pwem.Plugin):
+
     @classmethod
     def _defineVariables(cls):
         # CRYOLO do NOT need EmVar because it uses a conda environment.
-        cls._defineEmVar(CRYOLO_GENMOD_VAR, CRYOLO_GENMOD_DEFAULT)
         cls._defineVar(CRYOLO_ENV_ACTIVATION, DEFAULT_ACTIVATION_CMD)
+        cls._defineEmVar(CRYOLO_GENMOD_VAR, CRYOLO_GENMOD_DEFAULT)
+        cls._defineEmVar(CRYOLO_GENMOD_NN_VAR, CRYOLO_GENMOD_NN_DEFAULT)
         cls._defineEmVar(JANNI_GENMOD_VAR, JANNI_GENMOD_DEFAULT)  # EmVar is used instead of Var because method getVar
         cls._defineEmVar(CRYOLO_NS_GENMOD_VAR, CRYOLO_NS_GENMOD_DEFAULT)
 
@@ -60,6 +60,10 @@ class Plugin(pyworkflow.em.Plugin):
     @classmethod
     def getCryoloGeneralModel(cls):
         return os.path.abspath(cls.getVar(CRYOLO_GENMOD_VAR))
+
+    @classmethod
+    def getCryoloGeneralNNModel(cls):
+        return os.path.abspath(cls.getVar(CRYOLO_GENMOD_NN_VAR))
 
     @classmethod
     def getCryoloGeneralNSModel(cls):
@@ -76,90 +80,42 @@ class Plugin(pyworkflow.em.Plugin):
         if 'PYTHONPATH' in environ:
             # this is required for python virtual env to work
             del environ['PYTHONPATH']
-        cudaLib = environ.get(CRYOLO_CUDA_LIB, os.environ.get('CUDA_LIB'))
+        cudaLib = environ.get(CRYOLO_CUDA_LIB, pwem.Config.CUDA_LIB)
         environ.addLibrary(cudaLib)
         return environ
 
-    #Ignore validateInstallation and __parseCryoloVersion due to the decrease in performance. Although they are functional.
-    # @classmethod
-    # def validateInstallation(cls):
-    #     """
-    #     Check we can activate the crYOLO environment using the provided
-    #     command via variable CRYOLO_ENV_ACTIVATION and the version can be
-    #     parsed.
-    #     """
-    #     errors = []
-    #     cls.__parseCryoloVersion()
-    #
-    #     if cls._cryoloVersion is None:
-    #         errors.append("crYOLO environment could not be activated.\n"
-    #                       "or the version could not be parsed. \n"
-    #                       "Using %s=%s" % (CRYOLO_ENV_ACTIVATION,
-    #                                        cls.getCryoloEnvActivation()))
-    #     elif not cls._cryoloVersionSupported:
-    #         errors.append("crYOLO version %s unsupported" % cls._cryoloVersion)
-    #
-    #     return errors
-    #
-    # @classmethod
-    # def __parseCryoloVersion(cls):
-    #     # If the version has not been detected, try to load the environment
-    #     if cls._cryoloVersionSupported is None:
-    #         try:
-    #             # check if is crYOLO is installed or not
-    #             cmd = cls.getCryoloEnvActivation()
-    #             cmd += '; pip list | grep cryolo'
-    #             p = subprocess.Popen(["bash", "-c", cmd], env=cls.getEnviron(),
-    #                                  stdin=subprocess.PIPE, stdout=subprocess.PIPE)
-    #             output, err = p.communicate()
-    #             cls._cryoloVersion = output.split()[1]
-    #             from pkg_resources import parse_version
-    #             cls._cryoloVersionSupported = parse_version(cls._cryoloVersion) >= parse_version("1.2")
-    #         except Exception as e:
-    #             cls._cryoloVersion = None
-    #             cls._cryoloVersionSupported = False
-    @classmethod
-    def getCondaActivationCmd(cls):
-
-        if cls._condaActivationCmd is None:
-            condaActivationCmd = os.environ.get(CONDA_ACTIVATION_CMD_VAR, "")
-            correctCondaActivationCmd = condaActivationCmd.replace(pw.Config.SCIPION_HOME + "/", "")
-            if not correctCondaActivationCmd:
-                print("WARNING!!: %s variable not defined. "
-                       "Relying on conda being in the PATH" % CONDA_ACTIVATION_CMD_VAR)
-            elif correctCondaActivationCmd[-1] not in [";", "&"]:
-                correctCondaActivationCmd += "&&"
-
-            cls._condaActivationCmd = correctCondaActivationCmd
-
-        return cls._condaActivationCmd
-
     @classmethod
     def defineBinaries(cls, env):
-
         cls.addCryoloPackage(env, CRYOLO_DEFAULT_VER_NUM, default=bool(cls.getCondaActivationCmd()))
+        url = "wget ftp://ftp.gwdg.de/pub/misc/sphire/crYOLO-GENERAL-MODELS/"
 
         env.addPackage(CRYOLO_GENMOD, version=CRYOLO_GENMOD_201910,
                        tar='void.tgz',
-                       commands=[(
-                                 "wget ftp://ftp.gwdg.de/pub/misc/sphire/crYOLO-GENERAL-MODELS/" +
-                                 CRYOLO_GENMOD_201910_FN, CRYOLO_GENMOD_201910_FN)],
+                       commands=[(url + CRYOLO_GENMOD_201910_FN, CRYOLO_GENMOD_201910_FN)],
                        neededProgs=["wget"],
                        default=False)
 
-        env.addPackage(CRYOLO_GENMOD, version=CRYOLO_GENMOD_202002_N63,
+        env.addPackage(CRYOLO_GENMOD, version=CRYOLO_GENMOD_202002,
                        tar='void.tgz',
-                       commands=[(
-                                 "wget ftp://ftp.gwdg.de/pub/misc/sphire/crYOLO-GENERAL-MODELS/" +
-                                 CRYOLO_GENMOD_202002_N63_FN, CRYOLO_GENMOD_202002_N63_FN)],
+                       commands=[(url + CRYOLO_GENMOD_202002_FN, CRYOLO_GENMOD_202002_FN)],
+                       neededProgs=["wget"],
+                       default=False)
+
+        env.addPackage(CRYOLO_GENMOD, version=CRYOLO_GENMOD_202005,
+                       tar='void.tgz',
+                       commands=[(url + CRYOLO_GENMOD_202005_FN, CRYOLO_GENMOD_202005_FN)],
+                       neededProgs=["wget"],
+                       default=True)
+
+        env.addPackage(CRYOLO_GENMOD, version=CRYOLO_GENMOD_NN_202005,
+                       tar='void.tgz',
+                       commands=[(url + CRYOLO_GENMOD_NN_202005_FN, CRYOLO_GENMOD_NN_202005_FN)],
                        neededProgs=["wget"],
                        default=True)
 
         env.addPackage(CRYOLO_NS_GENMOD, version=CRYOLO_NS_GENMOD_20190226,
                        tar='void.tgz',
-                       commands=[(
-                                 "wget ftp://ftp.gwdg.de/pub/misc/sphire/crYOLO-GENERAL-MODELS/" +
-                                 CRYOLO_NS_GENMOD_20190226_FN, CRYOLO_NS_GENMOD_20190226_FN)],
+                       commands=[(url + CRYOLO_NS_GENMOD_20190226_FN, CRYOLO_NS_GENMOD_20190226_FN)],
                        neededProgs=["wget"],
                        default=False)
 
@@ -190,9 +146,9 @@ class Plugin(pyworkflow.em.Plugin):
         installationCmd = cls.getCondaActivationCmd()
 
         # Create the environment
-        installationCmd += 'conda create -y -n %s -c anaconda python=3.6 ' \
-                           'pyqt=5 cudnn=7.1.2 numpy==1.14.5 cython ' \
-                           'wxPython==4.0.4 intel-openmp==2019.4 &&' \
+        installationCmd += 'conda create -y -n %s -c conda-forge -c anaconda '\
+                           'python=3.6 pyqt=5 cudnn=7.1.2 numpy==1.14.5 '\
+                           'cython wxPython==4.0.4 intel-openmp==2019.4 &&' \
                            % ENV_NAME
 
         # Activate new the environment
@@ -218,8 +174,7 @@ class Plugin(pyworkflow.em.Plugin):
     @classmethod
     def runCryolo(cls, protocol, program, args, cwd=None):
         """ Run crYOLO command from a given protocol. """
-        fullProgram = '%s %s && %s' % (cls.getCondaActivationCmd(), cls.getCryoloEnvActivation(), program)
-        protocol.runJob(fullProgram, args, env=cls.getEnviron(), cwd=cwd)
-
-
-pyworkflow.em.Domain.registerPlugin(__name__)
+        fullProgram = '%s %s && %s' % (cls.getCondaActivationCmd(),
+                                       cls.getCryoloEnvActivation(), program)
+        protocol.runJob(fullProgram, args, env=cls.getEnviron(), cwd=cwd,
+                        numberOfMpi=1)

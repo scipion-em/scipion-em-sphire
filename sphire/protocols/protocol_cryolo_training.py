@@ -7,7 +7,7 @@
 # *
 # * This program is free software; you can redistribute it and/or modify
 # * it under the terms of the GNU General Public License as published by
-# * the Free Software Foundation; either version 2 of the License, or
+# * the Free Software Foundation; either version 3 of the License, or
 # * (at your option) any later version.
 # *
 # * This program is distributed in the hope that it will be useful,
@@ -27,7 +27,7 @@
 import os
 import json
 
-from pyworkflow.em.protocol import ProtParticlePicking
+from pwem.protocols import ProtParticlePicking
 import pyworkflow.protocol.constants as cons
 import pyworkflow.protocol.params as params
 import pyworkflow.utils as pwutils
@@ -49,7 +49,7 @@ class SphireProtCRYOLOTraining(ProtParticlePicking):
     def __init__(self, **args):
         ProtParticlePicking.__init__(self, **args)
 
-    # -------------------------- DEFINE param functions ------------------------
+    # -------------------------- DEFINE param functions -----------------------
     def _defineParams(self, form):
         ProtParticlePicking._defineParams(self, form)
         form.addParam('inputCoordinates', params.PointerParam,
@@ -91,6 +91,13 @@ class SphireProtCRYOLOTraining(ProtParticlePicking):
                       label="Input model",
                       pointerClass='CryoloModel',
                       help='Select an existing crYOLO trained model.')
+
+        form.addParam('numCpus', params.IntParam, default=4,
+                      label="Number of CPUs",
+                      help="*Important!* This is different from number of threads "
+                           "above as threads are used for GPU parallelization. "
+                           "Provide here the number of CPU cores for each cryolo "
+                           "process.")
 
         form.addParam('eFlagParam', params.IntParam, default=10,
                       expertLevel=cons.LEVEL_ADVANCED,
@@ -149,7 +156,7 @@ class SphireProtCRYOLOTraining(ProtParticlePicking):
 
         form.addParallelSection(threads=1, mpi=1)
 
-    # --------------------------- INSERT steps functions ------------------------
+    # --------------------------- INSERT steps functions ----------------------
     def _insertAllSteps(self):
         self._insertFunctionStep("convertInputStep")
         self._insertFunctionStep("createConfigStep")
@@ -165,7 +172,7 @@ class SphireProtCRYOLOTraining(ProtParticlePicking):
 
         self._insertFunctionStep("createOutputStep")
 
-    # --------------------------- STEPS functions ------------------------------
+    # --------------------------- STEPS functions -----------------------------
     def convertInputStep(self):
         """ Converts a set of coordinates to box files and binaries to mrc
         if needed. It generates 2 folders 1 for the box files and another for
@@ -234,10 +241,11 @@ class SphireProtCRYOLOTraining(ProtParticlePicking):
 
     def runCryoloTrain(self, w, extraArgs=''):
         params = "-c config.json"
-        params += " -w %s " % w  # Since cryolo 1.5 -w 3 will first do 3 warmups and starts
+        params += " -w %s" % w  # Since cryolo 1.5 -w 3 will first do 3 warmups and starts
         # automatically the current training
         params += " -g %(GPU)s"
-        params += " -e %d" % self.eFlagParam
+        params += " -nc %d" % self.numCpus.get()
+        params += " -e %d " % self.eFlagParam
         params += extraArgs
         Plugin.runCryolo(self, 'cryolo_train.py', params,
                          cwd=self._getWorkDir())
@@ -246,12 +254,17 @@ class SphireProtCRYOLOTraining(ProtParticlePicking):
         self.runCryoloTrain(5, extraArgs=extraArgs)
         pwutils.moveFile(self._getWorkDir(self.MODEL), self.getOutputModelPath())
 
-    # --------------------------- INFO functions -------------------------------
+    # --------------------------- INFO functions ------------------------------
     def _summary(self):
         return [self.summaryVar.get()]
 
     def _validate(self):
         validateMsgs = []
+
+        nprocs = max(self.numberOfMpi.get(), self.numberOfThreads.get())
+        if nprocs < len(self.getGpuList()):
+            validateMsgs.append("Multiple GPUs can not be used by a single process. "
+                                "Make sure you specify more threads than GPUs.")
 
         if self.inputCoordinates.get() is None:
             validateMsgs.append("Please select a set of coordinates, obtained"
@@ -279,6 +292,3 @@ class SphireProtCRYOLOTraining(ProtParticlePicking):
             m = self.inputModel.get().getPath()
 
         return os.path.abspath(m) if m else ''
-
-
-

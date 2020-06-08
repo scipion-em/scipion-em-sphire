@@ -7,7 +7,7 @@
 # *
 # * This program is free software; you can redistribute it and/or modify
 # * it under the terms of the GNU General Public License as published by
-# * the Free Software Foundation; either version 2 of the License, or
+# * the Free Software Foundation; either version 3 of the License, or
 # * (at your option) any later version.
 # *
 # * This program is distributed in the hope that it will be useful,
@@ -26,19 +26,22 @@
 # **************************************************************************
 
 import os
-from pyworkflow.em import ImageHandler, copyFile, ProtImportMicrographs, ProtImportCoordinates
-from pyworkflow.em.convert import Ccp4Header
-from pyworkflow import Config
-from pyworkflow.tests import (BaseTest, setupTestProject, DataSet, setupTestOutput)
 
-import pyworkflow.em.data as emobj
-from pyworkflow.utils import importFromPlugin, makePath
+import pyworkflow.utils as pwutils
+from pyworkflow import Config
+from pyworkflow.tests import BaseTest, setupTestProject, DataSet, setupTestOutput
+from pyworkflow.plugin import Domain
+
+import pwem.objects as emobj
+from pwem.protocols.protocol_import import ProtImportMicrographs, ProtImportCoordinates
+from pwem.emlib.image import ImageHandler
+from pwem.convert import Ccp4Header
 
 import sphire.convert as convert
 import sphire.protocols as protocols
 from sphire.constants import INPUT_MODEL_OTHER, INPUT_MODEL_GENERAL_NS, CRYOLO_GENMOD_VAR
 
-XmippProtPreprocessMicrographs = importFromPlugin(
+XmippProtPreprocessMicrographs = Domain.importFromPlugin(
     'xmipp3.protocols', 'XmippProtPreprocessMicrographs', doRaise=True)
 
 
@@ -56,7 +59,7 @@ class TestSphireConvert(BaseTest):
     def testConvertCoords(self):
         boxSize = 100
         boxDir = self.getOutputPath('boxDir')
-        makePath(boxDir)
+        pwutils.makePath(boxDir)
 
         def _convert(coordsIn, yFlipHeight=None):
             tmpFile = os.path.join(boxDir, 'tmp.cbox')
@@ -141,7 +144,7 @@ class TestSphireConvert(BaseTest):
         os.mkdir(boxFolder)
 
         micFolder = self.getOutputPath('micFolder')
-        makePath(micFolder)
+        pwutils.makePath(micFolder)
 
         # Invoke the write set of coordinates method
         convert.writeSetOfCoordinates(boxFolder, coordSet)
@@ -182,7 +185,7 @@ class TestSphireConvert(BaseTest):
         # Test right ispg value (0 in mrc file)
         # Copy 006
         goodMrc = self.getOutputPath('good_ispg.mrc')
-        copyFile(mrcFile, goodMrc)
+        pwutils.copyFile(mrcFile, goodMrc)
 
         # Change the ISPG value in the file header
         header = Ccp4Header(goodMrc, readHeader=True)
@@ -285,7 +288,6 @@ class TestCryolo(BaseTest):
     def _runPickingTest(self, boxSize, label):
         protcryolo = self.newProtocol(
             protocols.SphireProtCRYOLOPicking,
-            useGenMod=True,
             inputMicrographs=self.protPreprocess.outputMicrographs,
             boxSize=boxSize,
             input_size=750,
@@ -300,7 +302,6 @@ class TestCryolo(BaseTest):
         # No training mode picking
         protcryolo = self.newProtocol(
             protocols.SphireProtCRYOLOPicking,
-            useGenMod=True,
             inputMicrographs=self.protPreprocess.outputMicrographs,
             input_size=750,
             streamingBatchSize=10)
@@ -317,9 +318,8 @@ class TestCryolo(BaseTest):
         try:
             error_msg = protcryolo._validate()
             test_error_msg = ["Input model file '{}' does not exists.".format(model_file_original),
-                              (
-                                      "The general model for cryolo must be downloaded from Sphire website and {} " +
-                                      "must contain the '{}' parameter pointing to the downloaded file.").format(
+                              ("The general model for cryolo must be downloaded from Sphire website and {} " +
+                               "must contain the '{}' parameter pointing to the downloaded file.").format(
                                   Config.SCIPION_LOCAL_CONFIG, CRYOLO_GENMOD_VAR)]
 
             self.assertEqual(error_msg, test_error_msg)
