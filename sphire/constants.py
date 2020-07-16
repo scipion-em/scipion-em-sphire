@@ -35,8 +35,8 @@ import os
 
 # crYOLO ###############################################################################################################
 
-def getCryoloEnvName(version):
-    return "cryolo-%s" % version
+def getCryoloEnvName(version, archFlag='gpu'):
+    return "cryolo[%s]-%s" % (archFlag, version)
 
 V1_5_4 = "1.5.4"
 V1_6_1 = "1.6.1"
@@ -45,9 +45,14 @@ V1_7_2 = "1.7.2"
 VERSIONS = [V1_5_4, V1_6_1, V1_7_2]
 CRYOLO_DEFAULT_VER_NUM = V1_7_2
 
-DEFAULT_ENV_NAME = getCryoloEnvName(CRYOLO_DEFAULT_VER_NUM)
-DEFAULT_ACTIVATION_CMD = 'conda activate ' + DEFAULT_ENV_NAME
-CRYOLO_ENV_ACTIVATION = 'CRYOLO_ENV_ACTIVATION'
+DEFAULT_ENV_NAME_GPU = getCryoloEnvName(CRYOLO_DEFAULT_VER_NUM, archFlag='gpu')
+DEFAULT_ACTIVATION_CMD_GPU = 'conda activate ' + DEFAULT_ENV_NAME_GPU
+CRYOLO_ENV_ACTIVATION_GPU = 'CRYOLO_ENV_ACTIVATION_GPU'
+
+DEFAULT_ENV_NAME_CPU = getCryoloEnvName(CRYOLO_DEFAULT_VER_NUM, archFlag='cpu')
+DEFAULT_ACTIVATION_CMD_CPU = 'conda activate ' + DEFAULT_ENV_NAME_CPU
+CRYOLO_ENV_ACTIVATION_CPU = 'CRYOLO_ENV_ACTIVATION_CPU'
+
 CRYOLO_CUDA_LIB = 'CRYOLO_CUDA_LIB'
 
 
