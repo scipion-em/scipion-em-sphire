@@ -31,6 +31,7 @@
 import json
 import glob
 
+import pwem
 import pyworkflow.utils as pwutils
 from pyworkflow import Config
 from pyworkflow.object import Integer
@@ -200,8 +201,7 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
         if self.lowPassFilter:
             args += ' --otf'
 
-        gpuFlag = 'gpu' if self.useGpu.get() else 'cpu'
-        Plugin.runCryolo(self, 'cryolo_predict.py', args, archFlag=gpuFlag)
+        Plugin.runCryolo(self, 'cryolo_predict.py', args, useCpu=not self.useGpu.get())
 
         # Move output files to a common location
         dirs2Move = [os.path.join(workingDir, dir) for dir in ['CBOX', 'DISTR']]
@@ -249,6 +249,11 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
 
     def _validate(self):
         validateMsgs = []
+
+        if not self.useGpu.get() and not any(['cryoloCPU' in x for x in
+                                              os.listdir(pwem.Config().EM_ROOT)]):
+            validateMsgs.append("CPU implementation of crYOLO is not installed, "
+                                "install 'cryoloCPU' or use the GPU implementation.")
 
         nprocs = max(self.numberOfMpi.get(), self.numberOfThreads.get())
         if nprocs < len(self.getGpuList()):
