@@ -250,8 +250,8 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
     def _validate(self):
         validateMsgs = []
 
-        if not self.useGpu.get() and not any(['cryoloCPU' in x for x in
-                                              os.listdir(pwem.Config().EM_ROOT)]):
+        if (not self.useGpu.get() and os.system(Plugin.getCondaActivationCmd() +
+                                                Plugin.getVar(CRYOLO_ENV_ACTIVATION_CPU))):
             validateMsgs.append("CPU implementation of crYOLO is not installed, "
                                 "install 'cryoloCPU' or use the GPU implementation.")
 
