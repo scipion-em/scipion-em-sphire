@@ -79,7 +79,7 @@ Running only with CPU
 ---------------------
 CrYOLO is able to `run in CPU <http://sphire.mpg.de/wiki/doku.php?id=downloads:cryolo_1&redirect=1#run_it_on_the_cpu>`_, however this is only recomended for predicting task, not trainning. For that reason, the CPU implementation is only enabled for the ``crYOLO-Picking protocol``. In this protocol, both implementation are possible and you must select one of them in the GPU section of the from.
 
-The CPU implementation of crYOLO **is not installed by default**. Therefore, to be able to run crYOLO-picking only using CPU, you must install the `cryoloCPU-[version]` packages in the ``Plugin Manager >> scipion-em-sphire`` or run
+The CPU implementation of crYOLO **is not installed by default**. Therefore, to be able to run the CPU version of crYOLO-picking, you must install the `cryoloCPU-[version]` package in the ``Plugin Manager >> scipion-em-sphire`` or by running
 
 ``scipion3 installb cryoloCPU``
 
