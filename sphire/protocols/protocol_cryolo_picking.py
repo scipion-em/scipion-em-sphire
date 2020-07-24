@@ -31,6 +31,7 @@
 import json
 import glob
 
+import pwem
 import pyworkflow.utils as pwutils
 from pyworkflow import Config
 from pyworkflow.object import Integer
@@ -122,6 +123,10 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
                       help="Maximum number of particles in the image. Only for "
                            "the memory handling. Keep the default value of "
                            "600 or 1000.")
+        form.addHidden(params.USE_GPU, params.BooleanParam, default=True,
+                       expertLevel=params.LEVEL_ADVANCED,
+                       label="Use GPU (vs CPU)",
+                       help="Set to true if you want to use GPU implementation ")
         form.addHidden(params.GPU_LIST, params.StringParam, default='0',
                        expertLevel=cons.LEVEL_ADVANCED,
                        label="Choose GPU IDs",
@@ -196,7 +201,7 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
         if self.lowPassFilter:
             args += ' --otf'
 
-        Plugin.runCryolo(self, 'cryolo_predict.py', args)
+        Plugin.runCryolo(self, 'cryolo_predict.py', args, useCpu=not self.useGpu.get())
 
         # Move output files to a common location
         dirs2Move = [os.path.join(workingDir, dir) for dir in ['CBOX', 'DISTR']]
@@ -244,6 +249,11 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
 
     def _validate(self):
         validateMsgs = []
+
+        if (not self.useGpu.get() and os.system(Plugin.getCondaActivationCmd() +
+                                                Plugin.getVar(CRYOLO_ENV_ACTIVATION_CPU))):
+            validateMsgs.append("CPU implementation of crYOLO is not installed, "
+                                "install 'cryoloCPU' or use the GPU implementation.")
 
         nprocs = max(self.numberOfMpi.get(), self.numberOfThreads.get())
         if nprocs < len(self.getGpuList()):

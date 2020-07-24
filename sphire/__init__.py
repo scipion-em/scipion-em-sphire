@@ -45,6 +45,7 @@ class Plugin(pwem.Plugin):
     @classmethod
     def _defineVariables(cls):
         # CRYOLO do NOT need EmVar because it uses a conda environment.
+        cls._defineVar(CRYOLO_ENV_ACTIVATION_CPU, DEFAULT_ACTIVATION_CMD_CPU)
         cls._defineVar(CRYOLO_ENV_ACTIVATION, DEFAULT_ACTIVATION_CMD)
         cls._defineEmVar(CRYOLO_GENMOD_VAR, CRYOLO_GENMOD_DEFAULT)
         cls._defineEmVar(CRYOLO_GENMOD_NN_VAR, CRYOLO_GENMOD_NN_DEFAULT)
@@ -52,8 +53,11 @@ class Plugin(pwem.Plugin):
         cls._defineEmVar(CRYOLO_NS_GENMOD_VAR, CRYOLO_NS_GENMOD_DEFAULT)
 
     @classmethod
-    def getCryoloEnvActivation(cls):
-        activation = cls.getVar(CRYOLO_ENV_ACTIVATION)
+    def getCryoloEnvActivation(cls, useCpu=False):
+        if useCpu:
+            activation = cls.getVar(CRYOLO_ENV_ACTIVATION_CPU)
+        else:
+            activation = cls.getVar(CRYOLO_ENV_ACTIVATION)
         scipionHome = pw.Config.SCIPION_HOME + os.path.sep
 
         return activation.replace(scipionHome, "", 1)
@@ -88,6 +92,7 @@ class Plugin(pwem.Plugin):
     @classmethod
     def defineBinaries(cls, env):
         cls.addCryoloPackage(env, CRYOLO_DEFAULT_VER_NUM, default=bool(cls.getCondaActivationCmd()))
+        cls.addCryoloPackage(env, CRYOLO_DEFAULT_VER_NUM, default=False, useCpu=True)
         url = "wget ftp://ftp.gwdg.de/pub/misc/sphire/crYOLO-GENERAL-MODELS/"
 
         env.addPackage(CRYOLO_GENMOD, version=CRYOLO_GENMOD_201910,
@@ -139,10 +144,10 @@ class Plugin(pwem.Plugin):
         return neededProgs
 
     @classmethod
-    def addCryoloPackage(cls, env, version, default=False):
-
-        CRYOLO_INSTALLED = 'cryolo_%s_installed' % version
-        ENV_NAME = getCryoloEnvName(version)
+    def addCryoloPackage(cls, env, version, default=False, useCpu=False):
+        archFlag = 'CPU' if useCpu else ''
+        CRYOLO_INSTALLED = 'cryolo%s_%s_installed' % (archFlag, version)
+        ENV_NAME = getCryoloEnvName(version, useCpu)
         # try to get CONDA activation command
         installationCmd = cls.getCondaActivationCmd()
 
@@ -156,7 +161,8 @@ class Plugin(pwem.Plugin):
         installationCmd += 'conda activate %s &&' % ENV_NAME
 
         # Install downloaded code
-        installationCmd += 'pip install cryolo[gpu]==%s &&' % version
+        installationCmd += ('pip install cryolo[%s]==%s &&'
+                            % ('cpu' if useCpu else 'gpu', version))
 
         # Flag installation finished
         installationCmd += 'touch %s' % CRYOLO_INSTALLED
@@ -165,7 +171,7 @@ class Plugin(pwem.Plugin):
 
         envPath = os.environ.get('PATH', "")  # keep path since conda likely in there
         installEnvVars = {'PATH': envPath} if envPath else None
-        env.addPackage('cryolo', version=version,
+        env.addPackage('cryolo'+archFlag, version=version,
                        tar='void.tgz',
                        commands=cryolo_commands,
                        neededProgs=cls.getDependencies(),
@@ -173,9 +179,9 @@ class Plugin(pwem.Plugin):
                        vars=installEnvVars)
 
     @classmethod
-    def runCryolo(cls, protocol, program, args, cwd=None):
+    def runCryolo(cls, protocol, program, args, cwd=None, useCpu=False):
         """ Run crYOLO command from a given protocol. """
         fullProgram = '%s %s && %s' % (cls.getCondaActivationCmd(),
-                                       cls.getCryoloEnvActivation(), program)
+                                       cls.getCryoloEnvActivation(useCpu), program)
         protocol.runJob(fullProgram, args, env=cls.getEnviron(), cwd=cwd,
                         numberOfMpi=1)

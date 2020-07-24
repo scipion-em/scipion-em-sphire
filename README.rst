@@ -75,6 +75,18 @@ Downloaded crYOLO and JANNI general models can be found, respectively, in the fo
 
 ``<SCIPION_HOME>/software/em/janni_model-[model_version]``
 
+Running only with CPU
+---------------------
+CrYOLO is able to `run in CPU <http://sphire.mpg.de/wiki/doku.php?id=downloads:cryolo_1&redirect=1#run_it_on_the_cpu>`_, however this is only recomended for predicting task, not trainning. For that reason, the CPU implementation is only enabled for the ``crYOLO-Picking protocol``. In this protocol, both implementation are possible and you must select one of them in the GPU section of the from.
+
+The CPU implementation of crYOLO **is not installed by default**. Therefore, to be able to run the CPU version of crYOLO-picking, you must install the `cryoloCPU-[version]` package in the ``Plugin Manager >> scipion-em-sphire`` or by running
+
+``scipion3 installb cryoloCPU``
+
+The CPU integration of crYOLO is installed under a conda environment called ``cryoloCPU-[version]`` . If you want to modify this environ name, please set the following variable in the scipion's config file.
+
+``CRYOLO_ENV_ACTIVATION_CPU = conda activate cryoloCPU-envName``
+
 Running plugin tests
 --------------------
 To check that everything is properly installed and configured, you might want
