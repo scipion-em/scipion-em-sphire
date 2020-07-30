@@ -49,6 +49,7 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
     either manually or in a supervised mode.
     """
     _label = 'cryolo picking'
+    boxSizeEstimated = False
 
     def __init__(self, **args):
         ProtParticlePickingAuto.__init__(self, **args)
@@ -213,14 +214,14 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
     def readCoordsFromMics(self, outputDir, micDoneList, outputCoords):
         """This method read coordinates from a given list of micrographs"""
         outDir = self.getOutpuCBOXtDir()
-        boxSizeEstimated = False
+        # boxSizeEstimated = False
         # Coordinates may have a boxSize (e. g. streaming case)
         boxSize = outputCoords.getBoxSize()
         if not boxSize:
             if self.boxSize.get():  # Box size can be provided by the user
                 boxSize = self.boxSize.get()
             else:  # If not crYOLO estimates it
-                boxSizeEstimated = True
+                self.boxSizeEstimated = True
                 boxSize = self._getEstimatedBoxSize()
             outputCoords.setBoxSize(boxSize)
 
@@ -234,7 +235,7 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
             if os.path.exists(coordsFile):
                 convert.readMicrographCoords(mic, outputCoords, coordsFile, boxSize,
                                              yFlipHeight=yFlipHeight,
-                                             boxSizeEstimated=boxSizeEstimated)
+                                             boxSizeEstimated=self.boxSizeEstimated)
 
     def createOutputStep(self):
         """ The output is just an Integer. Other protocols can use it in those
