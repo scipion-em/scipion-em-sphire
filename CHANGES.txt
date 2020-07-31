@@ -1,3 +1,4 @@
+3.0.2: Allowing CPU integration for crYOLO predict.
 3.0.1:
     - python 3 migration
     - cryolo updated to 1.7.2

@@ -31,6 +31,7 @@
 import json
 import glob
 
+import pwem
 import pyworkflow.utils as pwutils
 from pyworkflow import Config
 from pyworkflow.object import Integer
@@ -48,6 +49,7 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
     either manually or in a supervised mode.
     """
     _label = 'cryolo picking'
+    boxSizeEstimated = False
 
     def __init__(self, **args):
         ProtParticlePickingAuto.__init__(self, **args)
@@ -122,6 +124,10 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
                       help="Maximum number of particles in the image. Only for "
                            "the memory handling. Keep the default value of "
                            "600 or 1000.")
+        form.addHidden(params.USE_GPU, params.BooleanParam, default=True,
+                       expertLevel=params.LEVEL_ADVANCED,
+                       label="Use GPU (vs CPU)",
+                       help="Set to true if you want to use GPU implementation ")
         form.addHidden(params.GPU_LIST, params.StringParam, default='0',
                        expertLevel=cons.LEVEL_ADVANCED,
                        label="Choose GPU IDs",
@@ -196,7 +202,7 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
         if self.lowPassFilter:
             args += ' --otf'
 
-        Plugin.runCryolo(self, 'cryolo_predict.py', args)
+        Plugin.runCryolo(self, 'cryolo_predict.py', args, useCpu=not self.useGpu.get())
 
         # Move output files to a common location
         dirs2Move = [os.path.join(workingDir, dir) for dir in ['CBOX', 'DISTR']]
@@ -208,14 +214,14 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
     def readCoordsFromMics(self, outputDir, micDoneList, outputCoords):
         """This method read coordinates from a given list of micrographs"""
         outDir = self.getOutpuCBOXtDir()
-        boxSizeEstimated = False
+        # boxSizeEstimated = False
         # Coordinates may have a boxSize (e. g. streaming case)
         boxSize = outputCoords.getBoxSize()
         if not boxSize:
             if self.boxSize.get():  # Box size can be provided by the user
                 boxSize = self.boxSize.get()
             else:  # If not crYOLO estimates it
-                boxSizeEstimated = True
+                self.boxSizeEstimated = True
                 boxSize = self._getEstimatedBoxSize()
             outputCoords.setBoxSize(boxSize)
 
@@ -229,7 +235,7 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
             if os.path.exists(coordsFile):
                 convert.readMicrographCoords(mic, outputCoords, coordsFile, boxSize,
                                              yFlipHeight=yFlipHeight,
-                                             boxSizeEstimated=boxSizeEstimated)
+                                             boxSizeEstimated=self.boxSizeEstimated)
 
     def createOutputStep(self):
         """ The output is just an Integer. Other protocols can use it in those
@@ -244,6 +250,11 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
 
     def _validate(self):
         validateMsgs = []
+
+        if (not self.useGpu.get() and os.system(Plugin.getCondaActivationCmd() +
+                                                Plugin.getVar(CRYOLO_ENV_ACTIVATION_CPU))):
+            validateMsgs.append("CPU implementation of crYOLO is not installed, "
+                                "install 'cryoloCPU' or use the GPU implementation.")
 
         nprocs = max(self.numberOfMpi.get(), self.numberOfThreads.get())
         if nprocs < len(self.getGpuList()):
