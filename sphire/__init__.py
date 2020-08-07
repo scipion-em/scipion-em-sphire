@@ -34,13 +34,15 @@ import pyworkflow.utils as pwutils
 import pyworkflow as pw
 from sphire.constants import *
 
-__version__ = '3.0.3'
+__version__ = '3.0.4'
 _logo = "sphire_logo.png"
 _references = ['Wagner2019']
 _sphirePluginDir = os.path.dirname(os.path.abspath(__file__))
 
 
 class Plugin(pwem.Plugin):
+
+    _url = 'https://github.com/scipion-em/scipion-em-sphire'
 
     @classmethod
     def _defineVariables(cls):
