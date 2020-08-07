@@ -42,6 +42,8 @@ _sphirePluginDir = os.path.dirname(os.path.abspath(__file__))
 
 class Plugin(pwem.Plugin):
 
+    _url = 'https://github.com/scipion-em/scipion-em-sphire'
+
     @classmethod
     def _defineVariables(cls):
         # CRYOLO do NOT need EmVar because it uses a conda environment.
