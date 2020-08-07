@@ -26,10 +26,10 @@
 # **************************************************************************
 import glob
 import os
-from os.path import basename, abspath, exists, join
+from os.path import basename, exists, join
 
 from pyworkflow.protocol import params, ValidationException
-from pyworkflow.utils import copyFile, moveFile
+from pyworkflow.utils import copyFile, moveFile, createLink
 from pyworkflow.utils.properties import Message
 from pwem.protocols import ProtMicrographs
 from sphire import Plugin
@@ -73,17 +73,17 @@ class SphireProtJanniDenoising(ProtMicrographs):
     def denoisingStep(self):
 
         input_mics = self.inputMicrographs.get()
-        # Move the movies desired to denoise to a temp folder (subset case, janni only accepts directories
+        # Create links to the movies desired to denoise in tmp folder (subset case, janni only accepts directories
         # and work with all the files contained in them)
         for mic in input_mics:
             micName = mic.getFileName()
-            copyFile(mic.getFileName(), self._getTmpPath(basename(micName)))
+            createLink(mic.getFileName(), self._getTmpPath(basename(micName)))
 
         args = "denoise {}/ {}/ {}".format(self._getTmpPath(),
                                            self._getTmpPath(),
                                            self.getInputModel())
         Plugin.runCryolo(self, 'janni_denoise.py', args)
-        # Move denoised files to the extra folder
+        # Move the resulting denoised files to the extra folder
         [moveFile(file, self._getExtraPath(basename(file))) for file in
          glob.glob(self._getTmpPath(join('tmp', '*.mrc')))]
 
