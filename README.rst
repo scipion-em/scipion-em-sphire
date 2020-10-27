@@ -45,15 +45,16 @@ Plugin integration
 
 The following steps presuppose that you have Anaconda or Miniconda installed on
 your computer.
-In ``~/.config/scipion/scipion.conf`` (Option View > Show Hidden Files must be enabled) set
-**CONDA_ACTIVATION_CMD** variable in the Packages section.
-
-For example:
+If you don't have the optional SCIPION_HOME/config/scipion.conf create it like this
 
 ::
 
- CONDA_ACTIVATION_CMD = . ~/anaconda2/etc/profile.d/conda.sh
-
+ [PYWORKFLOW]
+ CONDA_ACTIVATION_CMD = eval "$(/path/to/conda/bin/conda shell.bash hook)"
+ 
+ 
+This also should work . /anaconda2/etc/profile.d/conda.sh. Note the conda initialization is tricky with csh shell and might not work.
+ 
 If you wish to install the plugin with the default settings just go to plugin
 manager and install scipion-em-sphire. This will create the default environment
 named cryolo-x.x.x (where x.x.x is referred to the downloaded version of cryolo) for you.
