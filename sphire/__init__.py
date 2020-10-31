@@ -53,6 +53,7 @@ class Plugin(pwem.Plugin):
         cls._defineEmVar(CRYOLO_GENMOD_NN_VAR, CRYOLO_GENMOD_NN_DEFAULT)
         cls._defineEmVar(JANNI_GENMOD_VAR, JANNI_GENMOD_DEFAULT)  # EmVar is used instead of Var because method getVar
         cls._defineEmVar(CRYOLO_NS_GENMOD_VAR, CRYOLO_NS_GENMOD_DEFAULT)
+        cls._defineVar(CRYOLO_CUDA_LIB, pwem.Config.CUDA_LIB)
 
     @classmethod
     def getCryoloEnvActivation(cls, useCpu=False):
