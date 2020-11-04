@@ -53,6 +53,7 @@ class Plugin(pwem.Plugin):
         cls._defineEmVar(CRYOLO_GENMOD_NN_VAR, CRYOLO_GENMOD_NN_DEFAULT)
         cls._defineEmVar(JANNI_GENMOD_VAR, JANNI_GENMOD_DEFAULT)  # EmVar is used instead of Var because method getVar
         cls._defineEmVar(CRYOLO_NS_GENMOD_VAR, CRYOLO_NS_GENMOD_DEFAULT)
+        cls._defineVar(CRYOLO_CUDA_LIB, pwem.Config.CUDA_LIB)
 
     @classmethod
     def getCryoloEnvActivation(cls, useCpu=False):
@@ -87,7 +88,7 @@ class Plugin(pwem.Plugin):
         if 'PYTHONPATH' in environ:
             # this is required for python virtual env to work
             del environ['PYTHONPATH']
-        cudaLib = environ.get(CRYOLO_CUDA_LIB, pwem.Config.CUDA_LIB)
+        cudaLib = cls.getVar(CRYOLO_CUDA_LIB, pwem.Config.CUDA_LIB)
         environ.addLibrary(cudaLib)
         return environ
 
