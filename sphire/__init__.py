@@ -34,7 +34,7 @@ import pyworkflow.utils as pwutils
 import pyworkflow as pw
 from sphire.constants import *
 
-__version__ = '3.0.4'
+__version__ = '3.0.5'
 _logo = "sphire_logo.png"
 _references = ['Wagner2019']
 _sphirePluginDir = os.path.dirname(os.path.abspath(__file__))
