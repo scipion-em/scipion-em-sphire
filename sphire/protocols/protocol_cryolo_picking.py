@@ -207,7 +207,7 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
         # Move output files to a common location
         dirs2Move = [os.path.join(workingDir, dir) for dir in ['CBOX', 'DISTR']]
         outputDirs = [self.getOutpuCBOXtDir(), self.getOutputDISTRDir()]
-        [cleanAndMakePath(dir) for dir in outputDirs]
+        [pwutils.makePath(dir) for dir in outputDirs]
         [self.runJob('mv', '%s/* %s/' % (indDir, outputDir))
          for indDir, outputDir in zip(dirs2Move, outputDirs) if os.path.exists(indDir)]
 
@@ -311,7 +311,7 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
         return os.path.abspath(m) if m else ''
 
     def getOutpuCBOXtDir(self):
-        return self._getTmpPath('outputCBOX')
+        return self._getExtraPath('outputCBOX')
 
     def getOutputDISTRDir(self):
         return self._getExtraPath('outputDISTR')
