@@ -163,6 +163,9 @@ class Plugin(pwem.Plugin):
         # Activate new the environment
         installationCmd += 'conda activate %s &&' % ENV_NAME
 
+        # pip version < 20.3 required to work fine
+        installationCmd += 'pip install "pip<20.3" && '
+
         # Install downloaded code
         installationCmd += ('pip install cryolo[%s]==%s &&'
                             % ('cpu' if useCpu else 'gpu', version))
