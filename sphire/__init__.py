@@ -34,7 +34,7 @@ import pyworkflow.utils as pwutils
 import pyworkflow as pw
 from sphire.constants import *
 
-__version__ = '3.0.6'
+__version__ = '3.0.7'
 _logo = "sphire_logo.png"
 _references = ['Wagner2019']
 _sphirePluginDir = os.path.dirname(os.path.abspath(__file__))
@@ -162,6 +162,9 @@ class Plugin(pwem.Plugin):
 
         # Activate new the environment
         installationCmd += 'conda activate %s &&' % ENV_NAME
+
+        # pip version < 20.3 required to work fine
+        installationCmd += 'pip install "pip<20.3" && '
 
         # Install downloaded code
         installationCmd += ('pip install cryolo[%s]==%s &&'

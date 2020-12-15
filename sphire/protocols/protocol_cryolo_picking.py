@@ -34,7 +34,7 @@ import glob
 import pwem
 import pyworkflow.utils as pwutils
 from pyworkflow import Config
-from pyworkflow.object import Integer
+from pyworkflow.object import Integer, Boolean
 import pyworkflow.protocol.params as params
 import pyworkflow.protocol.constants as cons
 from pwem.protocols import ProtParticlePickingAuto
@@ -49,7 +49,7 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
     either manually or in a supervised mode.
     """
     _label = 'cryolo picking'
-    boxSizeEstimated = False
+    boxSizeEstimated = Boolean(False)
 
     def __init__(self, **args):
         ProtParticlePickingAuto.__init__(self, **args)
@@ -221,7 +221,7 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
             if self.boxSize.get():  # Box size can be provided by the user
                 boxSize = self.boxSize.get()
             else:  # If not crYOLO estimates it
-                self.boxSizeEstimated = True
+                self.boxSizeEstimated.set(True)
                 boxSize = self._getEstimatedBoxSize()
             outputCoords.setBoxSize(boxSize)
 
