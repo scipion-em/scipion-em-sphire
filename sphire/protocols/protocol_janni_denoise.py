@@ -28,8 +28,8 @@ import glob
 import os
 from os.path import basename, exists, join
 
-from pyworkflow.protocol import params, ValidationException
-from pyworkflow.utils import copyFile, moveFile, createLink
+from pyworkflow.protocol import params, ValidationException, LEVEL_ADVANCED
+from pyworkflow.utils import moveFile, createLink
 from pyworkflow.utils.properties import Message
 from pwem.protocols import ProtMicrographs
 from sphire import Plugin
@@ -63,6 +63,12 @@ class SphireProtJanniDenoising(ProtMicrographs):
                       important=True,
                       help='Path of the directory which contains '
                            'the images to denoise.')
+
+        form.addHidden(params.GPU_LIST, params.StringParam, default='0',
+                       expertLevel=LEVEL_ADVANCED,
+                       label="Choose GPU IDs")
+
+        form.addParallelSection(threads=1, mpi=1)
 
     # --------------------------- STEPS functions -----------------------------
     def _insertAllSteps(self):
@@ -146,6 +152,10 @@ class SphireProtJanniDenoising(ProtMicrographs):
     def _validate(self):
         validateMsgs = []
         modelPath = self.getInputModel()
+        nprocs = max(self.numberOfMpi.get(), self.numberOfThreads.get())
+        if nprocs < len(self.getGpuList()):
+            validateMsgs.append("Multiple GPUs can not be used by a single process. "
+                                "Make sure you specify more threads than GPUs.")
         if not os.path.exists(modelPath):
             validateMsgs.append("Input model file '%s' does not exists." % modelPath)
 
