@@ -136,6 +136,18 @@ class Plugin(pwem.Plugin):
                        neededProgs=["wget"],
                        default=True)
 
+        # Cinderella installation
+        cindUrl = "wget ftp://ftp.gwdg.de/pub/misc/sphire/auto2d_models/"
+        cls.addCinderellaPackage(env, CINDERELLA_DEFAULT_VER_NUM, default=False)
+
+        env.addPackage(CINDERELLA_GENMOD, version=CINDERELLA_MOD_2020_08,
+                       tar='void.tgz',
+                       commands=[(cindUrl + CINDERELLA_MOD_2020_08_FN, CINDERELLA_MOD_2020_08_FN)],
+                       neededProgs=["wget"],
+                       default=False)
+
+
+
     @classmethod
     def getDependencies(cls):
         # try to get CONDA activation command
@@ -180,6 +192,44 @@ class Plugin(pwem.Plugin):
         env.addPackage('cryolo'+archFlag, version=version,
                        tar='void.tgz',
                        commands=cryolo_commands,
+                       neededProgs=cls.getDependencies(),
+                       default=default,
+                       vars=installEnvVars)
+
+    @classmethod
+    def addCinderellaPackage(cls, env, version, default=False, useCpu=False):
+        archFlag = 'CPU' if useCpu else ''
+        CINDERELLA_INSTALLED = 'cinderella%s_%s_installed' % (archFlag, version)
+        ENV_NAME = getCinderellaEnvName(version, useCpu)
+        # try to get CONDA activation command
+        installationCmd = cls.getCondaActivationCmd()
+
+        # Create the environment
+        installationCmd += 'conda create -y -n %s -c conda-forge -c anaconda ' \
+                           'python=3.6 pyqt=5 cudnn=7.1.2 numpy==1.14.5 ' \
+                           'cython wxPython==4.0.4 intel-openmp==2019.4 &&' \
+                           % ENV_NAME
+
+        # Activate new the environment
+        installationCmd += 'conda activate %s &&' % ENV_NAME
+
+        # pip version < 20.3 required to work fine
+        installationCmd += 'pip install "pip<20.3" && '
+
+        # Install downloaded code
+        installationCmd += ('pip install cinderella[%s]==%s &&'
+                            % ('cpu' if useCpu else 'gpu', version))
+
+        # Flag installation finished
+        installationCmd += 'touch %s' % CINDERELLA_INSTALLED
+
+        cinderella_commands = [(installationCmd, CINDERELLA_INSTALLED)]
+
+        envPath = os.environ.get('PATH', "")  # keep path since conda likely in there
+        installEnvVars = {'PATH': envPath} if envPath else None
+        env.addPackage('cinderella' + archFlag, version=version,
+                       tar='void.tgz',
+                       commands=cinderella_commands,
                        neededProgs=cls.getDependencies(),
                        default=default,
                        vars=installEnvVars)

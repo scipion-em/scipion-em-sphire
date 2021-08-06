@@ -122,3 +122,19 @@ JANNI_GENMOD_20190703 = "20190703"  # Version
 JANNI_GENMOD_20190703_FN = _janniModelFn(JANNI_GENMOD_20190703)  # File name with extension
 JANNI_GENMOD_DEFAULT = os.path.join("{}-{}".format(JANNI_GENMOD, JANNI_GENMOD_20190703),
                                     JANNI_GENMOD_20190703_FN)
+
+
+#  CINDERELLA ##########################################################################################################
+
+def getCinderellaEnvName(version, useCpu=False):
+    return "cinderella%s-%s" % ('CPU' if useCpu else '', version)
+
+CINDERELLA_V0_7_0 = "0.7.0"
+CINDERELLA_DEFAULT_VER_NUM = CINDERELLA_V0_7_0
+
+def _cinderellaModelFn(modelKey):
+    return "gmodel_cinderella{}.h5".format(modelKey)
+
+CINDERELLA_GENMOD = 'cinderella_model'
+CINDERELLA_MOD_2020_08 = "07_202008_N10163"
+CINDERELLA_MOD_2020_08_FN = _cinderellaModelFn(CINDERELLA_MOD_2020_08)
