@@ -89,10 +89,13 @@ class CoordBoxReader:
         self._file = open(filename, 'r')
 
     def _getDataLength(self):
-        head = next(self._file)  # Read the first line
-        cols = re.split(r'\t+', head.rstrip('\t'))  # Strip it by tab
-        self._file.seek(0)  # Return to the top of the file
-        return len(cols)
+        try:
+            head = next(self._file)  # Read the first line
+            cols = re.split(r'\t+', head.rstrip('\t'))  # Strip it by tab
+            self._file.seek(0)  # Return to the top of the file
+            return len(cols)
+        except StopIteration:
+            return None
 
     def iterCoords(self):
         reader = csv.reader(self._file, delimiter='\t')
