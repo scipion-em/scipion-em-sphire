@@ -340,6 +340,7 @@ class TestCryolo(BaseTest):
             input_size=750,
             eFlagParam=2,
             doFineTune=fineTune,
+            batchSize=2,
             nb_epochVal=2)
         self.launchProtocol(protTraining)
 
