@@ -34,7 +34,7 @@ import pyworkflow.utils as pwutils
 import pyworkflow as pw
 from sphire.constants import *
 
-__version__ = '3.0.7'
+__version__ = '3.0.8'
 _logo = "sphire_logo.png"
 _references = ['Wagner2019']
 _sphirePluginDir = os.path.dirname(os.path.abspath(__file__))
@@ -96,6 +96,7 @@ class Plugin(pwem.Plugin):
     def defineBinaries(cls, env):
         cls.addCryoloPackage(env, CRYOLO_DEFAULT_VER_NUM, default=bool(cls.getCondaActivationCmd()))
         cls.addCryoloPackage(env, CRYOLO_DEFAULT_VER_NUM, default=False, useCpu=True)
+        cls.addCryoloPackage(env, V1_8_0, default=False, pythonVersion='3.7')
         url = "wget ftp://ftp.gwdg.de/pub/misc/sphire/crYOLO-GENERAL-MODELS/"
 
         env.addPackage(CRYOLO_GENMOD, version=CRYOLO_GENMOD_201910,
@@ -147,18 +148,25 @@ class Plugin(pwem.Plugin):
         return neededProgs
 
     @classmethod
-    def addCryoloPackage(cls, env, version, default=False, useCpu=False):
+    def addCryoloPackage(cls, env, version, default=False, useCpu=False,
+                         pythonVersion='3.6'):
         archFlag = 'CPU' if useCpu else ''
         CRYOLO_INSTALLED = 'cryolo%s_%s_installed' % (archFlag, version)
         ENV_NAME = getCryoloEnvName(version, useCpu)
         # try to get CONDA activation command
         installationCmd = cls.getCondaActivationCmd()
 
-        # Create the environment
-        installationCmd += 'conda create -y -n %s -c conda-forge -c anaconda '\
-                           'python=3.6 pyqt=5 cudnn=7.1.2 numpy==1.14.5 '\
-                           'cython wxPython==4.0.4 intel-openmp==2019.4 &&' \
-                           % ENV_NAME
+        # Creating the environment
+        if version == V1_8_0:
+            installationCmd += 'conda create -y -n %s -c conda-forge -c anaconda ' \
+                               'python=%s pyqt=5 cudatoolkit=10.0.130 cudnn=7.6.5 numpy=1.18.5 ' \
+                               'cython libtiff wxPython intel-openmp==2019.4 &&' \
+                               % (ENV_NAME, pythonVersion)
+        else:
+            installationCmd += 'conda create -y -n %s -c conda-forge -c anaconda '\
+                               'python=%s pyqt=5 cudnn=7.1.2 numpy==1.14.5 '\
+                               'cython wxPython==4.0.4 intel-openmp==2019.4 &&' \
+                               % (ENV_NAME, pythonVersion)
 
         # Activate new the environment
         installationCmd += 'conda activate %s &&' % ENV_NAME

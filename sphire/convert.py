@@ -28,6 +28,7 @@
 import os
 import csv
 import re
+import emtable
 
 import pyworkflow.utils as pwutils
 import pwem.objects as emobj
@@ -101,27 +102,21 @@ class CoordBoxReader:
         reader = csv.reader(self._file, delimiter='\t')
 
         if self._getDataLength() == 7:  # crYOLO generates .cbox files with 7 columns from version > 1.5.4
-            if self._boxSizeEstimated:
-                for x, y, _, _, score, _, _ in reader:
-                    # USE the imageHeight to flip or not to flip!
-                    sciX = round(float(x))
-                    sciY = round(float(y))
+            for x, y, _, _, score, _, _ in reader:
+                # USE the imageHeight to flip or not to flip!
+                sciX = float(x)
+                sciY = float(y)
 
-                    if self._yFlipHeight is not None:
-                        sciY = self._yFlipHeight - sciY
+                if not self._boxSizeEstimated:
+                    sciX += self._halfBox
+                    sciY += self._halfBox
 
-                    yield sciX, sciY, float(score)
-            else:
-                for x, y, _, _, score, _, _ in reader:
-                    # USE the imageHeight to flip or not to flip!
-                    sciX = round(float(x) + self._halfBox)
-                    sciY = round(float(y) + self._halfBox)
+                if self._yFlipHeight is not None:
+                    sciY = self._yFlipHeight - sciY
 
-                    if self._yFlipHeight is not None:
-                        sciY = self._yFlipHeight - sciY
+                yield round(sciX), round(sciY), float(score)
 
-                    yield sciX, sciY, float(score)
-        else:   # crYOLO generates .cbox files with 7 columns from version <= 1.5.4
+        elif self._getDataLength() == 5:   # crYOLO generates .cbox files with 4 columns from version <= 1.5.4
             for x, y, _, _, score in reader:
                 # USE the imageHeight to flip or not to flip!
                 sciX = round(float(x) + self._halfBox)
@@ -131,6 +126,25 @@ class CoordBoxReader:
                     sciY = self._yFlipHeight - sciY
 
                 yield sciX, sciY, float(score)
+
+        else:  # crYOLO generates .cbox files with 11 columns from version = 1.8.0
+            table = emtable.Table(fileName=self._file.name)
+            for row in table.iterRows(self._file.name, tableName='cryolo'):
+                x = float(row.CoordinateX)
+                y = float(row.CoordinateY)
+                score = float(row.Confidence)
+
+                if not self._boxSizeEstimated:
+                    x += self._halfBox
+                    y += self._halfBox
+
+                sciX = round(x)
+                sciY = round(y)
+
+                if self._yFlipHeight is not None:
+                    sciY = self._yFlipHeight - sciY
+
+                yield sciX, sciY, score
 
     def close(self):
         if self._file:
