@@ -1,3 +1,4 @@
+3.0.8: Updated to crYOLY 1.8
 3.0.2: Allowing CPU integration for crYOLO predict.
 3.0.1:
     - python 3 migration
