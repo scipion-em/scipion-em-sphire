@@ -183,6 +183,9 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
         self._pickMicrographList([micrograph], args)
 
     def _pickMicrographList(self, micList, *args):
+        if not micList:  # maybe in continue cases, need to properly check
+            return
+
         def cleanAndMakePath(inDirectory):
             pwutils.cleanPath(inDirectory)
             pwutils.makePath(inDirectory)
