@@ -197,7 +197,7 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
         args += " -i %s/" % workingDir
         args += " -o %s/" % workingDir
         args += " -t %0.3f" % self.conservPickVar
-        if self.usingCpu():
+        if not self.usingCpu():
             args += " -g %(GPU)s"  # Add GPU that will be set by the executor
         args += " -nc %d" % self.numCpus.get()
         if self.lowPassFilter:
