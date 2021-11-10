@@ -1,16 +1,13 @@
 # **************************************************************************
 # *
-# * Authors:    David Maluenda (dmaluenda@cnb.csic.es) [1]
-# *             Peter Horvath [1]
-# *             J.M. De la Rosa Trevin (delarosatrevin@scilifelab.se) [2]
+# * Authors: Yunior C. Fonseca Reyna    (cfonseca@cnb.csic.es)
 # *
 # *
-# * [1] Unidad de  Bioinformatica of Centro Nacional de Biotecnologia , CSIC
-# * [2] SciLifeLab, Stockholm University
+# * Unidad de  Bioinformatica of Centro Nacional de Biotecnologia , CSIC
 # *
 # * This program is free software; you can redistribute it and/or modify
 # * it under the terms of the GNU General Public License as published by
-# * the Free Software Foundation; either version 3 of the License, or
+# * the Free Software Foundation; either version 2 of the License, or
 # * (at your option) any later version.
 # *
 # * This program is distributed in the hope that it will be useful,
@@ -27,37 +24,50 @@
 # *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
-
-import json
 import glob
+import json
+import os
+
+from pkg_resources import parse_version
 
 import pyworkflow.utils as pwutils
-from pyworkflow import Config
-from pyworkflow.object import Integer, Boolean
+from pyworkflow import BETA, Config
+from pyworkflow.object import Boolean
 import pyworkflow.protocol.params as params
 import pyworkflow.protocol.constants as cons
-from pwem.protocols import ProtParticlePickingAuto
 
 from sphire import Plugin
 import sphire.convert as convert
 from sphire.constants import *
+from tomo.objects import SetOfCoordinates3D
+from tomo.protocols import ProtTomoPicking
+import tomo.constants as tomoConst
 
 
-class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
+class SphireProtCRYOLOTomoPicking(ProtTomoPicking):
     """ Picks particles in a set of micrographs
     either manually or in a supervised mode.
     """
-    _label = 'cryolo picking'
+    _label = 'cryolo tomo picking'
     boxSizeEstimated = Boolean(False)
+    _devStatus = BETA
+    _possibleOutputs = {'output3DCoordinates': SetOfCoordinates3D}
+    _protCompatibility = [V1_8_0]
 
-    def __init__(self, **args):
-        ProtParticlePickingAuto.__init__(self, **args)
-        self.stepsExecutionMode = cons.STEPS_PARALLEL
+    def __init__(self, **kwargs):
+        ProtTomoPicking.__init__(self, **kwargs)
 
     # --------------------------- DEFINE param functions ----------------------
     def _defineParams(self, form):
-        ProtParticlePickingAuto._defineParams(self, form)
+        ProtTomoPicking._defineParams(self, form)
 
+        form.addParam('boxSize', params.IntParam,
+                      default=50,
+                      label='Box Size',
+                      allowsPointers=True,
+                      help='Box size in pixels. It should be the size of '
+                           'the minimum particle enclosing square in pixel. '
+                           'If introduced value is zero, it is estimated.')
         form.addParam('inputModelFrom', params.EnumParam,
                       default=INPUT_MODEL_GENERAL,
                       choices=['general cryo (low-pass filtered)',
@@ -80,16 +90,12 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
                       help='Select an existing crYOLO trained model.')
         form.addParam('conservPickVar', params.FloatParam, default=0.3,
                       label="Confidence threshold",
-                      help='If you want to pick less conservatively or more '
-                           'conservatively you might want to change the threshold '
-                           'from the default of 0.3 to a less conservative value '
-                           'like 0.2 or more conservative value like 0.4.')
+                      help='Confidence threshold. Have to be between 0 and 1.'
+                           'The higher, the more conservative')
         form.addParam('lowPassFilter', params.BooleanParam,
                       default=False,
                       label="Low-pass filter",
-                      help="CrYOLO works on original micrographs but the "
-                           "results will be probably improved by the application"
-                           " of a reasonable low-pass filter.")
+                      help="Noise filter applied before training/picking")
         form.addParam('absCutOffFreq', params.FloatParam,
                       default=0.1,
                       condition='lowPassFilter',
@@ -109,13 +115,6 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
                       help="This is the size to which the input is rescaled "
                            "before passed through the network."
                            "For example the default value would be 1024x1024.")
-        form.addParam('boxSize', params.IntParam,
-                      default=0,
-                      label='Box Size (optional)',
-                      allowsPointers=True,
-                      help='Box size in pixels. It should be the size of '
-                           'the minimum particle enclosing square in pixel. '
-                           'If introduced value is zero, it is estimated.')
         form.addParam('max_box_per_image', params.IntParam,
                       default=600,
                       expertLevel=cons.LEVEL_ADVANCED,
@@ -123,6 +122,11 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
                       help="Maximum number of particles in the image. Only for "
                            "the memory handling. Keep the default value of "
                            "600 or 1000.")
+        form.addParam("batchSize", params.IntParam, default=1,
+                      expertLevel=params.LEVEL_ADVANCED,
+                      label="Batch size",
+                      help="The number of images crYOLO process in parallel")
+
         form.addHidden(params.USE_GPU, params.BooleanParam, default=True,
                        expertLevel=params.LEVEL_ADVANCED,
                        label="Use GPU (vs CPU)",
@@ -138,12 +142,7 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
 
         form.addParallelSection(threads=1, mpi=1)
 
-        self._defineStreamingParams(form)
-        # Default batch size --> 16
-        form.getParam('streamingBatchSize').default = Integer(16)
-
-    # --------------------------- INSERT steps functions ----------------------
-    def _insertInitialSteps(self):
+    def _insertAllSteps(self):
         if self.inputModelFrom in [INPUT_MODEL_GENERAL,
                                    INPUT_MODEL_GENERAL_DENOISED]:
             model_chosen_str = '(GENERAL)'
@@ -154,9 +153,13 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
 
         self.summaryVar.set("Picking using %s model: \n%s" % (model_chosen_str,
                                                               self.getInputModel()))
-        return [self._insertFunctionStep("createConfigStep")]
 
-    # --------------------------- STEPS functions -----------------------------
+        self._insertFunctionStep(self.createConfigStep)
+        self._insertFunctionStep(self.pickTomogramsStep)
+        self._insertFunctionStep(self.createOutputStep)
+
+    # -------------------------- STEPS functions ------------------------------
+
     def createConfigStep(self):
         inputSize = convert.roundInputSize(self.input_size.get())
         maxBoxPerImage = self.max_box_per_image.get()
@@ -165,90 +168,94 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
             "architecture": "PhosaurusNet",
             "input_size": inputSize,
             "max_box_per_image": maxBoxPerImage,
+            "norm": "STANDARD"
         }
         boxSize = self.boxSize.get()
-        if boxSize:
-            model.update({"anchors": [boxSize, boxSize]})
+        model.update({"anchors": [boxSize, boxSize]})
         if self.lowPassFilter:
-            model.update({"filter": [absCutOfffreq, "filtered"]})
+            model.update({"filter": [absCutOfffreq, self._getTmpPath("filtered_tmp")]})
+        other = {
+            "log_path": self._getExtraPath("logs")
+        }
 
-        jsonDict = {"model": model}
+        jsonDict = {"model": model, "other": other}
 
         with open(self._getExtraPath('config.json'), 'w') as fp:
             json.dump(jsonDict, fp, indent=4)
 
-    def _pickMicrograph(self, micrograph, *args):
-        """This function picks from a given micrograph"""
-        self._pickMicrographList([micrograph], args)
+    def pickTomogramsStep(self):
+        """This function picks from a given set of Tomograms"""
 
-    def _pickMicrographList(self, micList, *args):
+        tomogramsList = self.inputTomograms.get()
+
         def cleanAndMakePath(inDirectory):
             pwutils.cleanPath(inDirectory)
             pwutils.makePath(inDirectory)
-        workingDir = self._getTmpPath(self.getMicsWorkingDir(micList))
-        cleanAndMakePath(workingDir)
 
-        # Create folder with linked mics
-        convert.convertMicrographs(micList, workingDir)
+        tomogramsDir = self._getTmpPath("tomograms")
+        outputDir = self._getExtraPath()
+        cleanAndMakePath(tomogramsDir)
 
+        # Create folder with linked tomograms
+        for tomogram in tomogramsList:
+            convert.convertTomograms([tomogram], tomogramsDir)
         args = "-c %s" % self._getExtraPath('config.json')
         args += " -w %s" % self.getInputModel()
-        args += " -i %s/" % workingDir
-        args += " -o %s/" % workingDir
+        args += " -i %s/" % tomogramsDir
+        args += " -o %s/" % outputDir
         args += " -t %0.3f" % self.conservPickVar
         args += " -g %(GPU)s"  # Add GPU that will be set by the executor
         args += " -nc %d" % self.numCpus.get()
-        if self.lowPassFilter:
-            args += ' --otf'
-
-        Plugin.runCryolo(self, 'cryolo_predict.py', args, useCpu=not self.useGpu.get())
-
-        # Move output files to a common location
-        dirs2Move = [os.path.join(workingDir, dir) for dir in ['CBOX', 'DISTR']]
-        outputDirs = [self.getOutpuCBOXtDir(), self.getOutputDISTRDir()]
-        [pwutils.makePath(dir) for dir in outputDirs]
-        [self.runJob('mv', '%s/* %s/' % (indDir, outputDir))
-         for indDir, outputDir in zip(dirs2Move, outputDirs) if os.path.exists(indDir)]
-
-    def readCoordsFromMics(self, outputDir, micDoneList, outputCoords):
-        """This method read coordinates from a given list of micrographs"""
-        outDir = self.getOutpuCBOXtDir()
-        # boxSizeEstimated = False
-        # Coordinates may have a boxSize (e. g. streaming case)
-        boxSize = outputCoords.getBoxSize()
-        if not boxSize:
-            if self.boxSize.get():  # Box size can be provided by the user
-                boxSize = self.boxSize.get()
-            else:  # If not crYOLO estimates it
-                self.boxSizeEstimated.set(True)
-                boxSize = self._getEstimatedBoxSize()
-            outputCoords.setBoxSize(boxSize)
-
-        # Calculate if flip is needed
-        # JMRT: Let's assume that all mics have same dims, so we avoid
-        # to open the image file each time for checking this
-        yFlipHeight = convert.getFlipYHeight(micDoneList[0].getFileName())
-
-        for mic in micDoneList:
-            coordsFile = os.path.join(outDir, convert.getMicIdName(mic, '.cbox'))
-            if os.path.exists(coordsFile):
-                convert.readMicrographCoords(mic, outputCoords, coordsFile, boxSize,
-                                             yFlipHeight=yFlipHeight,
-                                             boxSizeEstimated=self.boxSizeEstimated)
+        args += " --tomogram"
+        Plugin.runCryolo(self, 'cryolo_predict.py', args,
+                         useCpu=not self.useGpu.get())
 
     def createOutputStep(self):
-        """ The output is just an Integer. Other protocols can use it in those
-            IntParam if it has set allowsPointer=True
-        """
-        boxSize = Integer(self.outputCoordinates.getBoxSize())
-        self._defineOutputs(boxsize=boxSize)
+        setOfTomograms = self.inputTomograms.get()
+        outputPath = self._getExtraPath("CBOX_3D")
+        suffix = self._getOutputSuffix(SetOfCoordinates3D)
+        coord3DSetDict = {}
+        setOfCoord3D = self._createSetOfCoordinates3D(setOfTomograms, suffix)
+        setOfCoord3D.setName("tomoCoord")
+        setOfCoord3D.setPrecedents(setOfTomograms)
+        setOfCoord3D.setSamplingRate(setOfTomograms.getSamplingRate())
+        setOfCoord3D.setBoxSize(self.boxSize.get())
 
-    # --------------------------- INFO functions ------------------------------
-    def _summary(self):
-        return [self.summaryVar.get()]
+        for tomogram in setOfTomograms.iterItems():
+            outFile = '%s%05d%s' % (pwutils.removeBaseExt(tomogram.getFileName()),
+                                                 tomogram.getObjId(), '.cbox')
+            pattern = os.path.join(outputPath, outFile)
+            files = glob.glob(pattern)
+
+            if not files or not os.path.isfile(files[0]):
+                continue
+
+            coord3DSetDict[tomogram.getObjId()] = setOfCoord3D
+
+            # Populate Set of 3D Coordinates with 3D Coordinates
+            filePath = os.path.join(outputPath, outFile)
+            tomogramClone = tomogram.clone()
+            tomogramClone.copyInfo(tomogram)
+            convert.readSetOfCoordinates3D(tomogramClone, coord3DSetDict, filePath,
+                                           self.boxSize.get(),
+                                           origin=tomoConst.BOTTOM_LEFT_CORNER)
+            name = self.OUTPUT_PREFIX + suffix
+            args = {}
+            args[name] = setOfCoord3D
+            self._defineOutputs(**args)
+            self._defineSourceRelation(setOfTomograms, setOfCoord3D)
+
+            # Update Outputs
+            for index, coord3DSet in coord3DSetDict.items():
+                self._updateOutputSet(name, coord3DSet,
+                                      state=coord3DSet.STREAM_CLOSED)
 
     def _validate(self):
         validateMsgs = []
+        cryoloVersion = self.getCryoloVersion(defaultVersion=V1_8_0)
+        if not [version for version in self._protCompatibility if parse_version(cryoloVersion) >= parse_version(version)]:
+            validateMsgs.append("The protocol is not compatible with the "
+                                "crYOLO version %s" % cryoloVersion)
 
         if (not self.useGpu.get() and os.system(Plugin.getCondaActivationCmd() +
                                                 Plugin.getVar(CRYOLO_ENV_ACTIVATION_CPU))):
@@ -292,11 +299,8 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
                     "picking. ")
         return validateMsgs
 
-    def _citations(self):
-        cites = ['Wagner2019']
-        return cites
-
     # -------------------------- UTILS functions ------------------------------
+
     def getInputModel(self):
         if self.inputModelFrom == INPUT_MODEL_GENERAL:
             m = Plugin.getCryoloGeneralModel()
@@ -309,38 +313,22 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
 
         return os.path.abspath(m) if m else ''
 
-    def getOutpuCBOXtDir(self):
-        return self._getExtraPath('outputCBOX')
-
-    def getOutputDISTRDir(self):
-        return self._getExtraPath('outputDISTR')
-
-    def getMicsWorkingDir(self, micList):
-        wd = 'micrographs_%s' % micList[0].strId()
-        if len(micList) > 1:
-            wd += '-%s' % micList[-1].strId()
-        return wd
-
-    def _getEstimatedBoxSize(self):
-        sizeSummaryFilePattern = os.path.join(self.getOutputDISTRDir(),
-                                              'size_distribution_summary*.txt')
-        lineFilterPattern = 'mean,'
-        boxSize = None
+    def getCryoloVersion(self, defaultVersion=V_UNKNOWN):
+        """ Get cryolo version"""
+        _cryoloVersion = defaultVersion
         try:
-            distrSummaryFile = glob.glob(sizeSummaryFilePattern)[0]
-            with open(distrSummaryFile) as f:
-                for line in f:
-                    if line.lower().startswith(lineFilterPattern):
-                        boxSize = int(line.lower().replace(lineFilterPattern, ''))
-                        break
-            if not boxSize:
-                raise ValueError
+            #TODO We need an adecuated way to check the activated version
+            envName = Plugin.getVar(CRYOLO_ENV_ACTIVATION).split(' ')[-1]
+            if '-' in envName:
+                _cryoloVersion = envName.split('-')[-1]
+            else:
+                print("Warning: It seems you have an installed crYOLO outside "
+                      "Scipion. We can not detect crYOLO's version. We assume it "
+                      "is %s " % _cryoloVersion)
+        except Exception:
+           print("Couldn't get crYOLO's version. Please review your config (%s)" % Plugin.getUrl())
+        return _cryoloVersion.rstrip('\n')
 
-            return boxSize
 
-        except IndexError:
-            raise Exception('File not found:\n{}'.format(sizeSummaryFilePattern))
-        except ValueError:
-            raise Exception('Boxsize not found in file:\n{}'.format(f.name))
-        except Exception as e:
-            raise e
+
+

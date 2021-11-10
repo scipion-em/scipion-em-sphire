@@ -39,7 +39,9 @@ from pwem.convert import Ccp4Header
 
 import sphire.convert as convert
 import sphire.protocols as protocols
-from sphire.constants import INPUT_MODEL_OTHER, INPUT_MODEL_GENERAL_NS, CRYOLO_GENMOD_VAR
+from sphire.constants import INPUT_MODEL_OTHER, INPUT_MODEL_GENERAL_NS, \
+    CRYOLO_GENMOD_VAR, INPUT_MODEL_GENERAL
+from sphire.protocols import SphireProtCRYOLOTomoPicking
 
 XmippProtPreprocessMicrographs = Domain.importFromPlugin(
     'xmipp3.protocols', 'XmippProtPreprocessMicrographs', doRaise=True)
@@ -421,3 +423,58 @@ class TestCryoloNegStain(BaseTest):
 
         # Check results
         self.assertSetSize(protPickingNS.outputCoordinates, msg="There was a problem picking with crYOLO")
+
+
+class TestCryoloTomo(BaseTest):
+    """ Test cryolo protocol for tomograms picking"""
+
+    @classmethod
+    def setUpClass(cls):
+        setupTestProject(cls)
+        cls.dataset = DataSet.getDataSet('tomo-em')
+        cls.tomogram = cls.dataset.getFile('*.em')
+
+    @classmethod
+    def _runImportTomograms(self):
+        with pwutils.weakImport('tomo'):
+            import tomo.protocols
+        protImport = self.newProtocol(
+            tomo.protocols.ProtImportTomograms,
+            filesPath=self.tomogram,
+            filesPattern='',
+            acquisitionAngleMax=40,
+            acquisitionAngleMin=-40,
+            samplingRate=1.35)
+        self.launchProtocol(protImport)
+        return protImport
+
+    def test_pickingTomograms(self):
+        protImport = self._runImportTomograms()
+        output = getattr(protImport, 'outputTomograms', None)
+        self.assertIsNotNone(output,
+                             "There was a problem with Import Tomograms protocol")
+
+        for tomogram in protImport.outputTomograms.iterItems():
+            self.assertTrue(tomogram.getXDim() == 1024,
+                            "There was a problem with Import Tomograms protocol")
+            self.assertIsNotNone(tomogram.getYDim() == 1024,
+                                 "There was a problem with Import Tomograms protocol")
+            self.assertTrue(tomogram.getAcquisition().getAngleMax() == 40,
+                            "There was a problem with the acquisition angle max")
+            self.assertTrue(tomogram.getAcquisition().getAngleMin() == -40,
+                            "There was a problem with the acquisition angle min")
+
+            break
+
+        sphireProtCRYOLOTomoPicking = self.newProtocol(SphireProtCRYOLOTomoPicking,
+                                                       inputTomograms=protImport.outputTomograms,
+                                                       inputModelFrom=INPUT_MODEL_GENERAL,
+                                                       lowPassFilter=False)
+
+        self.launchProtocol(sphireProtCRYOLOTomoPicking)
+        self.assertIsNotNone(sphireProtCRYOLOTomoPicking.output3DCoordinates,
+                             "There was a problem with Import Tomograms protocol")
+        self.assertSetSize(sphireProtCRYOLOTomoPicking.output3DCoordinates, 9244,
+                           "There was a problem with the coordinate size")
+        return sphireProtCRYOLOTomoPicking
+
