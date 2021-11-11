@@ -474,7 +474,7 @@ class TestCryoloTomo(BaseTest):
         self.launchProtocol(sphireProtCRYOLOTomoPicking)
         self.assertIsNotNone(sphireProtCRYOLOTomoPicking.output3DCoordinates,
                              "There was a problem with Import Tomograms protocol")
-        self.assertSetSize(sphireProtCRYOLOTomoPicking.output3DCoordinates, 9244,
-                           "There was a problem with the coordinate size")
+        self.assertTrue(sphireProtCRYOLOTomoPicking.output3DCoordinates.getSize() > 0,
+                        "There was a problem with the coordinate size")
         return sphireProtCRYOLOTomoPicking
 
