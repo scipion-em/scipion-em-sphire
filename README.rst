@@ -68,17 +68,22 @@ For example:
 
  CRYOLO_ENV_ACTIVATION = conda activate cryoloenvname
 
-Note: If you have a cryolo installation outside of Scipion and you want to use,
-follow these steps:
+**Note**: If you have a cryolo installation outside of Scipion and you want to use, follow these steps:
+
     1. Install the plugin without the binaries:
 
         .. code-block::
 
             scipion installp -p scipion-em-sphire --noBin
 
-    2. Create a link to the crYOLO environment following the naming convention "cryolo-x.x.x"
+    2. Create a symbolic link to the crYOLO environment following the naming convention "cryolo-x.x.x", e.g:
+    
+        .. code-block::
 
-    3. Change the environment name in the config file as described above in the config file.
+            ln -s <path_of_conda_environment> cryolo-1.8.0 
+    
+
+    3. Edit the **CRYOLO_ENV_ACTIVATION** variable as described above in the config file and rename the environment.
 
 
 Downloaded crYOLO and JANNI general models can be found, respectively, in the following locations:
