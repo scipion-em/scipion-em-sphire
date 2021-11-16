@@ -248,12 +248,16 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
                                              yFlipHeight=yFlipHeight,
                                              boxSizeEstimated=self.boxSizeEstimated)
 
-    def createOutputStep(self):
+        # Register box size
+        self.createBoxSizeOutput(outputCoords)
+
+    def createBoxSizeOutput(self, coordSet):
         """ The output is just an Integer. Other protocols can use it in those
             IntParam if it has set allowsPointer=True
         """
-        boxSize = Integer(self.outputCoordinates.getBoxSize())
-        self._defineOutputs(boxsize=boxSize)
+        if not hasattr(self, "boxsize"):
+            boxSize = Integer(coordSet.getBoxSize())
+            self._defineOutputs(boxsize=boxSize)
 
     # --------------------------- INFO functions ------------------------------
     def _summary(self):
