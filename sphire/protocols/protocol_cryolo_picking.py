@@ -137,6 +137,13 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
                             " crYOLO can use multiple GPUs - in that case"
                             " set to i.e. *0 1 2*.")
 
+        form.addParam('boxSizeFactor', params.FloatParam,
+                      default=1.5,
+                      expertLevel=cons.LEVEL_ADVANCED,
+                      label="Adjust estimated box size by",
+                      help="Value to multiply crYOLO estimated box size to be registered in the "
+                            "SetOfCoordinates. It is usually very tight to make a later extraction")
+
         form.addParallelSection(threads=1, mpi=1)
 
         self._defineStreamingParams(form)
@@ -223,6 +230,8 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
             else:  # If not crYOLO estimates it
                 self.boxSizeEstimated.set(True)
                 boxSize = self._getEstimatedBoxSize()
+                boxSize = int(boxSize * self.boxSizeFactor.get())
+
             outputCoords.setBoxSize(boxSize)
 
         # Calculate if flip is needed
