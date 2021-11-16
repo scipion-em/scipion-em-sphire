@@ -230,7 +230,9 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
             else:  # If not crYOLO estimates it
                 self.boxSizeEstimated.set(True)
                 boxSize = self._getEstimatedBoxSize()
-                boxSize = int(boxSize * self.boxSizeFactor.get())
+
+                if self.boxSizeFactor.get() != 1:
+                    boxSize = int(boxSize * self.boxSizeFactor.get())
 
             outputCoords.setBoxSize(boxSize)
 

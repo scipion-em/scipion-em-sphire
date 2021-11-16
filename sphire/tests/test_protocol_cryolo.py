@@ -279,24 +279,27 @@ class TestCryolo(BaseTest):
 
     def testPickingNoBoxSize(self):
         # No training mode picking, box size not provided by user
-        self._runPickingTest(boxSize=0, label='Picking - Box size estimated')
+        prot = self._runPickingTest(boxSize=0, label='Picking - Box size estimated', boxSizeFactor=1.5)
+        self.assertEqual(prot.outputCoordinates.getBoxSize(), 72, "Estimated box size does not match.")
 
     def testPickingBoxSize(self):
         # No training mode picking, box size provided by user
         self._runPickingTest(boxSize=50, label='Picking - Box size provided')
 
-    def _runPickingTest(self, boxSize, label):
+    def _runPickingTest(self, boxSize, label, boxSizeFactor=1):
         protcryolo = self.newProtocol(
             protocols.SphireProtCRYOLOPicking,
             inputMicrographs=self.protPreprocess.outputMicrographs,
             boxSize=boxSize,
             input_size=750,
+            boxSizeFactor=boxSizeFactor,
             streamingBatchSize=10)
 
         protcryolo.setObjLabel(label)
         self.launchProtocol(protcryolo)
         self.assertSetSize(protcryolo.outputCoordinates,
                            msg="There was a problem picking with crYOLO")
+        return protcryolo
 
     def testPickingValidationGeneral(self):
         # No training mode picking
