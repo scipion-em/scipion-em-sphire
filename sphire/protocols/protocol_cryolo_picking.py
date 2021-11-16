@@ -138,7 +138,7 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
                             " set to i.e. *0 1 2*.")
 
         form.addParam('boxSizeFactor', params.FloatParam,
-                      default=1.5,
+                      default=1,
                       expertLevel=cons.LEVEL_ADVANCED,
                       label="Adjust estimated box size by",
                       help="Value to multiply crYOLO estimated box size to be registered in the "
