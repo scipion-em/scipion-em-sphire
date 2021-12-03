@@ -172,7 +172,7 @@ class Plugin(pwem.Plugin):
         installationCmd += 'conda activate %s && ' % ENV_NAME
 
         # pip version < 20.3 required to work fine
-        installationCmd += 'pip install "pip=20.2.3" && '
+        installationCmd += 'pip install "pip==20.2.3" && '
 
         # Install downloaded code
         installationCmd += ('pip install cryoloBM==1.3.6 cryolo[%s]==%s && '
