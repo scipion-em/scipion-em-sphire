@@ -230,7 +230,7 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
         yFlipHeight = convert.getFlipYHeight(micDoneList[0].getFileName())
 
         for mic in micDoneList:
-            coordsFile = os.path.join(outDir, convert.getMicIdName(mic, '.cbox'))
+            coordsFile = os.path.join(outDir, convert.getMicIdName(mic, suffix='.cbox'))
             if os.path.exists(coordsFile):
                 convert.readMicrographCoords(mic, outputCoords, coordsFile, boxSize,
                                              yFlipHeight=yFlipHeight,

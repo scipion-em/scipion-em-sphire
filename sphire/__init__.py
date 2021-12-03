@@ -169,13 +169,13 @@ class Plugin(pwem.Plugin):
                                % (ENV_NAME, pythonVersion)
 
         # Activate new the environment
-        installationCmd += 'conda activate %s &&' % ENV_NAME
+        installationCmd += 'conda activate %s && ' % ENV_NAME
 
         # pip version < 20.3 required to work fine
-        installationCmd += 'pip install "pip<20.3" && '
+        installationCmd += 'pip install "pip=20.2.3" && '
 
         # Install downloaded code
-        installationCmd += ('pip install cryolo[%s]==%s &&'
+        installationCmd += ('pip install cryoloBM==1.3.6 cryolo[%s]==%s && '
                             % ('cpu' if useCpu else 'gpu', version))
 
         # Flag installation finished

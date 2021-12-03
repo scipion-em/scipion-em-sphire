@@ -155,11 +155,11 @@ class TestSphireConvert(BaseTest):
         # Assert output of writesetofcoordinates
         for mic in micList:
             boxFile = os.path.join(boxFolder,
-                                   convert.getMicIdName(mic, '.box'))
+                                   convert.getMicIdName(mic, suffix='.box'))
             self.assertTrue(os.path.exists(boxFile),
                             'Missing box file: %s' % boxFile)
             micFile = os.path.join(micFolder,
-                                   convert.getMicIdName(mic, '.mrc'))
+                                   convert.getMicIdName(mic, suffix='.mrc'))
             self.assertTrue(os.path.exists(micFile),
                             'Missing box file: %s' % micFile)
 
