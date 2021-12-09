@@ -153,6 +153,7 @@ class Plugin(pwem.Plugin):
         archFlag = 'CPU' if useCpu else ''
         CRYOLO_INSTALLED = 'cryolo%s_%s_installed' % (archFlag, version)
         ENV_NAME = getCryoloEnvName(version, useCpu)
+        boxManagerversion = '1.3.6'
         # try to get CONDA activation command
         installationCmd = cls.getCondaActivationCmd()
 
@@ -160,23 +161,21 @@ class Plugin(pwem.Plugin):
         if version == V1_8_0:
             installationCmd += 'conda create -y -n %s -c conda-forge -c anaconda ' \
                                'python=%s pyqt=5 cudatoolkit=10.0.130 cudnn=7.6.5 numpy=1.18.5 ' \
-                               'cython libtiff wxPython intel-openmp==2019.4 &&' \
+                               'cython libtiff wxPython intel-openmp==2019.4 pip=20.2.3 &&' \
                                % (ENV_NAME, pythonVersion)
+            boxManagerversion = '1.4'
         else:
             installationCmd += 'conda create -y -n %s -c conda-forge -c anaconda '\
                                'python=%s pyqt=5 cudnn=7.1.2 numpy==1.14.5 '\
-                               'cython wxPython==4.0.4 intel-openmp==2019.4 &&' \
+                               'cython wxPython==4.0.4 intel-openmp==2019.4 pip=20.2.3 &&' \
                                % (ENV_NAME, pythonVersion)
 
         # Activate new the environment
         installationCmd += 'conda activate %s && ' % ENV_NAME
 
-        # pip version < 20.3 required to work fine
-        installationCmd += 'pip install "pip==20.2.3" && '
-
         # Install downloaded code
-        installationCmd += ('pip install cryoloBM==1.3.6 cryolo[%s]==%s && '
-                            % ('cpu' if useCpu else 'gpu', version))
+        installationCmd += ('pip install cryoloBM==%s cryolo[%s]==%s && '
+                            % (boxManagerversion, 'cpu' if useCpu else 'gpu', version))
 
         # Flag installation finished
         installationCmd += 'touch %s' % CRYOLO_INSTALLED
