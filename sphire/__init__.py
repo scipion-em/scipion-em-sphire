@@ -57,13 +57,8 @@ class Plugin(pwem.Plugin):
 
     @classmethod
     def getCryoloEnvActivation(cls, useCpu=False):
-        if useCpu:
-            activation = cls.getVar(CRYOLO_ENV_ACTIVATION_CPU)
-        else:
-            activation = cls.getVar(CRYOLO_ENV_ACTIVATION)
-        scipionHome = pw.Config.SCIPION_HOME + os.path.sep
-
-        return activation.replace(scipionHome, "", 1)
+        var = CRYOLO_ENV_ACTIVATION_CPU if useCpu else CRYOLO_ENV_ACTIVATION
+        return cls.getVar(var)
 
     @classmethod
     def getCryoloGeneralModel(cls):
