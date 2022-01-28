@@ -37,6 +37,9 @@ from pwem.convert import Ccp4Header
 
 import sphire.constants as constants
 
+with pwutils.weakImport('tomo'):
+    from tomo.objects import Coordinate3D
+
 
 class CoordBoxWriter:
     """ Helper class to write a .BOX file for cryolo. """
@@ -146,6 +149,26 @@ class CoordBoxReader:
 
                 yield sciX, sciY, score
 
+    def  iter3DCoords(self):
+        table = emtable.Table(fileName=self._file.name)
+        for row in table.iterRows(self._file.name, tableName='cryolo'):
+            x = float(row.CoordinateX)
+            y = float(row.CoordinateY)
+            z = float(row.CoordinateZ)
+
+            if not self._boxSizeEstimated:
+                x += self._halfBox
+                y += self._halfBox
+
+            sciX = round(x)
+            sciY = round(y)
+            sciZ = round(z)
+
+            if self._yFlipHeight is not None:
+                sciY = self._yFlipHeight - sciY
+
+            yield sciX, sciY, sciZ
+
     def close(self):
         if self._file:
             self._file.close()
@@ -181,7 +204,7 @@ def writeSetOfCoordinates(boxDir, coordSet, micList=None):
             doWrite = micId in micIdSet
             if doWrite:
                 # we need to close previous opened file
-                writer.open(os.path.join(boxDir, getMicIdName(mic, '.box')))
+                writer.open(os.path.join(boxDir, getMicIdName(mic, suffix='.box')))
             lastMicId = micId
 
         if doWrite:
@@ -208,6 +231,27 @@ def readMicrographCoords(mic, coordSet, coordsFile, boxSize, yFlipHeight=None, b
     reader.close()
 
 
+def readSetOfCoordinates3D(tomogram, coord3DSetDict, coordsFile, boxSize,
+                           origin=None):
+    reader = CoordBoxReader(boxSize)
+    reader.open(coordsFile)
+
+    coord3DSet = coord3DSetDict[tomogram.getObjId()]
+    coord3DSet.enableAppend()
+
+    coord = Coordinate3D()
+
+    for x, y, z in reader.iter3DCoords():
+        # Clean up objId to add as a new coordinate
+        coord.setObjId(None)
+        coord.setVolume(tomogram)
+        coord.setPosition(x, y, z, origin)
+        # Add it to the set
+        coord3DSet.append(coord)
+
+    reader.close()
+
+
 def needToFlipOnY(filename):
     """ Returns true if need to flip coordinates on Y"""
     ext = pwutils.getExt(filename)
@@ -225,7 +269,7 @@ def getFlipYHeight(filename):
     return y if needToFlipOnY(filename) else None
 
 
-def convertMicrographs(micList, micDir):
+def convertMicrographs(micList, micDir, prefix='mic'):
     """ Convert (or simply link) input micrographs into the given directory
     in a format that is compatible with crYOLO.
     """
@@ -246,12 +290,17 @@ def convertMicrographs(micList, micDir):
         ext = '.mrc'
 
     for mic in micList:
-        func(mic, getMicIdName(mic, suffix=ext))
+        func(mic, getMicIdName(mic, prefix=prefix, suffix=ext))
 
 
-def getMicIdName(mic, suffix=''):
+def convertTomograms(micList, micDir):
+    prefix = pwutils.removeBaseExt(micList[0].getFileName())
+    convertMicrographs(micList, micDir, prefix=prefix)
+
+
+def getMicIdName(mic, prefix='mic', suffix=''):
     """ Return a name for the micrograph based on its IDs. """
-    return 'mic%05d%s' % (mic.getObjId(), suffix)
+    return '%s%05d%s' % (prefix, mic.getObjId(), suffix)
 
 
 def roundInputSize(inputSize):
