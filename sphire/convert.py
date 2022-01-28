@@ -213,24 +213,6 @@ def writeSetOfCoordinates(boxDir, coordSet, micList=None):
     writer.close()
 
 
-def readMicrographCoords(mic, coordSet, coordsFile, boxSize, yFlipHeight=None, boxSizeEstimated=False):
-    reader = CoordBoxReader(boxSize, yFlipHeight=yFlipHeight, boxSizeEstimated=boxSizeEstimated)
-    reader.open(coordsFile)
-
-    coord = emobj.Coordinate()
-
-    for x, y, score in reader.iterCoords():
-        # Clean up objId to add as a new coordinate
-        coord.setObjId(None)
-        coord.setPosition(x, y)
-        coord.setMicrograph(mic)
-        coord._cryoloScore = emobj.Float(score)
-        # Add it to the set
-        coordSet.append(coord)
-
-    reader.close()
-
-
 def readSetOfCoordinates3D(tomogram, coord3DSetDict, coordsFile, boxSize,
                            origin=None):
     reader = CoordBoxReader(boxSize)
