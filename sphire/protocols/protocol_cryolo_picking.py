@@ -182,6 +182,9 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
         self._pickMicrographList([micrograph], args)
 
     def _pickMicrographList(self, micList, *args):
+        if not micList:  # maybe in continue cases, need to properly check
+            return
+
         def cleanAndMakePath(inDirectory):
             pwutils.cleanPath(inDirectory)
             pwutils.makePath(inDirectory)
@@ -196,12 +199,13 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
         args += " -i %s/" % workingDir
         args += " -o %s/" % workingDir
         args += " -t %0.3f" % self.conservPickVar
-        args += " -g %(GPU)s"  # Add GPU that will be set by the executor
+        if not self.usingCpu():
+            args += " -g %(GPU)s"  # Add GPU that will be set by the executor
         args += " -nc %d" % self.numCpus.get()
         if self.lowPassFilter:
             args += ' --otf'
 
-        Plugin.runCryolo(self, 'cryolo_predict.py', args, useCpu=not self.useGpu.get())
+        Plugin.runCryolo(self, 'cryolo_predict.py', args, useCpu=self.usingCpu())
 
         # Move output files to a common location
         dirs2Move = [os.path.join(workingDir, dir) for dir in ['CBOX', 'DISTR']]
@@ -250,15 +254,16 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
     def _validate(self):
         validateMsgs = []
 
-        if (not self.useGpu.get() and os.system(Plugin.getCondaActivationCmd() +
-                                                Plugin.getVar(CRYOLO_ENV_ACTIVATION_CPU))):
-            validateMsgs.append("CPU implementation of crYOLO is not installed, "
-                                "install 'cryoloCPU' or use the GPU implementation.")
+        if self.usingCpu():
+            if os.system(Plugin.getCondaActivationCmd() + Plugin.getVar(CRYOLO_ENV_ACTIVATION_CPU)):
+                validateMsgs.append("CPU implementation of crYOLO is not installed, "
+                                    "install 'cryoloCPU' or use the GPU implementation.")
 
-        nprocs = max(self.numberOfMpi.get(), self.numberOfThreads.get())
-        if nprocs < len(self.getGpuList()):
-            validateMsgs.append("Multiple GPUs can not be used by a single process. "
-                                "Make sure you specify more threads than GPUs.")
+        else:
+            nprocs = max(self.numberOfMpi.get(), self.numberOfThreads.get())
+            if nprocs < len(self.getGpuList()):
+                validateMsgs.append("Multiple GPUs can not be used by a single process. "
+                                    "Make sure you specify more threads than GPUs.")
 
         modelPath = self.getInputModel()
         if not os.path.exists(modelPath):
@@ -320,6 +325,9 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
         if len(micList) > 1:
             wd += '-%s' % micList[-1].strId()
         return wd
+
+    def usingCpu(self):
+        return not self.useGpu.get()
 
     def _getEstimatedBoxSize(self):
         sizeSummaryFilePattern = os.path.join(self.getOutputDISTRDir(),
