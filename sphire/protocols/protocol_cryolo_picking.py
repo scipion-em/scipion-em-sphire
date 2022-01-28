@@ -136,6 +136,13 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
                             " crYOLO can use multiple GPUs - in that case"
                             " set to i.e. *0 1 2*.")
 
+        form.addParam('boxSizeFactor', params.FloatParam,
+                      default=1,
+                      expertLevel=cons.LEVEL_ADVANCED,
+                      label="Adjust estimated box size by",
+                      help="Value to multiply crYOLO estimated box size to be registered in the "
+                            "SetOfCoordinates. It is usually very tight to make a later extraction")
+
         form.addParallelSection(threads=1, mpi=1)
 
         self._defineStreamingParams(form)
@@ -226,6 +233,10 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
             else:  # If not crYOLO estimates it
                 self.boxSizeEstimated.set(True)
                 boxSize = self._getEstimatedBoxSize()
+
+                if self.boxSizeFactor.get() != 1:
+                    boxSize = int(boxSize * self.boxSizeFactor.get())
+
             outputCoords.setBoxSize(boxSize)
 
         # Calculate if flip is needed
@@ -240,12 +251,16 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
                                              yFlipHeight=yFlipHeight,
                                              boxSizeEstimated=self.boxSizeEstimated)
 
-    def createOutputStep(self):
+        # Register box size
+        self.createBoxSizeOutput(outputCoords)
+
+    def createBoxSizeOutput(self, coordSet):
         """ The output is just an Integer. Other protocols can use it in those
             IntParam if it has set allowsPointer=True
         """
-        boxSize = Integer(self.outputCoordinates.getBoxSize())
-        self._defineOutputs(boxsize=boxSize)
+        if not hasattr(self, "boxsize"):
+            boxSize = Integer(coordSet.getBoxSize())
+            self._defineOutputs(boxsize=boxSize)
 
     # --------------------------- INFO functions ------------------------------
     def _summary(self):
