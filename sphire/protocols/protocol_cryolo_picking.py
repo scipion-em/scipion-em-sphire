@@ -33,10 +33,11 @@ import glob
 
 import pyworkflow.utils as pwutils
 from pyworkflow import Config
-from pyworkflow.object import Integer, Boolean
+from pyworkflow.object import Integer
 import pyworkflow.protocol.params as params
 import pyworkflow.protocol.constants as cons
 from pwem.protocols import ProtParticlePickingAuto
+import pwem.objects as emobj
 
 from sphire import Plugin
 import sphire.convert as convert
@@ -48,7 +49,7 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
     either manually or in a supervised mode.
     """
     _label = 'cryolo picking'
-    boxSizeEstimated = Boolean(False)
+
 
     def __init__(self, **args):
         ProtParticlePickingAuto.__init__(self, **args)
@@ -231,7 +232,6 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
             if self.boxSize.get():  # Box size can be provided by the user
                 boxSize = self.boxSize.get()
             else:  # If not crYOLO estimates it
-                self.boxSizeEstimated.set(True)
                 boxSize = self._getEstimatedBoxSize()
 
                 if self.boxSizeFactor.get() != 1:
@@ -244,12 +244,28 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
         # to open the image file each time for checking this
         yFlipHeight = convert.getFlipYHeight(micDoneList[0].getFileName())
 
+        # Create a reader to parse .cbox files
+        # and a Coordinate object to add to output set
+        reader = convert.CoordBoxReader(boxSize,
+                                        yFlipHeight=yFlipHeight,
+                                        boxSizeEstimated=self.boxSizeEstimated)
+        coord = emobj.Coordinate()
+        coord._cryoloScore = emobj.Float()
+
         for mic in micDoneList:
-            coordsFile = os.path.join(outDir, convert.getMicIdName(mic, suffix='.cbox'))
+            cboxFile = convert.getMicIdName(mic, suffix='.cbox')
+            coordsFile = os.path.join(outDir, cboxFile)
             if os.path.exists(coordsFile):
-                convert.readMicrographCoords(mic, outputCoords, coordsFile, boxSize,
-                                             yFlipHeight=yFlipHeight,
-                                             boxSizeEstimated=self.boxSizeEstimated)
+                reader.open(coordsFile)
+                for x, y, score in reader.iterCoords():
+                    # Clean up objId to add as a new coordinate
+                    coord.setObjId(None)
+                    coord.setPosition(x, y)
+                    coord.setMicrograph(mic)
+                    coord._cryoloScore.set(score)
+                    # Add it to the set
+                    outputCoords.append(coord)
+                reader.close()
 
         # Register box size
         self.createBoxSizeOutput(outputCoords)
@@ -317,6 +333,11 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
         return cites
 
     # -------------------------- UTILS functions ------------------------------
+    @property
+    def boxSizeEstimated(self):
+        # Only when boxSize == 0 it is estimated by cryolo
+        return self.boxSize.get() == 0
+
     def getInputModel(self):
         if self.inputModelFrom == INPUT_MODEL_GENERAL:
             m = Plugin.getCryoloGeneralModel()

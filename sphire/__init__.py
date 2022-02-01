@@ -57,13 +57,8 @@ class Plugin(pwem.Plugin):
 
     @classmethod
     def getCryoloEnvActivation(cls, useCpu=False):
-        if useCpu:
-            activation = cls.getVar(CRYOLO_ENV_ACTIVATION_CPU)
-        else:
-            activation = cls.getVar(CRYOLO_ENV_ACTIVATION)
-        scipionHome = pw.Config.SCIPION_HOME + os.path.sep
-
-        return activation.replace(scipionHome, "", 1)
+        var = CRYOLO_ENV_ACTIVATION_CPU if useCpu else CRYOLO_ENV_ACTIVATION
+        return cls.getVar(var)
 
     @classmethod
     def getCryoloGeneralModel(cls):
@@ -96,7 +91,8 @@ class Plugin(pwem.Plugin):
     def defineBinaries(cls, env):
         cls.addCryoloPackage(env, CRYOLO_DEFAULT_VER_NUM, default=bool(cls.getCondaActivationCmd()))
         cls.addCryoloPackage(env, CRYOLO_DEFAULT_VER_NUM, default=False, useCpu=True)
-        cls.addCryoloPackage(env, V1_8_0, default=False, pythonVersion='3.7')
+        cls.addCryoloPackage(env, V1_8_2, default=False, pythonVersion='3.7')
+        cls.addCryoloPackage(env, V1_8_2, default=False, pythonVersion='3.7', useCpu=True)
         url = "wget ftp://ftp.gwdg.de/pub/misc/sphire/crYOLO-GENERAL-MODELS/"
 
         env.addPackage(CRYOLO_GENMOD, version=CRYOLO_GENMOD_201910,
@@ -158,10 +154,10 @@ class Plugin(pwem.Plugin):
         installationCmd = cls.getCondaActivationCmd()
 
         # Creating the environment
-        if version == V1_8_0:
+        if version in [V1_8_2]:
             installationCmd += 'conda create -y -n %s -c conda-forge -c anaconda ' \
                                'python=%s pyqt=5 cudatoolkit=10.0.130 cudnn=7.6.5 numpy=1.18.5 ' \
-                               'cython libtiff wxPython intel-openmp==2019.4 pip=20.2.3 &&' \
+                               'libtiff wxPython=4.1.1  adwaita-icon-theme pip=20.2.3 &&' \
                                % (ENV_NAME, pythonVersion)
             boxManagerversion = '1.4'
         else:
