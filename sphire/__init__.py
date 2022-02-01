@@ -91,7 +91,6 @@ class Plugin(pwem.Plugin):
     def defineBinaries(cls, env):
         cls.addCryoloPackage(env, CRYOLO_DEFAULT_VER_NUM, default=bool(cls.getCondaActivationCmd()))
         cls.addCryoloPackage(env, CRYOLO_DEFAULT_VER_NUM, default=False, useCpu=True)
-        #cls.addCryoloPackage(env, V1_8_0, default=False, pythonVersion='3.7')
         cls.addCryoloPackage(env, V1_8_2, default=False, pythonVersion='3.7')
         cls.addCryoloPackage(env, V1_8_2, default=False, pythonVersion='3.7', useCpu=True)
         url = "wget ftp://ftp.gwdg.de/pub/misc/sphire/crYOLO-GENERAL-MODELS/"
@@ -155,7 +154,7 @@ class Plugin(pwem.Plugin):
         installationCmd = cls.getCondaActivationCmd()
 
         # Creating the environment
-        if version in [V1_8_0, V1_8_2]:
+        if version in [V1_8_2]:
             installationCmd += 'conda create -y -n %s -c conda-forge -c anaconda ' \
                                'python=%s pyqt=5 cudatoolkit=10.0.130 cudnn=7.6.5 numpy=1.18.5 ' \
                                'libtiff wxPython=4.1.1  adwaita-icon-theme pip=20.2.3 &&' \
