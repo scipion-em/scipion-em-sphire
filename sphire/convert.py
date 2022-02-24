@@ -28,6 +28,7 @@
 import os
 import csv
 import re
+import emtable
 
 import pyworkflow.utils as pwutils
 import pwem.objects as emobj
@@ -35,6 +36,9 @@ from pwem.emlib.image import ImageHandler
 from pwem.convert import Ccp4Header
 
 import sphire.constants as constants
+
+with pwutils.weakImport('tomo'):
+    from tomo.objects import Coordinate3D
 
 
 class CoordBoxWriter:
@@ -101,27 +105,21 @@ class CoordBoxReader:
         reader = csv.reader(self._file, delimiter='\t')
 
         if self._getDataLength() == 7:  # crYOLO generates .cbox files with 7 columns from version > 1.5.4
-            if self._boxSizeEstimated:
-                for x, y, _, _, score, _, _ in reader:
-                    # USE the imageHeight to flip or not to flip!
-                    sciX = round(float(x))
-                    sciY = round(float(y))
+            for x, y, _, _, score, _, _ in reader:
+                # USE the imageHeight to flip or not to flip!
+                sciX = float(x)
+                sciY = float(y)
 
-                    if self._yFlipHeight is not None:
-                        sciY = self._yFlipHeight - sciY
+                if not self._boxSizeEstimated:
+                    sciX += self._halfBox
+                    sciY += self._halfBox
 
-                    yield sciX, sciY, float(score)
-            else:
-                for x, y, _, _, score, _, _ in reader:
-                    # USE the imageHeight to flip or not to flip!
-                    sciX = round(float(x) + self._halfBox)
-                    sciY = round(float(y) + self._halfBox)
+                if self._yFlipHeight is not None:
+                    sciY = self._yFlipHeight - sciY
 
-                    if self._yFlipHeight is not None:
-                        sciY = self._yFlipHeight - sciY
+                yield round(sciX), round(sciY), float(score)
 
-                    yield sciX, sciY, float(score)
-        else:   # crYOLO generates .cbox files with 7 columns from version <= 1.5.4
+        elif self._getDataLength() == 5:   # crYOLO generates .cbox files with 4 columns from version <= 1.5.4
             for x, y, _, _, score in reader:
                 # USE the imageHeight to flip or not to flip!
                 sciX = round(float(x) + self._halfBox)
@@ -131,6 +129,45 @@ class CoordBoxReader:
                     sciY = self._yFlipHeight - sciY
 
                 yield sciX, sciY, float(score)
+
+        else:  # crYOLO generates .cbox files with 11 columns from version = 1.8.0
+            table = emtable.Table(fileName=self._file.name)
+            for row in table.iterRows(self._file.name, tableName='cryolo'):
+                x = float(row.CoordinateX)
+                y = float(row.CoordinateY)
+                score = float(row.Confidence)
+
+                if not self._boxSizeEstimated:
+                    x += self._halfBox
+                    y += self._halfBox
+
+                sciX = round(x)
+                sciY = round(y)
+
+                if self._yFlipHeight is not None:
+                    sciY = self._yFlipHeight - sciY
+
+                yield sciX, sciY, score
+
+    def  iter3DCoords(self):
+        table = emtable.Table(fileName=self._file.name)
+        for row in table.iterRows(self._file.name, tableName='cryolo'):
+            x = float(row.CoordinateX)
+            y = float(row.CoordinateY)
+            z = float(row.CoordinateZ)
+
+            if not self._boxSizeEstimated:
+                x += self._halfBox
+                y += self._halfBox
+
+            sciX = round(x)
+            sciY = round(y)
+            sciZ = round(z)
+
+            if self._yFlipHeight is not None:
+                sciY = self._yFlipHeight - sciY
+
+            yield sciX, sciY, sciZ
 
     def close(self):
         if self._file:
@@ -167,7 +204,7 @@ def writeSetOfCoordinates(boxDir, coordSet, micList=None):
             doWrite = micId in micIdSet
             if doWrite:
                 # we need to close previous opened file
-                writer.open(os.path.join(boxDir, getMicIdName(mic, '.box')))
+                writer.open(os.path.join(boxDir, getMicIdName(mic, suffix='.box')))
             lastMicId = micId
 
         if doWrite:
@@ -176,20 +213,23 @@ def writeSetOfCoordinates(boxDir, coordSet, micList=None):
     writer.close()
 
 
-def readMicrographCoords(mic, coordSet, coordsFile, boxSize, yFlipHeight=None, boxSizeEstimated=False):
-    reader = CoordBoxReader(boxSize, yFlipHeight=yFlipHeight, boxSizeEstimated=boxSizeEstimated)
+def readSetOfCoordinates3D(tomogram, coord3DSetDict, coordsFile, boxSize,
+                           origin=None):
+    reader = CoordBoxReader(boxSize)
     reader.open(coordsFile)
 
-    coord = emobj.Coordinate()
+    coord3DSet = coord3DSetDict[tomogram.getObjId()]
+    coord3DSet.enableAppend()
 
-    for x, y, score in reader.iterCoords():
+    coord = Coordinate3D()
+
+    for x, y, z in reader.iter3DCoords():
         # Clean up objId to add as a new coordinate
         coord.setObjId(None)
-        coord.setPosition(x, y)
-        coord.setMicrograph(mic)
-        coord._cryoloScore = emobj.Float(score)
+        coord.setVolume(tomogram)
+        coord.setPosition(x, y, z, origin)
         # Add it to the set
-        coordSet.append(coord)
+        coord3DSet.append(coord)
 
     reader.close()
 
@@ -211,7 +251,7 @@ def getFlipYHeight(filename):
     return y if needToFlipOnY(filename) else None
 
 
-def convertMicrographs(micList, micDir):
+def convertMicrographs(micList, micDir, prefix='mic'):
     """ Convert (or simply link) input micrographs into the given directory
     in a format that is compatible with crYOLO.
     """
@@ -232,12 +272,17 @@ def convertMicrographs(micList, micDir):
         ext = '.mrc'
 
     for mic in micList:
-        func(mic, getMicIdName(mic, suffix=ext))
+        func(mic, getMicIdName(mic, prefix=prefix, suffix=ext))
 
 
-def getMicIdName(mic, suffix=''):
+def convertTomograms(micList, micDir):
+    prefix = pwutils.removeBaseExt(micList[0].getFileName())
+    convertMicrographs(micList, micDir, prefix=prefix)
+
+
+def getMicIdName(mic, prefix='mic', suffix=''):
     """ Return a name for the micrograph based on its IDs. """
-    return 'mic%05d%s' % (mic.getObjId(), suffix)
+    return '%s%05d%s' % (prefix, mic.getObjId(), suffix)
 
 
 def roundInputSize(inputSize):
