@@ -156,7 +156,7 @@ class Plugin(pwem.Plugin):
         # Creating the environment
         if version in [V1_8_2]:
             installationCmd += 'conda create -y -n %s -c conda-forge -c anaconda ' \
-                               'python=%s pyqt=5 cudatoolkit=10.0.130 cudnn=7.6.5 numpy=1.18.5 ' \
+                               'python=%s pyqt=5 cudatoolkit=10.0.130 cudnn=7.6.5 numpy=1.20 ' \
                                'libtiff wxPython=4.1.1  adwaita-icon-theme pip=20.2.3 &&' \
                                % (ENV_NAME, pythonVersion)
             boxManagerversion = '1.4'
