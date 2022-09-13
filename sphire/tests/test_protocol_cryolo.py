@@ -104,7 +104,8 @@ class TestSphireConvert(BaseTest):
         mic = emobj.Micrograph(objId=1, location=spiMic)
         # Invoke the createMic function
         convert.convertMicrographs([mic], micDir)
-        expectedDest = os.path.join(micDir, convert.getMicIdName(mic, '.mrc'))
+        print(os.path.join(micDir, convert.getMicIdName(mic, '.mrc')))
+        expectedDest = os.path.join(micDir, convert.getMicIdName(mic, suffix='.mrc'))
 
         # If ext is not in [".mrc", ".tif", ".jpg"] return .mrc
         self.assertTrue(os.path.exists(expectedDest),
