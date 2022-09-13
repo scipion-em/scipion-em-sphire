@@ -34,7 +34,7 @@ import pyworkflow.utils as pwutils
 import pyworkflow as pw
 from sphire.constants import *
 
-__version__ = '3.0.9'
+__version__ = '3.0.10'
 _logo = "sphire_logo.png"
 _references = ['Wagner2019']
 _sphirePluginDir = os.path.dirname(os.path.abspath(__file__))
@@ -89,10 +89,13 @@ class Plugin(pwem.Plugin):
 
     @classmethod
     def defineBinaries(cls, env):
-        cls.addCryoloPackage(env, CRYOLO_DEFAULT_VER_NUM, default=bool(cls.getCondaActivationCmd()))
-        cls.addCryoloPackage(env, CRYOLO_DEFAULT_VER_NUM, default=False, useCpu=True)
-        cls.addCryoloPackage(env, V1_8_2, default=False, pythonVersion='3.7')
-        cls.addCryoloPackage(env, V1_8_2, default=False, pythonVersion='3.7', useCpu=True)
+        cls.addCryoloPackage(env, CRYOLO_DEFAULT_VER_NUM,
+                             default=bool(cls.getCondaActivationCmd()))
+        cls.addCryoloPackage(env, CRYOLO_DEFAULT_VER_NUM, default=False,
+                             useCpu=True)
+        cls.addCryoloPackage(env, V1_7_6, default=False, pythonVersion='3.6')
+        cls.addCryoloPackage(env, V1_7_6, default=False, pythonVersion='3.6',
+                             useCpu=True)
         url = "wget ftp://ftp.gwdg.de/pub/misc/sphire/crYOLO-GENERAL-MODELS/"
 
         env.addPackage(CRYOLO_GENMOD, version=CRYOLO_GENMOD_201910,
@@ -145,22 +148,30 @@ class Plugin(pwem.Plugin):
 
     @classmethod
     def addCryoloPackage(cls, env, version, default=False, useCpu=False,
-                         pythonVersion='3.6'):
+                         pythonVersion='3.7'):
         archFlag = 'CPU' if useCpu else ''
         CRYOLO_INSTALLED = 'cryolo%s_%s_installed' % (archFlag, version)
         ENV_NAME = getCryoloEnvName(version, useCpu)
-        boxManagerversion = '1.3.6'
+        boxManagerversion = '1.4'
         # try to get CONDA activation command
         installationCmd = cls.getCondaActivationCmd()
+        # getting cuda version.
+        cudaVersion = cls.guessCudaVersion(CRYOLO_CUDA_LIB)
 
         # Creating the environment
         if version in [V1_8_2]:
+            cudatoolkitVersion = '11.7.0'
+            cudnnVersion = '8.4.1'
+            if cudaVersion.major < 11:
+                cudatoolkitVersion = '10.0.130'
+                cudnnVersion = '7.6.5'
+
             installationCmd += 'conda create -y -n %s -c conda-forge -c anaconda ' \
-                               'python=%s pyqt=5 cudatoolkit=10.0.130 cudnn=7.6.5 numpy=1.18.5 ' \
-                               'libtiff wxPython=4.1.1  adwaita-icon-theme pip=20.2.3 &&' \
-                               % (ENV_NAME, pythonVersion)
-            boxManagerversion = '1.4'
-        else:
+                               'python=%s protobuf=3.20.1 pyqt=5 cudatoolkit=%s cudnn=%s numpy=1.18.5 ' \
+                               'libtiff wxPython=4.1.1 adwaita-icon-theme pip=20.2.3 &&' \
+                               % (ENV_NAME, pythonVersion, cudatoolkitVersion,
+                                  cudnnVersion)
+        else:  # version 1.7.6
             installationCmd += 'conda create -y -n %s -c conda-forge -c anaconda '\
                                'python=%s pyqt=5 cudnn=7.1.2 numpy==1.14.5 '\
                                'cython wxPython==4.0.4 intel-openmp==2019.4 pip=20.2.3 &&' \
@@ -170,8 +181,9 @@ class Plugin(pwem.Plugin):
         installationCmd += 'conda activate %s && ' % ENV_NAME
 
         # Install downloaded code
+        cryoloCustom = 'cpu' if useCpu else 'gpu'
         installationCmd += ('pip install cryoloBM==%s cryolo[%s]==%s && '
-                            % (boxManagerversion, 'cpu' if useCpu else 'gpu', version))
+                                % (boxManagerversion, cryoloCustom, version))
 
         # Flag installation finished
         installationCmd += 'touch %s' % CRYOLO_INSTALLED
