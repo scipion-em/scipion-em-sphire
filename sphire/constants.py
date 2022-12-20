@@ -38,16 +38,17 @@ import os
 def getCryoloEnvName(version, useCpu=False):
     return "cryolo%s-%s" % ('CPU' if useCpu else '', version)
 
-V_UNKNOWN ='v0.0.0'
+V_UNKNOWN = 'v0.0.0'
 V1_5_4 = "1.5.4"
 V1_6_1 = "1.6.1"
 V1_7_2 = "1.7.2"
 V1_7_6 = "1.7.6"
 V1_8_0 = "1.8.0"
 V1_8_2 = "1.8.2"
+V1_8_4 = "1.8.4"
 
-VERSIONS = [V1_5_4, V1_6_1, V1_7_2, V1_7_6, V1_8_2]
-CRYOLO_DEFAULT_VER_NUM = V1_8_2
+VERSIONS = [V1_5_4, V1_6_1, V1_7_2, V1_7_6, V1_8_2, V1_8_4]
+CRYOLO_DEFAULT_VER_NUM = V1_8_4
 
 DEFAULT_ENV_NAME = getCryoloEnvName(CRYOLO_DEFAULT_VER_NUM)
 DEFAULT_ACTIVATION_CMD = 'conda activate ' + DEFAULT_ENV_NAME

@@ -29,12 +29,14 @@
 """
 This package contains the protocols and data for crYOLO
 """
+import os
+
 import pwem
 import pyworkflow.utils as pwutils
 import pyworkflow as pw
 from sphire.constants import *
 
-__version__ = '3.0.10'
+__version__ = '3.0.11'
 _logo = "sphire_logo.png"
 _references = ['Wagner2019']
 _sphirePluginDir = os.path.dirname(os.path.abspath(__file__))
@@ -89,13 +91,15 @@ class Plugin(pwem.Plugin):
 
     @classmethod
     def defineBinaries(cls, env):
-        cls.addCryoloPackage(env, CRYOLO_DEFAULT_VER_NUM,
-                             default=bool(cls.getCondaActivationCmd()))
-        cls.addCryoloPackage(env, CRYOLO_DEFAULT_VER_NUM, default=False,
-                             useCpu=True)
-        cls.addCryoloPackage(env, V1_7_6, default=False, pythonVersion='3.6')
-        cls.addCryoloPackage(env, V1_7_6, default=False, pythonVersion='3.6',
-                             useCpu=True)
+        def _add(version, **kwargs):
+            cls.addCryoloPackage(env, version, **kwargs)
+            kwargs['useCpu'] = True
+            cls.addCryoloPackage(env, version, **kwargs)
+
+        _add(V1_7_6, pythonVersion='3.6')
+        _add(V1_8_2)
+        _add(V1_8_4, default=True)
+
         url = "wget ftp://ftp.gwdg.de/pub/misc/sphire/crYOLO-GENERAL-MODELS/"
 
         env.addPackage(CRYOLO_GENMOD, version=CRYOLO_GENMOD_201910,
@@ -159,7 +163,7 @@ class Plugin(pwem.Plugin):
         cudaVersion = cls.guessCudaVersion(CRYOLO_CUDA_LIB)
 
         # Creating the environment
-        if version in [V1_8_2]:
+        if version in [V1_8_2, V1_8_4]:
             cudatoolkitVersion = '11.7.0'
             cudnnVersion = '8.4.1'
             if cudaVersion.major < 11:
