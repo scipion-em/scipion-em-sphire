@@ -32,10 +32,10 @@ import pyworkflow.protocol.constants as cons
 import pyworkflow.protocol.params as params
 import pyworkflow.utils as pwutils
 
-from sphire import Plugin
+from .. import Plugin
+from ..constants import INPUT_MODEL_GENERAL, CRYOLO_GENMOD_VAR
+from ..objects import CryoloModel
 import sphire.convert as convert
-from sphire.constants import INPUT_MODEL_GENERAL, CRYOLO_GENMOD_VAR
-from sphire.objects import CryoloModel
 
 
 class SphireProtCRYOLOTraining(ProtParticlePicking):

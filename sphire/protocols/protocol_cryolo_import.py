@@ -30,7 +30,7 @@ import pyworkflow.utils as pwutils
 import pyworkflow.protocol.params as params
 from pwem.protocols import ProtImport
 
-from sphire.objects import CryoloModel
+from ..objects import CryoloModel
 
 
 class SphireProtCryoloImport(ProtImport):

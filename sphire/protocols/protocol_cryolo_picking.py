@@ -39,9 +39,9 @@ import pyworkflow.protocol.constants as cons
 from pwem.protocols import ProtParticlePickingAuto
 import pwem.objects as emobj
 
-from sphire import Plugin
+from .. import Plugin
+from ..constants import *
 import sphire.convert as convert
-from sphire.constants import *
 
 
 class SphireProtCRYOLOPicking(ProtParticlePickingAuto):

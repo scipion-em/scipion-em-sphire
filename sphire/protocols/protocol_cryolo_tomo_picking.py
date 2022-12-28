@@ -26,7 +26,6 @@
 # **************************************************************************
 import glob
 import json
-
 from pkg_resources import parse_version
 
 import pyworkflow.utils as pwutils
@@ -35,12 +34,13 @@ from pyworkflow.object import Boolean
 import pyworkflow.protocol.params as params
 import pyworkflow.protocol.constants as cons
 
-from sphire import Plugin
-import sphire.convert as convert
-from sphire.constants import *
 from tomo.objects import SetOfCoordinates3D
 from tomo.protocols import ProtTomoPicking
 import tomo.constants as tomoConst
+
+from .. import Plugin
+from ..constants import *
+import sphire.convert as convert
 
 
 class SphireProtCRYOLOTomoPicking(ProtTomoPicking):

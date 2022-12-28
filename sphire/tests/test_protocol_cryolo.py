@@ -31,7 +31,6 @@ import pyworkflow.utils as pwutils
 from pyworkflow import Config
 from pyworkflow.tests import BaseTest, setupTestProject, DataSet, setupTestOutput
 from pyworkflow.plugin import Domain
-
 import pwem.objects as emobj
 from pwem.protocols.protocol_import import ProtImportMicrographs, ProtImportCoordinates
 from pwem.emlib.image import ImageHandler
@@ -39,9 +38,9 @@ from pwem.convert import Ccp4Header
 
 import sphire.convert as convert
 import sphire.protocols as protocols
-from sphire.constants import INPUT_MODEL_OTHER, INPUT_MODEL_GENERAL_NS, \
-    CRYOLO_GENMOD_VAR, INPUT_MODEL_GENERAL
-from sphire.protocols import SphireProtCRYOLOTomoPicking
+from ..constants import (INPUT_MODEL_OTHER, INPUT_MODEL_GENERAL_NS,
+                         CRYOLO_GENMOD_VAR, INPUT_MODEL_GENERAL)
+from ..protocols import SphireProtCRYOLOTomoPicking
 
 XmippProtPreprocessMicrographs = Domain.importFromPlugin(
     'xmipp3.protocols', 'XmippProtPreprocessMicrographs', doRaise=True)

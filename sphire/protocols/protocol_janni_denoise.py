@@ -29,17 +29,11 @@ import os
 from os.path import basename, exists, join
 
 from pyworkflow.protocol import params, ValidationException, LEVEL_ADVANCED
-from pyworkflow.utils import moveFile, createLink
-from pyworkflow.utils.properties import Message
+from pyworkflow.utils import moveFile, createLink, Message
 from pwem.protocols import ProtMicrographs
 
 from .. import Plugin
 from ..constants import JANNI_GENMOD_VAR
-
-"""
-This module implements the denoising functionality of Sphire-Janni 
-software within Scipion framework
-"""
 
 
 class SphireProtJanniDenoising(ProtMicrographs):
