@@ -34,7 +34,7 @@ import pyworkflow.utils as pwutils
 
 from sphire import Plugin
 import sphire.convert as convert
-from sphire.constants import INPUT_MODEL_GENERAL
+from sphire.constants import INPUT_MODEL_GENERAL, CRYOLO_GENMOD_VAR
 from sphire.objects import CryoloModel
 
 
@@ -287,7 +287,7 @@ class SphireProtCRYOLOTraining(ProtParticlePicking):
 
     def getInputModel(self):
         if self.inputModelFrom == INPUT_MODEL_GENERAL:
-            m = Plugin.getCryoloGeneralModel()
+            m = Plugin.getModelFn(CRYOLO_GENMOD_VAR)
         else:
             m = self.inputModel.get().getPath()
 

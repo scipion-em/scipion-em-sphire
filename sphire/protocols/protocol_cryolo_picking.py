@@ -339,11 +339,11 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
 
     def getInputModel(self):
         if self.inputModelFrom == INPUT_MODEL_GENERAL:
-            m = Plugin.getCryoloGeneralModel()
+            m = Plugin.getModelFn(CRYOLO_GENMOD_VAR)
         elif self.inputModelFrom == INPUT_MODEL_GENERAL_DENOISED:
-            m = Plugin.getCryoloGeneralNNModel()
+            m = Plugin.getModelFn(CRYOLO_GENMOD_NN_VAR)
         elif self.inputModelFrom == INPUT_MODEL_GENERAL_NS:
-            m = Plugin.getCryoloGeneralNSModel()
+            m = Plugin.getModelFn(CRYOLO_NS_GENMOD_VAR)
         else:
             m = self.inputModel.get().getPath()
 

@@ -51,7 +51,7 @@ class SphireProtCRYOLOTomoPicking(ProtTomoPicking):
     boxSizeEstimated = Boolean(False)
     _devStatus = BETA
     _possibleOutputs = {'output3DCoordinates': SetOfCoordinates3D}
-    _protCompatibility = [V1_8_0]
+    _protCompatibility = [V1_8_2]
 
     def __init__(self, **kwargs):
         ProtTomoPicking.__init__(self, **kwargs)
@@ -251,7 +251,7 @@ class SphireProtCRYOLOTomoPicking(ProtTomoPicking):
 
     def _validate(self):
         validateMsgs = []
-        cryoloVersion = self.getCryoloVersion(defaultVersion=V1_8_0)
+        cryoloVersion = self.getCryoloVersion(defaultVersion=V1_8_2)
         if not [version for version in self._protCompatibility if parse_version(cryoloVersion) >= parse_version(version)]:
             validateMsgs.append("The protocol is not compatible with the "
                                 "crYOLO version %s" % cryoloVersion)
@@ -302,17 +302,17 @@ class SphireProtCRYOLOTomoPicking(ProtTomoPicking):
 
     def getInputModel(self):
         if self.inputModelFrom == INPUT_MODEL_GENERAL:
-            m = Plugin.getCryoloGeneralModel()
+            m = Plugin.getModelFn(CRYOLO_GENMOD_VAR)
         elif self.inputModelFrom == INPUT_MODEL_GENERAL_DENOISED:
-            m = Plugin.getCryoloGeneralNNModel()
+            m = Plugin.getModelFn(CRYOLO_GENMOD_NN_VAR)
         elif self.inputModelFrom == INPUT_MODEL_GENERAL_NS:
-            m = Plugin.getCryoloGeneralNSModel()
+            m = Plugin.getModelFn(CRYOLO_NS_GENMOD_VAR)
         else:
             m = self.inputModel.get().getPath()
 
         return os.path.abspath(m) if m else ''
 
-    def getCryoloVersion(self, defaultVersion=V_UNKNOWN):
+    def getCryoloVersion(self, defaultVersion=V1_8_5):
         """ Get cryolo version"""
         _cryoloVersion = defaultVersion
         try:

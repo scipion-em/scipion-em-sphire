@@ -32,7 +32,9 @@ from pyworkflow.protocol import params, ValidationException, LEVEL_ADVANCED
 from pyworkflow.utils import moveFile, createLink
 from pyworkflow.utils.properties import Message
 from pwem.protocols import ProtMicrographs
-from sphire import Plugin
+
+from .. import Plugin
+from ..constants import JANNI_GENMOD_VAR
 
 """
 This module implements the denoising functionality of Sphire-Janni 
@@ -168,5 +170,5 @@ class SphireProtJanniDenoising(ProtMicrographs):
     # -------------------------- UTILS functions ------------------------------
     def getInputModel(self):
 
-        m = Plugin.getJanniGeneralModel()
+        m = Plugin.getModelFn(JANNI_GENMOD_VAR)
         return os.path.abspath(m) if m else ''
