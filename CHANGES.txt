@@ -1,3 +1,4 @@
+3.1 - complete refactoring of the plugin by GS
 3.0.10 12/09/2022 -- Making crYOLO 1.8 as default instalation version
                   -- Checking the cuda version in order to create the installation command
 3.0.9, 10/11/21 -- Tomo picking protocol added

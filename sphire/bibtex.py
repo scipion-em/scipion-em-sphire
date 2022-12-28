@@ -1,7 +1,7 @@
 # coding: utf-8
 # **************************************************************************
 # *
-# * Authors:
+# * Authors: Scipion team
 # *
 # * Unidad de  Bioinformatica of Centro Nacional de Biotecnologia , CSIC
 # *
@@ -34,19 +34,18 @@
   number = "218",
   year = "2019",
   publisher = "Nature Publishing Group",
-  doi = "http://doi.org/10.1038/s42003-019-0437-z",
-  url = "http://www.nature.com/articles/s42003-019-0437-z",
+  doi = "https://doi.org/10.1038/s42003-019-0437-z",
+  url = "https://www.nature.com/articles/s42003-019-0437-z",
 }
 
 @misc{thorsten_wagner_2019_3378300,
-    title = "MPI-Dortmund/sphire-janni: JANNI 0.0.5",
-    journal = "Zenodo",
-    year = "2019",
-    month = "aug",
-    publisher = "Zenodo",
-    version = "0.0.5",
-    doi = "http://doi.org/10.5281/zenodo.3378300",
-    url = "http://zenodo.org/record/3378300#.XcvDWXVKhhE",
-    author = {Thorsten Wagner},
+  author       = {Thorsten Wagner},
+  title        = {MPI-Dortmund/sphire-janni: JANNI 0.0.5},
+  month        = aug,
+  year         = 2019,
+  publisher    = {Zenodo},
+  version      = {v0.0.5},
+  doi          = {10.5281/zenodo.3378300},
+  url          = {https://doi.org/10.5281/zenodo.3378300}
 }
 """

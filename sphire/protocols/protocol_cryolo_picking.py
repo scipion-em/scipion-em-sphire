@@ -50,7 +50,6 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
     """
     _label = 'cryolo picking'
 
-
     def __init__(self, **args):
         ProtParticlePickingAuto.__init__(self, **args)
         self.stepsExecutionMode = cons.STEPS_PARALLEL

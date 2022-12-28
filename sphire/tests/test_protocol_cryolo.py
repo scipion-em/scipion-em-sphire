@@ -439,17 +439,17 @@ class TestCryoloTomo(BaseTest):
         cls.tomogram = cls.dataset.getFile('*.em')
 
     @classmethod
-    def _runImportTomograms(self):
+    def _runImportTomograms(cls):
         with pwutils.weakImport('tomo'):
             import tomo.protocols
-        protImport = self.newProtocol(
+        protImport = cls.newProtocol(
             tomo.protocols.ProtImportTomograms,
-            filesPath=self.tomogram,
+            filesPath=cls.tomogram,
             filesPattern='',
             acquisitionAngleMax=40,
             acquisitionAngleMin=-40,
             samplingRate=1.35)
-        self.launchProtocol(protImport)
+        cls.launchProtocol(protImport)
         return protImport
 
     def test_pickingTomograms(self):

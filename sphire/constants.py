@@ -38,6 +38,7 @@ import os
 def getCryoloEnvName(version, useCpu=False):
     return "cryolo%s-%s" % ('CPU' if useCpu else '', version)
 
+
 V_UNKNOWN = 'v0.0.0'
 V1_5_4 = "1.5.4"
 V1_6_1 = "1.6.1"
@@ -119,6 +120,7 @@ CRYOLO_NS_GENMOD_DEFAULT = os.path.join(CRYOLO_NS_GENMOD + "-" + CRYOLO_NS_GENMO
 
 def _janniModelFn(modelKey):
     return 'gmodel_janni_{}.h5'.format(modelKey)
+
 
 JANNI_GENMOD_VAR = 'JANNI_GENERIC_MODEL'
 JANNI_GENMOD = "janni_model"  # Name

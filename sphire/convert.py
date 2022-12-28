@@ -31,7 +31,6 @@ import re
 import emtable
 
 import pyworkflow.utils as pwutils
-import pwem.objects as emobj
 from pwem.emlib.image import ImageHandler
 from pwem.convert import Ccp4Header
 
@@ -149,7 +148,7 @@ class CoordBoxReader:
 
                 yield sciX, sciY, score
 
-    def  iter3DCoords(self):
+    def iter3DCoords(self):
         table = emtable.Table(fileName=self._file.name)
         for row in table.iterRows(self._file.name, tableName='cryolo'):
             x = float(row.CoordinateX)

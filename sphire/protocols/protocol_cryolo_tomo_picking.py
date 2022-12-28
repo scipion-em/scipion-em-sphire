@@ -7,7 +7,7 @@
 # *
 # * This program is free software; you can redistribute it and/or modify
 # * it under the terms of the GNU General Public License as published by
-# * the Free Software Foundation; either version 2 of the License, or
+# * the Free Software Foundation; either version 3 of the License, or
 # * (at your option) any later version.
 # *
 # * This program is distributed in the hope that it will be useful,
@@ -26,7 +26,6 @@
 # **************************************************************************
 import glob
 import json
-import os
 
 from pkg_resources import parse_version
 
@@ -223,7 +222,7 @@ class SphireProtCRYOLOTomoPicking(ProtTomoPicking):
 
         for tomogram in setOfTomograms.iterItems():
             outFile = '%s%05d%s' % (pwutils.removeBaseExt(tomogram.getFileName()),
-                                                 tomogram.getObjId(), '.cbox')
+                                    tomogram.getObjId(), '.cbox')
             pattern = os.path.join(outputPath, outFile)
             files = glob.glob(pattern)
 
@@ -317,7 +316,7 @@ class SphireProtCRYOLOTomoPicking(ProtTomoPicking):
         """ Get cryolo version"""
         _cryoloVersion = defaultVersion
         try:
-            #TODO We need an adecuated way to check the activated version
+            # TODO We need an adecuated way to check the activated version
             envName = Plugin.getVar(CRYOLO_ENV_ACTIVATION).split(' ')[-1]
             if '-' in envName:
                 _cryoloVersion = envName.split('-')[-1]
@@ -326,7 +325,7 @@ class SphireProtCRYOLOTomoPicking(ProtTomoPicking):
                       "Scipion. We can not detect crYOLO's version. We assume it "
                       "is %s " % _cryoloVersion)
         except Exception:
-           print("Couldn't get crYOLO's version. Please review your config (%s)" % Plugin.getUrl())
+            print("Couldn't get crYOLO's version. Please review your config (%s)" % Plugin.getUrl())
         return _cryoloVersion.rstrip('\n')
 
 
