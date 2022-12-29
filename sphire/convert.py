@@ -202,7 +202,6 @@ def writeSetOfCoordinates(boxDir, coordSet, micList=None):
         if micId != lastMicId:
             doWrite = micId in micIdSet
             if doWrite:
-                # we need to close previous opened file
                 writer.open(os.path.join(boxDir, getMicIdName(mic, suffix='.box')))
             lastMicId = micId
 

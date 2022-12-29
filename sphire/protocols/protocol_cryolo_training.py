@@ -24,6 +24,7 @@
 # *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
+
 import os
 import json
 
@@ -39,15 +40,11 @@ import sphire.convert as convert
 
 
 class SphireProtCRYOLOTraining(ProtParticlePicking):
-    """ Picks particles in a set of micrographs
-    either manually or in a supervised mode.
+    """ Picks particles in a set of micrographs using crYOLO.
     """
     _label = 'cryolo training'
     MODEL = 'model.h5'
     TRAIN = ['train_annotations', 'train_images']
-
-    def __init__(self, **args):
-        ProtParticlePicking.__init__(self, **args)
 
     # -------------------------- DEFINE param functions -----------------------
     def _defineParams(self, form):
@@ -57,21 +54,22 @@ class SphireProtCRYOLOTraining(ProtParticlePicking):
                       label='Input coordinates', important=True,
                       help='Select the SetOfCoordinates to be used for training.')
         form.addParam('input_size', params.IntParam, default=1024,
+                      expertLevel=cons.LEVEL_ADVANCED,
                       label="Input size",
-                      help="crYOLO extracts a patch and rescales to the given"
-                           " input size and uses the resized patch for training.")
+                      help="crYOLO extracts a patch and rescales to the given "
+                           "input size and uses the resized patch for training.")
         form.addParam('boxSize', params.IntParam, default=100,
-                      label='Box Size',
+                      label='Box size (px)',
                       allowsPointers=True,
                       help='Box size in pixels. It should be the size of '
-                           'the minimum particle enclosing square in pixel.')
+                           'the minimum particle enclosing a square.')
         form.addParam('doFineTune', params.BooleanParam, default=True,
                       label='Fine-tune previous model?',
                       help='Since crYOLO 1.3 you can train a model for your '
                            'data by fine-tuning the general model.'
                            'The general model was trained on a lot of particles '
                            'with a variety of shapes and therefore learned a '
-                           'very good set of generic features. ')
+                           'very good set of generic features.')
         form.addParam('inputModelFrom', params.EnumParam,
                       default=INPUT_MODEL_GENERAL,
                       choices=['general', 'other'],
@@ -96,26 +94,26 @@ class SphireProtCRYOLOTraining(ProtParticlePicking):
                       label="Number of CPUs",
                       help="*Important!* This is different from number of threads "
                            "above as threads are used for GPU parallelization. "
-                           "Provide here the number of CPU cores for each cryolo "
+                           "Provide here the number of CPU cores for each crYOLO "
                            "process.")
 
         form.addParam('eFlagParam', params.IntParam, default=10,
                       expertLevel=cons.LEVEL_ADVANCED,
-                      label="Stop when not changed (times in a row)",
+                      label="Early stop patience",
                       help="The training stops when the 'loss' metric on the "
                            "validation data does not improve 10 times in a row. "
                            "This is typically enough. In case want to give the "
                            "training more time to find the best model you might "
                            "increase this parameters to a higher value (e.g 15).")
 
-        form.addParam('max_box_per_image', params.IntParam, default=600,
+        form.addParam('max_box_per_image', params.IntParam, default=700,
                       expertLevel=cons.LEVEL_ADVANCED,
-                      label="Maximum box per image",
+                      label="Maximum particles per image",
                       help="Maximum number of particles in the image. Only for" 
                            "the memory handling. Keep the default value of 600 "
                            "or 1000. ")
 
-        form.addParam('nb_epochVal', params.IntParam, default=50,
+        form.addParam('nb_epochVal', params.IntParam, default=200,
                       expertLevel=cons.LEVEL_ADVANCED,
                       label="Maximum number of iterations",
                       help="Maximum number of epochs the network will train. "
@@ -126,12 +124,11 @@ class SphireProtCRYOLOTraining(ProtParticlePicking):
         form.addParam('learning_rates', params.FloatParam, default=1e-4,
                       expertLevel=cons.LEVEL_ADVANCED,
                       label="Learning rates",
-                      help="If the number is too small convergence can be slow,"
-                           " if it is.")
+                      help="If the number is too small convergence can be slow.")
 
         form.addParam('lowPassFilter', params.BooleanParam,
                       expertLevel=cons.LEVEL_ADVANCED,
-                      default=False,
+                      default=True,
                       label="Low-pass filter",
                       help="CrYOLO works on original micrographs but the results"
                            " will be probably improved by the application of a "
@@ -140,7 +137,7 @@ class SphireProtCRYOLOTraining(ProtParticlePicking):
         form.addParam('absCutOffFreq', params.FloatParam, default=0.1,
                       expertLevel=cons.LEVEL_ADVANCED,
                       condition='lowPassFilter',
-                      label="Absolute cut off frequency",
+                      label="Cut-off frequency",
                       help="Specifies the absolute cut-off frequency for the "
                            "low-pass filter.")
 
@@ -148,35 +145,33 @@ class SphireProtCRYOLOTraining(ProtParticlePicking):
                       expertLevel=cons.LEVEL_ADVANCED,
                       label="Batch size",
                       help="The number of images crYOLO process in parallel "
-                           "during training. ")
+                           "during training.")
 
         form.addHidden(params.GPU_LIST, params.StringParam, default='0',
                        expertLevel=cons.LEVEL_ADVANCED,
-                       label="Choose GPU IDs")
+                       label="Choose GPU IDs",
+                       help="Provide one or multiple GPU IDs.")
 
-        form.addParallelSection(threads=1, mpi=1)
+        form.addParallelSection(threads=1, mpi=0)
 
     # --------------------------- INSERT steps functions ----------------------
     def _insertAllSteps(self):
-        self._insertFunctionStep("convertInputStep")
-        self._insertFunctionStep("createConfigStep")
+        self._insertFunctionStep(self.convertInputStep)
+        self._insertFunctionStep(self.createConfigStep)
 
         if self.doFineTune:
-            self._insertFunctionStep("cryoloModelingStep", ' --fine_tune')
-            useGeneral = self.inputModelFrom == INPUT_MODEL_GENERAL
-            self.summaryVar.set("Fine-tuning input %s model: \n%s"
-                                % ('(GENERAL)' if useGeneral else '',
-                                   self.getInputModel()))
+            self._insertFunctionStep(self.cryoloModelingStep,
+                                     ' --fine_tune -lft 2')
         else:
-            self._insertFunctionStep("cryoloModelingStep")
+            self._insertFunctionStep(self.cryoloModelingStep)
 
-        self._insertFunctionStep("createOutputStep")
+        self._insertFunctionStep(self.createOutputStep)
 
     # --------------------------- STEPS functions -----------------------------
     def convertInputStep(self):
-        """ Converts a set of coordinates to box files and binaries to mrc
-        if needed. It generates 2 folders 1 for the box files and another for
-        the mrc files. To be passed (the folders as params for cryolo
+        """ Converts a set of coordinates to box files and binaries to mrc.
+        It generates 2 folders: one for the box files and another for
+        the mrc files.
         """
         inputMics = self.inputMicrographs.get()
         coordSet = self.inputCoordinates.get()
@@ -186,7 +181,6 @@ class SphireProtCRYOLOTraining(ProtParticlePicking):
             paths.append(self._getWorkDir(d))
             pwutils.makePath(paths[-1])
 
-        # call the write set of Coordinates passing the createMic function
         micList = [mic.clone() for mic in inputMics]
         convert.writeSetOfCoordinates(paths[0], coordSet, micList)
         convert.convertMicrographs(micList, paths[1])
@@ -201,7 +195,7 @@ class SphireProtCRYOLOTraining(ProtParticlePicking):
                  "input_size": inputSize,
                  "anchors": [boxSize, boxSize],
                  "max_box_per_image": maxBoxPerImage,
-                 "num_patches": 1
+                 "norm": "STANDARD",
                  }
 
         if self.lowPassFilter:
@@ -209,8 +203,8 @@ class SphireProtCRYOLOTraining(ProtParticlePicking):
 
         pretrainedModel = self.getInputModel() if self.doFineTune else self.MODEL
 
-        train = {"train_image_folder": "%s/" % self.TRAIN[1],
-                 "train_annot_folder": "%s/" % self.TRAIN[0],
+        train = {"train_image_folder": f"{self.TRAIN[1]}/",
+                 "train_annot_folder": f"{self.TRAIN[0]}/",
                  "train_times": 10,
                  "pretrained_weights": pretrainedModel,
                  "batch_size": self.batchSize.get(),
@@ -239,10 +233,9 @@ class SphireProtCRYOLOTraining(ProtParticlePicking):
         """ Register the output model. """
         self._defineOutputs(outputModel=CryoloModel(self.getOutputModelPath()))
 
-    def runCryoloTrain(self, w, extraArgs=''):
-        params = "-c config.json"
-        params += " -w %s" % w  # Since cryolo 1.5 -w 3 will first do 3 warmups and starts
-        # automatically the current training
+    def runCryoloTrain(self, warmups, extraArgs=''):
+        params = " -c config.json --cleanup"
+        params += " -w %d" % warmups
         params += " -g %(GPU)s"
         params += " -nc %d" % self.numCpus.get()
         params += " -e %d " % self.eFlagParam
@@ -251,25 +244,33 @@ class SphireProtCRYOLOTraining(ProtParticlePicking):
                          cwd=self._getWorkDir())
 
     def cryoloModelingStep(self, extraArgs=''):
-        self.runCryoloTrain(5, extraArgs=extraArgs)
+        warmups = 0 if self.doFineTune else 5
+        self.runCryoloTrain(warmups, extraArgs=extraArgs)
         pwutils.moveFile(self._getWorkDir(self.MODEL), self.getOutputModelPath())
 
     # --------------------------- INFO functions ------------------------------
     def _summary(self):
-        return [self.summaryVar.get()]
+        summary = []
+
+        if self.doFineTune:
+            useGeneral = self.inputModelFrom == INPUT_MODEL_GENERAL
+            summary.append(f"Fine-tuning input"
+                           f"{' (general)' if useGeneral else ''} model:\n"
+                           f"{self.getInputModel()}")
+
+        return summary
 
     def _validate(self):
         validateMsgs = []
 
-        nprocs = max(self.numberOfMpi.get(), self.numberOfThreads.get())
-        if nprocs < len(self.getGpuList()):
+        if self.numberOfThreads.get() < len(self.getGpuList()):
             validateMsgs.append("Multiple GPUs can not be used by a single process. "
                                 "Make sure you specify more threads than GPUs.")
 
         if self.inputCoordinates.get() is None:
             validateMsgs.append("Please select a set of coordinates, obtained"
                                 " from a previous picking run. Typically the "
-                                "number of coordinates from 10 micrographs are "
+                                "coordinates from ~ 10 micrographs is "
                                 "a good start.")
 
         return validateMsgs
@@ -287,8 +288,6 @@ class SphireProtCRYOLOTraining(ProtParticlePicking):
 
     def getInputModel(self):
         if self.inputModelFrom == INPUT_MODEL_GENERAL:
-            m = Plugin.getModelFn(CRYOLO_GENMOD_VAR)
+            return Plugin.getModelFn(CRYOLO_GENMOD_VAR)
         else:
-            m = self.inputModel.get().getPath()
-
-        return os.path.abspath(m) if m else ''
+            return os.path.abspath(self.inputModel.get().getPath())

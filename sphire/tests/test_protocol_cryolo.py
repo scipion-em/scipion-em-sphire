@@ -333,7 +333,7 @@ class TestCryolo(BaseTest):
             # Clean-up action: rename the model to its original name
             os.rename(model_file_test, model_file_original)
 
-    def _runTraing(self, fineTune):
+    def _runTraining(self, fineTune):
         self.runImportCoords()
         # crYOLO training
         protTraining = self.newProtocol(
@@ -370,10 +370,10 @@ class TestCryolo(BaseTest):
                            msg="There was a problem picking with crYOLO")
 
     def testTraining(self):
-        self._runTraing(fineTune=False)
+        self._runTraining(fineTune=False)
 
     def testTraningFineTune(self):
-        self._runTraing(fineTune=True)
+        self._runTraining(fineTune=True)
 
 
 class TestCryoloNegStain(BaseTest):
@@ -480,4 +480,3 @@ class TestCryoloTomo(BaseTest):
         self.assertTrue(sphireProtCRYOLOTomoPicking.output3DCoordinates.getSize() > 0,
                         "There was a problem with the coordinate size")
         return sphireProtCRYOLOTomoPicking
-
