@@ -26,9 +26,7 @@
 # **************************************************************************
 
 import os
-import csv
-import re
-import emtable
+from emtable import Table
 
 import pyworkflow.utils as pwutils
 from pwem.emlib.image import ImageHandler
@@ -91,69 +89,29 @@ class CoordBoxReader:
         self.close()
         self._file = open(filename, 'r')
 
-    def _getDataLength(self):
-        try:
-            head = next(self._file)  # Read the first line
-            cols = re.split(r'\t+', head.rstrip('\t'))  # Strip it by tab
-            self._file.seek(0)  # Return to the top of the file
-            return len(cols)
-        except StopIteration:
-            return None
-
     def iterCoords(self):
-        reader = csv.reader(self._file, delimiter='\t')
+        for row in Table.iterRows(self._file.name, tableName='cryolo'):
+            x = row.CoordinateX
+            y = row.CoordinateY
+            score = row.Confidence
 
-        if self._getDataLength() == 7:  # crYOLO generates .cbox files with 7 columns from version > 1.5.4
-            for x, y, _, _, score, _, _ in reader:
-                # USE the imageHeight to flip or not to flip!
-                sciX = float(x)
-                sciY = float(y)
+            if not self._boxSizeEstimated:
+                x += self._halfBox
+                y += self._halfBox
 
-                if not self._boxSizeEstimated:
-                    sciX += self._halfBox
-                    sciY += self._halfBox
+            sciX = round(x)
+            sciY = round(y)
 
-                if self._yFlipHeight is not None:
-                    sciY = self._yFlipHeight - sciY
+            if self._yFlipHeight is not None:
+                sciY = self._yFlipHeight - sciY
 
-                yield round(sciX), round(sciY), float(score)
-
-        elif self._getDataLength() == 5:   # crYOLO generates .cbox files with 4 columns from version <= 1.5.4
-            for x, y, _, _, score in reader:
-                # USE the imageHeight to flip or not to flip!
-                sciX = round(float(x) + self._halfBox)
-                sciY = round(float(y) + self._halfBox)
-
-                if self._yFlipHeight is not None:
-                    sciY = self._yFlipHeight - sciY
-
-                yield sciX, sciY, float(score)
-
-        else:  # crYOLO generates .cbox files with 11 columns from version = 1.8.0
-            table = emtable.Table(fileName=self._file.name)
-            for row in table.iterRows(self._file.name, tableName='cryolo'):
-                x = float(row.CoordinateX)
-                y = float(row.CoordinateY)
-                score = float(row.Confidence)
-
-                if not self._boxSizeEstimated:
-                    x += self._halfBox
-                    y += self._halfBox
-
-                sciX = round(x)
-                sciY = round(y)
-
-                if self._yFlipHeight is not None:
-                    sciY = self._yFlipHeight - sciY
-
-                yield sciX, sciY, score
+            yield sciX, sciY, score
 
     def iter3DCoords(self):
-        table = emtable.Table(fileName=self._file.name)
-        for row in table.iterRows(self._file.name, tableName='cryolo'):
-            x = float(row.CoordinateX)
-            y = float(row.CoordinateY)
-            z = float(row.CoordinateZ)
+        for row in Table.iterRows(self._file.name, tableName='cryolo'):
+            x = row.CoordinateX
+            y = row.CoordinateY
+            z = row.CoordinateZ
 
             if not self._boxSizeEstimated:
                 x += self._halfBox
@@ -233,7 +191,7 @@ def readSetOfCoordinates3D(tomogram, coord3DSetDict, coordsFile, boxSize,
 
 
 def needToFlipOnY(filename):
-    """ Returns true if need to flip coordinates on Y"""
+    """ Returns true if we need to flip coordinates on Y"""
     ext = pwutils.getExt(filename)
 
     if ext in ".mrc":
@@ -285,14 +243,9 @@ def getMicIdName(mic, prefix='mic', suffix=''):
 
 def roundInputSize(inputSize):
     """ Returns the closest value to inputSize th is multiple of 32"""
-    rounded = roundTo(inputSize, 32)
+    rounded = int(32 * round(float(inputSize) / 32))
 
     if rounded != inputSize:
         print("Input size (%s) will be rounded to %s, the closest "
               "multiple of 32." % (inputSize, rounded))
     return rounded
-
-
-def roundTo(number, base=1.0):
-    """ Returns the closest int value to number that is multiple of base"""
-    return int(base * round(float(number) / base))

@@ -29,10 +29,10 @@
 # **************************************************************************
 
 import json
-import glob
+from glob import glob
+import os
 
 import pyworkflow.utils as pwutils
-from pyworkflow import Config
 from pyworkflow.object import Integer
 import pyworkflow.protocol.params as params
 import pyworkflow.protocol.constants as cons
@@ -45,8 +45,7 @@ import sphire.convert as convert
 
 
 class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
-    """ Picks particles in a set of micrographs
-    either manually or in a supervised mode.
+    """ Picks particles in a set of micrographs with crYOLO.
     """
     _label = 'cryolo picking'
 
@@ -66,8 +65,8 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
                       display=params.EnumParam.DISPLAY_COMBO,
                       label='Picking model: ',
                       help="You might use a general network model that consists "
-                           "of\n   -cryo: real, simulated, particle free datasets on "
-                           "various grids with contamination\n   -negative stain: trained with"
+                           "of\n\t-cryo: real, simulated, particle free datasets on "
+                           "various grids with contamination\n\t-negative stain: trained with"
                            "negative stain images\nand skip training "
                            "completely,\nor,\nif you would like to "
                            "improve the results you can use the model from a "
@@ -93,7 +92,7 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
         form.addParam('absCutOffFreq', params.FloatParam,
                       default=0.1,
                       condition='lowPassFilter',
-                      label="Absolute cut off frequency",
+                      label="Cut-off frequency",
                       help="Specifies the absolute cut-off frequency for the "
                            "low-pass filter.")
         form.addParam('numCpus', params.IntParam, default=4,
@@ -117,16 +116,15 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
                            'the minimum particle enclosing square in pixel. '
                            'If introduced value is zero, it is estimated.')
         form.addParam('max_box_per_image', params.IntParam,
-                      default=600,
+                      default=700,
                       expertLevel=cons.LEVEL_ADVANCED,
                       label="Maximum box per image",
                       help="Maximum number of particles in the image. Only for "
-                           "the memory handling. Keep the default value of "
-                           "600 or 1000.")
+                           "the memory handling. Keep the default value of 700.")
         form.addHidden(params.USE_GPU, params.BooleanParam, default=True,
                        expertLevel=params.LEVEL_ADVANCED,
-                       label="Use GPU (vs CPU)",
-                       help="Set to true if you want to use GPU implementation ")
+                       label="Use GPU?",
+                       help="Set to True if you want to use GPU implementation ")
         form.addHidden(params.GPU_LIST, params.StringParam, default='0',
                        expertLevel=cons.LEVEL_ADVANCED,
                        label="Choose GPU IDs",
@@ -137,11 +135,12 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
                             " set to i.e. *0 1 2*.")
 
         form.addParam('boxSizeFactor', params.FloatParam,
-                      default=1,
+                      default=1.,
                       expertLevel=cons.LEVEL_ADVANCED,
                       label="Adjust estimated box size by",
-                      help="Value to multiply crYOLO estimated box size to be registered in the "
-                            "SetOfCoordinates. It is usually very tight to make a later extraction")
+                      help="Value to multiply crYOLO estimated box size to be "
+                           "registered with the SetOfCoordinates. It is usually "
+                           "very tight.")
 
         form.addParallelSection(threads=1, mpi=1)
 
@@ -151,17 +150,7 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
 
     # --------------------------- INSERT steps functions ----------------------
     def _insertInitialSteps(self):
-        if self.inputModelFrom in [INPUT_MODEL_GENERAL,
-                                   INPUT_MODEL_GENERAL_DENOISED]:
-            model_chosen_str = '(GENERAL)'
-        elif self.inputModelFrom == INPUT_MODEL_GENERAL_NS:
-            model_chosen_str = '(GENERAL_NS)'
-        else:
-            model_chosen_str = '(CUSTOM)'
-
-        self.summaryVar.set("Picking using %s model: \n%s" % (model_chosen_str,
-                                                              self.getInputModel()))
-        return [self._insertFunctionStep("createConfigStep")]
+        return self._insertFunctionStep(self.createConfigStep)
 
     # --------------------------- STEPS functions -----------------------------
     def createConfigStep(self):
@@ -177,7 +166,14 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
         if boxSize:
             model.update({"anchors": [boxSize, boxSize]})
         if self.lowPassFilter:
-            model.update({"filter": [absCutOfffreq, "filtered"]})
+            model.update({"filter": [absCutOfffreq, self._getTmpPath("filtered")]})
+        elif self.inputModelFrom == INPUT_MODEL_GENERAL_DENOISED:
+            model.update({"filter": [
+                Plugin.getModelFn(JANNI_GENMOD_VAR),
+                24,
+                3,
+                self._getTmpPath("filtered")
+            ]})
 
         jsonDict = {"model": model}
 
@@ -192,16 +188,14 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
         if not micList:  # maybe in continue cases, need to properly check
             return
 
-        def cleanAndMakePath(inDirectory):
-            pwutils.cleanPath(inDirectory)
-            pwutils.makePath(inDirectory)
         workingDir = self._getTmpPath(self.getMicsWorkingDir(micList))
-        cleanAndMakePath(workingDir)
+        pwutils.cleanPath(workingDir)
+        pwutils.makePath(workingDir)
 
         # Create folder with linked mics
         convert.convertMicrographs(micList, workingDir)
 
-        args = "-c %s" % self._getExtraPath('config.json')
+        args = " -c %s" % self._getExtraPath('config.json')
         args += " -w %s" % self.getInputModel()
         args += " -i %s/" % workingDir
         args += " -o %s/" % workingDir
@@ -209,23 +203,17 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
         if not self.usingCpu():
             args += " -g %(GPU)s"  # Add GPU that will be set by the executor
         args += " -nc %d" % self.numCpus.get()
-        if self.lowPassFilter:
-            args += ' --otf'
+        if self.lowPassFilter or self.inputModelFrom == INPUT_MODEL_GENERAL_DENOISED:
+            args += ' --cleanup'
 
         Plugin.runCryolo(self, 'cryolo_predict.py', args, useCpu=self.usingCpu())
 
-        # Move output files to a common location
-        dirs2Move = [os.path.join(workingDir, dir) for dir in ['CBOX', 'DISTR']]
-        outputDirs = [self.getOutpuCBOXtDir(), self.getOutputDISTRDir()]
-        [pwutils.makePath(dir) for dir in outputDirs]
-        [self.runJob('mv', '%s/* %s/' % (indDir, outputDir))
-         for indDir, outputDir in zip(dirs2Move, outputDirs) if os.path.exists(indDir)]
+        # Move output files to extra folder
+        pwutils.moveTree(os.path.join(workingDir, "CBOX"), self._getExtraPath())
 
     def readCoordsFromMics(self, outputDir, micDoneList, outputCoords):
         """This method read coordinates from a given list of micrographs"""
-        outDir = self.getOutpuCBOXtDir()
-        # boxSizeEstimated = False
-        # Coordinates may have a boxSize (e. g. streaming case)
+        # Coordinates may have a boxSize (e.g. streaming case)
         boxSize = outputCoords.getBoxSize()
         if not boxSize:
             if self.boxSize.get():  # Box size can be provided by the user
@@ -253,7 +241,7 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
 
         for mic in micDoneList:
             cboxFile = convert.getMicIdName(mic, suffix='.cbox')
-            coordsFile = os.path.join(outDir, cboxFile)
+            coordsFile = self._getExtraPath(cboxFile)
             if os.path.exists(coordsFile):
                 reader.open(coordsFile)
                 for x, y, score in reader.iterCoords():
@@ -270,8 +258,8 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
         self.createBoxSizeOutput(outputCoords)
 
     def createBoxSizeOutput(self, coordSet):
-        """ The output is just an Integer. Other protocols can use it in those
-            IntParam if it has set allowsPointer=True
+        """ Output box size as an Integer. Other protocols can use it as
+            IntParam with allowsPointer=True.
         """
         if not hasattr(self, "boxsize"):
             boxSize = Integer(coordSet.getBoxSize())
@@ -279,10 +267,18 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
 
     # --------------------------- INFO functions ------------------------------
     def _summary(self):
-        return [self.summaryVar.get()]
+        summary = []
+
+        summary.append(f"Picking using {self.getEnumText('inputModelFrom')} model: "
+                       f"{self.getInputModel()}")
+
+        return summary
 
     def _validate(self):
         validateMsgs = []
+
+        if self.lowPassFilter and self.inputModelFrom == INPUT_MODEL_GENERAL_DENOISED:
+            validateMsgs.append("Lowpass cannot be used with the JANNI-denoised model")
 
         if self.usingCpu():
             if os.system(Plugin.getCondaActivationCmd() + Plugin.getVar(CRYOLO_ENV_ACTIVATION_CPU)):
@@ -290,46 +286,35 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
                                     "install 'cryoloCPU' or use the GPU implementation.")
 
         else:
-            nprocs = max(self.numberOfMpi.get(), self.numberOfThreads.get())
-            if nprocs < len(self.getGpuList()):
+            if self.numberOfThreads.get() < len(self.getGpuList()):
                 validateMsgs.append("Multiple GPUs can not be used by a single process. "
                                     "Make sure you specify more threads than GPUs.")
 
         modelPath = self.getInputModel()
+        modelNames = {
+            INPUT_MODEL_GENERAL: CRYOLO_GENMOD,
+            INPUT_MODEL_GENERAL_DENOISED: CRYOLO_GENMOD,
+            INPUT_MODEL_OTHER: None,
+            INPUT_MODEL_GENERAL_NS: CRYOLO_NS_GENMOD
+        }
+
         if not os.path.exists(modelPath):
-            validateMsgs.append("Input model file '{}' does not exists.".format(modelPath))
+            validateMsgs.append(f"Input model file {modelPath} does not exist.")
+            modelName = modelNames[self.inputModelFrom]
+            if modelName is not None:
+                validateMsgs.append(f"Check your config or run scipion installb {modelName}")
 
-            if self.inputModelFrom == INPUT_MODEL_GENERAL:
-                validateMsgs.append(
-                    "The general model for cryolo must be downloaded from Sphire "
-                    "website and {} must contain "
-                    "the '{}' parameter pointing to the downloaded file.".format(
-                        Config.SCIPION_LOCAL_CONFIG, CRYOLO_GENMOD_VAR))
+        if self.inputModelFrom == INPUT_MODEL_GENERAL_DENOISED:
+            # extra model for janni is required
+            janniModel = Plugin.getModelFn(JANNI_GENMOD_VAR)
+            if not os.path.exists(janniModel):
+                validateMsgs.append(f"Input model file {janniModel} does not exist."
+                                    f"Check your config or run scipion installb {JANNI_GENMOD}")
 
-            elif self.inputModelFrom == INPUT_MODEL_GENERAL_DENOISED:
-                validateMsgs.append(
-                    "The general model for cryolo must be downloaded from Sphire "
-                    "website and {} must contain "
-                    "the '{}' parameter pointing to the downloaded file.".format(
-                        Config.SCIPION_LOCAL_CONFIG, JANNI_GENMOD_VAR))
-
-            elif self.inputModelFrom == INPUT_MODEL_GENERAL_NS:
-                validateMsgs.append(
-                    "The general model for cryolo (negative stain) must be downloaded from Sphire "
-                    "website and {} must contain "
-                    "the '{}' parameter pointing to the downloaded file.".format(
-                        Config.SCIPION_LOCAL_CONFIG, CRYOLO_NS_GENMOD_VAR))
-            else:
-                validateMsgs.append(
-                    "Input model path seems to be wrong. If you have moved the "
-                    "project of location, restore the link to the place where "
-                    "you have the correct model or use the general model for "
-                    "picking. ")
         return validateMsgs
 
     def _citations(self):
-        cites = ['Wagner2019']
-        return cites
+        return ['Wagner2019']
 
     # -------------------------- UTILS functions ------------------------------
     @property
@@ -345,15 +330,9 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
         elif self.inputModelFrom == INPUT_MODEL_GENERAL_NS:
             m = Plugin.getModelFn(CRYOLO_NS_GENMOD_VAR)
         else:
-            m = self.inputModel.get().getPath()
+            m = os.path.abspath(self.inputModel.get().getPath())
 
-        return os.path.abspath(m) if m else ''
-
-    def getOutpuCBOXtDir(self):
-        return self._getExtraPath('outputCBOX')
-
-    def getOutputDISTRDir(self):
-        return self._getExtraPath('outputDISTR')
+        return m
 
     def getMicsWorkingDir(self, micList):
         wd = 'micrographs_%s' % micList[0].strId()
@@ -365,16 +344,15 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
         return not self.useGpu.get()
 
     def _getEstimatedBoxSize(self):
-        sizeSummaryFilePattern = os.path.join(self.getOutputDISTRDir(),
-                                              'size_distribution_summary*.txt')
-        lineFilterPattern = 'mean,'
+        sizeSummaryFilePattern = self._getTmpPath('micrographs_*/DISTR',
+                                                  'size_distribution_summary*.txt')
         boxSize = None
         try:
-            distrSummaryFile = glob.glob(sizeSummaryFilePattern)[0]
+            distrSummaryFile = glob(sizeSummaryFilePattern)[0]
             with open(distrSummaryFile) as f:
                 for line in f:
-                    if line.lower().startswith(lineFilterPattern):
-                        boxSize = int(line.lower().replace(lineFilterPattern, ''))
+                    if line.startswith("MEAN,"):
+                        boxSize = int(line.split(",")[-1])
                         break
             if not boxSize:
                 raise ValueError
@@ -382,8 +360,8 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
             return boxSize
 
         except IndexError:
-            raise Exception('File not found:\n{}'.format(sizeSummaryFilePattern))
+            raise Exception(f'File not found:\n{sizeSummaryFilePattern}')
         except ValueError:
-            raise Exception('Boxsize not found in file:\n{}'.format(f.name))
+            raise Exception(f'Boxsize not found in file:\n{f.name}')
         except Exception as e:
             raise e

@@ -35,7 +35,7 @@ from pyworkflow.utils import moveTree, createLink, Message
 from pwem.protocols import ProtMicrographs
 
 from .. import Plugin
-from ..constants import JANNI_GENMOD_VAR
+from ..constants import JANNI_GENMOD_VAR, JANNI_GENMOD
 
 
 class SphireProtJanniDenoising(ProtMicrographs):
@@ -129,7 +129,8 @@ class SphireProtJanniDenoising(ProtMicrographs):
             validateMsgs.append("Multiple GPUs cannot be used by JANNI.")
 
         if not os.path.exists(modelPath):
-            validateMsgs.append(f"Input model file {modelPath} does not exist.")
+            validateMsgs.append(f"Input model file {modelPath} does not exist."
+                                f"Check your config or scipion installb {JANNI_GENMOD}")
 
         return validateMsgs
 

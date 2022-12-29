@@ -34,13 +34,13 @@ import pyworkflow.protocol.params as params
 import pyworkflow.utils as pwutils
 
 from .. import Plugin
-from ..constants import INPUT_MODEL_GENERAL, CRYOLO_GENMOD_VAR
+from ..constants import INPUT_MODEL_GENERAL, CRYOLO_GENMOD_VAR, CRYOLO_GENMOD
 from ..objects import CryoloModel
 import sphire.convert as convert
 
 
 class SphireProtCRYOLOTraining(ProtParticlePicking):
-    """ Picks particles in a set of micrographs using crYOLO.
+    """ Train crYOLO picker using a set of coordinates.
     """
     _label = 'cryolo training'
     MODEL = 'model.h5'
@@ -128,7 +128,7 @@ class SphireProtCRYOLOTraining(ProtParticlePicking):
 
         form.addParam('lowPassFilter', params.BooleanParam,
                       expertLevel=cons.LEVEL_ADVANCED,
-                      default=True,
+                      default=False,
                       label="Low-pass filter",
                       help="CrYOLO works on original micrographs but the results"
                            " will be probably improved by the application of a "
@@ -199,7 +199,9 @@ class SphireProtCRYOLOTraining(ProtParticlePicking):
                  }
 
         if self.lowPassFilter:
-            model.update({"filter": [absCutOfffreq, "filtered"]})
+            model.update({
+                "filter": [absCutOfffreq, '../tmp/filtered']
+            })
 
         pretrainedModel = self.getInputModel() if self.doFineTune else self.MODEL
 
@@ -234,11 +236,13 @@ class SphireProtCRYOLOTraining(ProtParticlePicking):
         self._defineOutputs(outputModel=CryoloModel(self.getOutputModelPath()))
 
     def runCryoloTrain(self, warmups, extraArgs=''):
-        params = " -c config.json --cleanup"
+        params = " -c config.json"
         params += " -w %d" % warmups
         params += " -g %(GPU)s"
         params += " -nc %d" % self.numCpus.get()
         params += " -e %d " % self.eFlagParam
+        if self.lowPassFilter:
+            params += " --cleanup"
         params += extraArgs
         Plugin.runCryolo(self, 'cryolo_train.py', params,
                          cwd=self._getWorkDir())
@@ -253,9 +257,8 @@ class SphireProtCRYOLOTraining(ProtParticlePicking):
         summary = []
 
         if self.doFineTune:
-            useGeneral = self.inputModelFrom == INPUT_MODEL_GENERAL
-            summary.append(f"Fine-tuning input"
-                           f"{' (general)' if useGeneral else ''} model:\n"
+            summary.append(f"Fine-tuning using "
+                           f"{self.getEnumText('inputModelFrom')} model: "
                            f"{self.getInputModel()}")
 
         return summary
@@ -272,6 +275,11 @@ class SphireProtCRYOLOTraining(ProtParticlePicking):
                                 " from a previous picking run. Typically the "
                                 "coordinates from ~ 10 micrographs is "
                                 "a good start.")
+
+        if not os.path.exists(self.getInputModel()):
+            validateMsgs.append(f"Input model file {self.getInputModel()} does not exist.")
+            if self.inputModelFrom == INPUT_MODEL_GENERAL:
+                    validateMsgs.append(f"Check your config or run scipion installb {CRYOLO_GENMOD}")
 
         return validateMsgs
 
