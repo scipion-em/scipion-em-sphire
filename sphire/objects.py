@@ -24,6 +24,8 @@
 # *
 # **************************************************************************
 
+import os
+
 import pyworkflow.object as pwobj
 from pwem import EMObject
 

@@ -1,7 +1,7 @@
 # **************************************************************************
 # *
 # * Authors:    David Maluenda (dmaluenda@cnb.csic.es) [1]
-# *             Peter Horvath [1]
+# *             Peter Horvath (phorvath@cnb.csic.es) [1]
 # *             J.M. De la Rosa Trevin (delarosatrevin@scilifelab.se) [2]
 # *
 # *

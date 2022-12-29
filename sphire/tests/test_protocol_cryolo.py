@@ -1,7 +1,7 @@
 # **************************************************************************
 # *
-# * Authors:     Pablo Conesa[1]
-# *              Peter Horvath[1]
+# * Authors:     Pablo Conesa (pconesa@cnb.csic.es) [1]
+# *              Peter Horvath (phorvath@cnb.csic.es) [1]
 # *
 # * [1] I2PC center
 # *

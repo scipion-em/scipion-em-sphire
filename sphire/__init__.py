@@ -1,8 +1,8 @@
 # **************************************************************************
 # *
-# * Authors:     Peter Horvath
-# *              Pablo Conesa
-# *              Jorge Jiménez
+# * Authors:     Peter Horvath (phorvath@cnb.csic.es)
+# *              Pablo Conesa (pconesa@cnb.csic.es)
+# *              Jorge Jiménez jimenez@cnb.csic.es)
 # *
 # * Unidad de  Bioinformatica of Centro Nacional de Biotecnologia , CSIC
 # *
