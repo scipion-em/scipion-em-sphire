@@ -41,11 +41,10 @@
 @misc{thorsten_wagner_2019_3378300,
   author       = {Thorsten Wagner},
   title        = {MPI-Dortmund/sphire-janni: JANNI 0.0.5},
-  month        = aug,
+  month        = {aug},
   year         = 2019,
   publisher    = {Zenodo},
   version      = {v0.0.5},
-  doi          = {10.5281/zenodo.3378300},
-  url          = {https://doi.org/10.5281/zenodo.3378300}
+  doi          = {https://doi.org/10.5281/zenodo.3378300}
 }
 """

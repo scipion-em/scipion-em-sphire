@@ -115,8 +115,11 @@ class Plugin(pwem.Plugin):
         else:  # cuda 11
             installCmd.append("pip install nvidia-pyindex && pip install 'cryolo[c11]'")
 
+        # downgrade imageio, because numpy must be 1.18.5
+        installCmd.append("&& pip install 'imageio<=2.15.0'")
+
         # Flag installation finished
-        installCmd.append(f' && touch {CRYOLO_INSTALLED}')
+        installCmd.append(f'&& touch {CRYOLO_INSTALLED}')
 
         cryolo_commands = [(" ".join(installCmd), CRYOLO_INSTALLED)]
 
@@ -143,11 +146,11 @@ class Plugin(pwem.Plugin):
         def _addModel(model, version, link, filename, default=False):
             env.addPackage(model, version=version,
                            tar='void.tgz',
-                           commands=[("wget " + link + filename, filename)],
+                           commands=[(f"wget {link}/{filename}", filename)],
                            neededProgs=["wget"],
                            default=default)
 
-        url = "ftp://ftp.gwdg.de/pub/misc/sphire/crYOLO-GENERAL-MODELS/"
+        url = "ftp://ftp.gwdg.de/pub/misc/sphire/crYOLO-GENERAL-MODELS"
         _addModel(CRYOLO_GENMOD, CRYOLO_GENMOD_202005, url,
                   CRYOLO_GENMOD_202005_FN, True)
         _addModel(CRYOLO_GENMOD, CRYOLO_GENMOD_NN_202005, url,
