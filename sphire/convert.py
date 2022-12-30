@@ -72,7 +72,7 @@ class CoordBoxWriter:
 
 
 class CoordBoxReader:
-    """ Helper class to read coordinates from .BOX files. """
+    """ Helper class to read coordinates from .CBOX files. """
     def __init__(self, boxSize, yFlipHeight=None, boxSizeEstimated=False):
         """
         :param boxSize: The box size of the coordinates that will be read
@@ -84,13 +84,8 @@ class CoordBoxReader:
         self._yFlipHeight = yFlipHeight
         self._boxSizeEstimated = boxSizeEstimated
 
-    def open(self, filename):
-        """ Open a new filename to write, close previous one if open. """
-        self.close()
-        self._file = open(filename, 'r')
-
-    def iterCoords(self):
-        for row in Table.iterRows(self._file.name, tableName='cryolo'):
+    def iterCoords(self, filename):
+        for row in Table.iterRows(filename, tableName='cryolo'):
             x = row.CoordinateX
             y = row.CoordinateY
             score = row.Confidence
@@ -107,8 +102,8 @@ class CoordBoxReader:
 
             yield sciX, sciY, score
 
-    def iter3DCoords(self):
-        for row in Table.iterRows(self._file.name, tableName='cryolo'):
+    def iter3DCoords(self, filename):
+        for row in Table.iterRows(filename, tableName='cryolo'):
             x = row.CoordinateX
             y = row.CoordinateY
             z = row.CoordinateZ
@@ -125,10 +120,6 @@ class CoordBoxReader:
                 sciY = self._yFlipHeight - sciY
 
             yield sciX, sciY, sciZ
-
-    def close(self):
-        if self._file:
-            self._file.close()
 
 
 def writeSetOfCoordinates(boxDir, coordSet, micList=None):
@@ -172,22 +163,18 @@ def writeSetOfCoordinates(boxDir, coordSet, micList=None):
 def readSetOfCoordinates3D(tomogram, coord3DSetDict, coordsFile, boxSize,
                            origin=None):
     reader = CoordBoxReader(boxSize)
-    reader.open(coordsFile)
-
     coord3DSet = coord3DSetDict[tomogram.getObjId()]
     coord3DSet.enableAppend()
 
     coord = Coordinate3D()
 
-    for x, y, z in reader.iter3DCoords():
+    for x, y, z in reader.iter3DCoords(coordsFile):
         # Clean up objId to add as a new coordinate
         coord.setObjId(None)
         coord.setVolume(tomogram)
         coord.setPosition(x, y, z, origin)
         # Add it to the set
         coord3DSet.append(coord)
-
-    reader.close()
 
 
 def needToFlipOnY(filename):

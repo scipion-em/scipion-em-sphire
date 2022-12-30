@@ -243,8 +243,7 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
             cboxFile = convert.getMicIdName(mic, suffix='.cbox')
             coordsFile = self._getExtraPath(cboxFile)
             if os.path.exists(coordsFile):
-                reader.open(coordsFile)
-                for x, y, score in reader.iterCoords():
+                for x, y, score in reader.iterCoords(coordsFile):
                     # Clean up objId to add as a new coordinate
                     coord.setObjId(None)
                     coord.setPosition(x, y)
@@ -252,7 +251,6 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
                     coord._cryoloScore.set(score)
                     # Add it to the set
                     outputCoords.append(coord)
-                reader.close()
 
         # Register box size
         self.createBoxSizeOutput(outputCoords)
@@ -300,7 +298,7 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
 
         if not os.path.exists(modelPath):
             validateMsgs.append(f"Input model file {modelPath} does not exist.")
-            modelName = modelNames[self.inputModelFrom]
+            modelName = modelNames[self.inputModelFrom.get()]
             if modelName is not None:
                 validateMsgs.append(f"Check your config or run scipion installb {modelName}")
 
@@ -312,6 +310,15 @@ class SphireProtCRYOLOPicking(ProtParticlePickingAuto):
                                     f"Check your config or run scipion installb {JANNI_GENMOD}")
 
         return validateMsgs
+
+    def _warnings(self):
+        warnings = []
+
+        if self.inputModelFrom == INPUT_MODEL_GENERAL_DENOISED and self.usingCpu():
+            warnings.append("Picking with JANNI-denoised model is quite slow "
+                            "on CPU - about 10 seconds per micrograph")
+
+        return warnings
 
     def _citations(self):
         return ['Wagner2019']

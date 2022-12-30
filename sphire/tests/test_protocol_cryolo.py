@@ -28,9 +28,9 @@
 import os
 
 import pyworkflow.utils as pwutils
-from pyworkflow import Config
 from pyworkflow.tests import BaseTest, setupTestProject, DataSet, setupTestOutput
 from pyworkflow.plugin import Domain
+from pyworkflow.utils import magentaStr
 import pwem.objects as emobj
 from pwem.protocols.protocol_import import ProtImportMicrographs, ProtImportCoordinates
 from pwem.emlib.image import ImageHandler
@@ -39,42 +39,46 @@ from pwem.convert import Ccp4Header
 import sphire.convert as convert
 import sphire.protocols as protocols
 from ..constants import (INPUT_MODEL_OTHER, INPUT_MODEL_GENERAL_NS,
-                         CRYOLO_GENMOD_VAR, INPUT_MODEL_GENERAL)
-from ..protocols import SphireProtCRYOLOTomoPicking
+                         INPUT_MODEL_GENERAL)
+
 
 XmippProtPreprocessMicrographs = Domain.importFromPlugin(
     'xmipp3.protocols', 'XmippProtPreprocessMicrographs', doRaise=True)
 
 
 class TestSphireConvert(BaseTest):
-
-    @classmethod
-    def setData(cls):
-        cls.ds = DataSet.getDataSet('relion_tutorial')
-
     @classmethod
     def setUpClass(cls):
-        cls.setData()
+        cls.ds = DataSet.getDataSet('relion_tutorial')
         setupTestOutput(cls)
 
     def testConvertCoords(self):
         boxSize = 100
         boxDir = self.getOutputPath('boxDir')
         pwutils.makePath(boxDir)
+        HEADER = """
+data_cryolo
+
+loop_
+_CoordinateX #1
+_CoordinateY #2
+_Width #3
+_Height #4
+_Confidence #5
+"""
 
         def _convert(coordsIn, yFlipHeight=None):
             tmpFile = os.path.join(boxDir, 'tmp.cbox')
             # Write input coordinates
             writer = convert.CoordBoxWriter(boxSize, yFlipHeight=yFlipHeight)
             writer.open(tmpFile)
+            writer._file.write(HEADER)  # required for cbox
             for x, y, _ in coordsIn:
                 writer.writeCoord(emobj.Coordinate(x=x, y=y))
             writer.close()
 
             reader = convert.CoordBoxReader(boxSize, yFlipHeight=yFlipHeight)
-            reader.open(tmpFile)
-            coordsOut = [c for c in reader.iterCoords()]
-            reader.close()
+            coordsOut = [c for c in reader.iterCoords(tmpFile)]
 
             return coordsOut
 
@@ -92,7 +96,6 @@ class TestSphireConvert(BaseTest):
 
     def testConvertMic(self):
         """Check extension of the input micrographs"""
-
         micDir = self.getOutputPath('micDir')
         os.mkdir(micDir)
 
@@ -111,12 +114,10 @@ class TestSphireConvert(BaseTest):
                         "spi file wasn't converted to mrc.")
 
     def testWriteSetOfCoordinatesWithoutFlip(self):
-
         from collections import OrderedDict
 
         # Define a temporary sqlite file for micrographs
         fn = self.getOutputPath('convert_mics.sqlite')
-
         mics = emobj.SetOfMicrographs(filename=fn)
         # Create SetOfCoordinates data
         # Define a temporary sqlite file for coordinates
@@ -199,109 +200,101 @@ class TestSphireConvert(BaseTest):
                          "needToFlipOnY wrong for good mrc.")
 
     def testGetFlippingParams(self):
-        mrcFile = TestSphireConvert.ds.getFile('micrographs/006.mrc')
-
+        mrcFile = self.ds.getFile('micrographs/006.mrc')
         y = convert.getFlipYHeight(mrcFile)
 
         # test if image dimension is right
         self.assertEquals(y, 1024, "Y dimension of the micrograph is not correct.")
 
     def testInputSizeRounding(self):
-
+        msg = "Input size rounding to the lower is wrong."
         rounded = convert.roundInputSize(1000)
-
-        self.assertEqual(rounded, 992, "input size rounding to the lower is wrong.")
+        self.assertEqual(rounded, 992, msg)
 
         rounded = convert.roundInputSize(60)
-
-        self.assertEqual(rounded, 64,
-                         "input size rounding to the higher is wrong.")
+        self.assertEqual(rounded, 64, msg)
 
         rounded = convert.roundInputSize(320)
-
-        self.assertEqual(rounded, 320,
-                         "input size rounding to exact is wrong.")
+        self.assertEqual(rounded, 320, msg)
 
 
 class TestCryolo(BaseTest):
-    """ Test cryolo protocol"""
-
-    @classmethod
-    def setData(cls):
-        cls.ds = DataSet.getDataSet('relion_tutorial')
-
     @classmethod
     def setUpClass(cls):
         setupTestProject(cls)
-        cls.setData()
-        # Run needed protocols
+        cls.ds = DataSet.getDataSet('relion_tutorial')
         cls.runImportMicrograph()
         cls.runMicPreprocessing()
+        cls.runImportCoords()
 
     @classmethod
     def runImportMicrograph(cls):
-
-        """ Run an Import micrograph protocol. """
-        protImport = cls.newProtocol(
+        """ Run an Import micrographs protocol. """
+        cls.protImport = cls.newProtocol(
             ProtImportMicrographs,
             samplingRateMode=0,
-            filesPath=TestCryolo.ds.getFile('micrographs/*.mrc'),
+            filesPath=cls.ds.getFile('micrographs/*.mrc'),
             samplingRate=3.54,
             magnification=59000,
             voltage=300,
             sphericalAberration=2)
 
-        cls.launchProtocol(protImport)
-        cls.protImport = protImport
+        print(magentaStr(f"\n==> Importing data - micrographs:"))
+        cls.launchProtocol(cls.protImport)
 
     @classmethod
     def runMicPreprocessing(cls):
+        cls.protPreprocess = cls.newProtocol(
+            XmippProtPreprocessMicrographs,
+            inputMicrographs=cls.protImport.outputMicrographs,
+            objLabel="crop 50px",
+            doCrop=True, cropPixels=25)
 
-        print("Preprocessing the micrographs...")
-        protPreprocess = cls.newProtocol(XmippProtPreprocessMicrographs,
-                                         doCrop=True, cropPixels=25)
-        protPreprocess.inputMicrographs.set(cls.protImport.outputMicrographs)
-        protPreprocess.setObjLabel('crop 50px')
-        cls.launchProtocol(protPreprocess)
-        cls.protPreprocess = protPreprocess
+        print(magentaStr(f"\n==> Preprocessing micrographs:"))
+        cls.launchProtocol(cls.protPreprocess)
 
     @classmethod
     def runImportCoords(cls):
         """ Run an Import coords protocol. """
-        protImportCoords = cls.newProtocol(
+        cls.protImportCoords = cls.newProtocol(
             ProtImportCoordinates,
             importFrom=ProtImportCoordinates.IMPORT_FROM_EMAN,
             objLabel='import EMAN coordinates',
-            filesPath=TestCryolo.ds.getFile('pickingEman/info/'),
+            filesPath=cls.ds.getFile('pickingEman/info/'),
             inputMicrographs=cls.protPreprocess.outputMicrographs,
             filesPattern='*.json',
             boxSize=65)
-        cls.launchProtocol(protImportCoords)
-        cls.protImportCoords = protImportCoords
 
-    def testPickingNoBoxSize(self):
-        # No training mode picking, box size not provided by user
-        prot = self._runPickingTest(boxSize=0, label='Picking - Box size estimated', boxSizeFactor=1.5)
-        self.assertEqual(prot.outputCoordinates.getBoxSize(), 72, "Estimated box size does not match.")
+        print(magentaStr(f"\n==> Importing data - coordinates:"))
+        cls.launchProtocol(cls.protImportCoords)
 
-    def testPickingBoxSize(self):
-        # No training mode picking, box size provided by user
-        self._runPickingTest(boxSize=50, label='Picking - Box size provided')
-
-    def _runPickingTest(self, boxSize, label, boxSizeFactor=1):
+    def _runPickingTest(self, boxSize, objLabel, boxSizeFactor=1.0):
         protcryolo = self.newProtocol(
             protocols.SphireProtCRYOLOPicking,
+            objLabel=objLabel,
             inputMicrographs=self.protPreprocess.outputMicrographs,
             boxSize=boxSize,
             input_size=750,
             boxSizeFactor=boxSizeFactor,
             streamingBatchSize=10)
 
-        protcryolo.setObjLabel(label)
+        print(magentaStr(f"\n==> Testing sphire - cryolo picking:"))
         self.launchProtocol(protcryolo)
         self.assertSetSize(protcryolo.outputCoordinates,
                            msg="There was a problem picking with crYOLO")
         return protcryolo
+
+    def testPickingNoBoxSize(self):
+        # No box size provided by user
+        prot = self._runPickingTest(boxSize=0,
+                                    objLabel='Picking - Box size estimated',
+                                    boxSizeFactor=1.5)
+        self.assertEqual(prot.outputCoordinates.getBoxSize(), 72,
+                         "Estimated box size does not match.")
+
+    def testPickingBoxSize(self):
+        # No training mode picking, box size provided by user
+        self._runPickingTest(boxSize=50, objLabel='Picking - Box size provided')
 
     def testPickingValidationGeneral(self):
         # No training mode picking
@@ -313,32 +306,18 @@ class TestCryolo(BaseTest):
 
         # Get model
         model_file_original = protcryolo.getInputModel()
-        model_path, model_file = os.path.split(model_file_original)
-        model_basename = os.path.dirname(model_file)
-        _, model_ext = os.path.splitext(model_file)
-        # Rename it in order to make the protocol not able to find it
-        model_file_test = os.path.join(model_path, model_basename + 'test' + model_ext)
+        model_file_test = pwutils.replaceExt(model_file_original, "h5_test")
         os.rename(model_file_original, model_file_test)
 
-        try:
-            error_msg = protcryolo._validate()
-            test_error_msg = ["Input model file '{}' does not exists.".format(model_file_original),
-                              ("The general model for cryolo must be downloaded from Sphire website and {} " +
-                               "must contain the '{}' parameter pointing to the downloaded file.").format(
-                                  Config.SCIPION_LOCAL_CONFIG, CRYOLO_GENMOD_VAR)]
+        self.assertTrue(protcryolo._validate())
+        os.rename(model_file_test, model_file_original)
 
-            self.assertEqual(error_msg, test_error_msg)
-
-        finally:
-            # Clean-up action: rename the model to its original name
-            os.rename(model_file_test, model_file_original)
-
-    def _runTraining(self, fineTune):
-        self.runImportCoords()
+    def _runTraining(self, fineTune=False):
         # crYOLO training
+        fineTuneStr = "(fine-tune)" if fineTune else ""
         protTraining = self.newProtocol(
             protocols.SphireProtCRYOLOTraining,
-            label='Training 1',
+            objLabel=f"Training {fineTuneStr}",
             inputMicrographs=self.protPreprocess.outputMicrographs,
             inputCoordinates=self.protImportCoords.outputCoordinates,
             boxSize=65,
@@ -347,15 +326,15 @@ class TestCryolo(BaseTest):
             doFineTune=fineTune,
             batchSize=2,
             nb_epochVal=2)
+
+        print(magentaStr(f"\n==> Testing sphire - cryolo training {fineTuneStr}:"))
         self.launchProtocol(protTraining)
+        self.assertIsNotNone(protTraining.outputModel)
 
-        outputModel = getattr(protTraining, 'outputModel', None)
-        self.assertTrue(outputModel is not None)
-
-        # Training mode picking
+        # Picking with a trained model
         protPicking = self.newProtocol(
             protocols.SphireProtCRYOLOPicking,
-            label="Picking after Training 1",
+            objLabel="Picking after training",
             inputMicrographs=self.protPreprocess.outputMicrographs,
             inputModelFrom=INPUT_MODEL_OTHER,
             inputModel=protTraining.outputModel,
@@ -363,10 +342,10 @@ class TestCryolo(BaseTest):
             input_size=750,
             streamingBatchSize=10)
 
+        print(magentaStr(f"\n==> Testing sphire - cryolo picking (after training):"))
         self.launchProtocol(protPicking)
         self.assertSetSize(protPicking.outputCoordinates,
-                           size=5692,  # Size of the output set of crYOLO picking (using the general model)
-                           diffDelta=0.3,  # Diff percentage (base 1) allowed between the set obtained and the test set
+                           size=5916, diffDelta=0.3,
                            msg="There was a problem picking with crYOLO")
 
     def testTraining(self):
@@ -378,54 +357,38 @@ class TestCryolo(BaseTest):
 
 class TestCryoloNegStain(BaseTest):
     """ Test cryolo protocol for negative stain images"""
-
-    @classmethod
-    def setData(cls):
-        cls.ds = DataSet.getDataSet('negative_stain')
-
     @classmethod
     def setUpClass(cls):
-        # Prepare test project
         setupTestProject(cls)
-        # Prepare the test data
-        cls.setData()
-        # Run needed protocols
+        cls.ds = DataSet.getDataSet('negative_stain')
         cls.runImportMicrograph()
 
     @classmethod
     def runImportMicrograph(cls):
-
         """ Run an Import micrograph protocol. """
-        protImport = cls.newProtocol(
+        cls.protImport = cls.newProtocol(
             ProtImportMicrographs,
-            samplingRateMode=0,
-            filesPath=TestCryoloNegStain.ds.getFile('allMics'),
+            filesPath=cls.ds.getFile('allMics'),
             samplingRate=3.54,
             magnification=59000,
             voltage=300,
             sphericalAberration=2)
 
-        cls.launchProtocol(protImport)
-        cls.protImport = protImport
+        print(magentaStr(f"\n==> Importing data - micrographs:"))
+        cls.launchProtocol(cls.protImport)
 
     def testPickingNS(self):
-
-        # Create protocol of the desired type
         protPickingNS = self.newProtocol(protocols.SphireProtCRYOLOPicking,
-                                         label="Picking after Training 1",
+                                         objLabel="Picking on neg. stain mics",
                                          inputMicrographs=self.protImport.outputMicrographs,
                                          inputModelFrom=INPUT_MODEL_GENERAL_NS,
                                          lowPassFilter=False,
                                          conservPickVar=0.2)
 
-        # Set the value of the required attributes
-        protPickingNS.inputMicrographs.set(self.protImport.outputMicrographs)
-
-        # Launch protocol
+        print(magentaStr(f"\n==> Testing sphire - cryolo picking:"))
         self.launchProtocol(protPickingNS)
-
-        # Check results
-        self.assertSetSize(protPickingNS.outputCoordinates, msg="There was a problem picking with crYOLO")
+        self.assertSetSize(protPickingNS.outputCoordinates,
+                           msg="There was a problem picking with crYOLO")
 
 
 class TestCryoloTomo(BaseTest):
@@ -469,7 +432,7 @@ class TestCryoloTomo(BaseTest):
 
             break
 
-        sphireProtCRYOLOTomoPicking = self.newProtocol(SphireProtCRYOLOTomoPicking,
+        sphireProtCRYOLOTomoPicking = self.newProtocol(protocols.SphireProtCRYOLOTomoPicking,
                                                        inputTomograms=protImport.outputTomograms,
                                                        inputModelFrom=INPUT_MODEL_GENERAL,
                                                        lowPassFilter=False)
