@@ -25,26 +25,24 @@
 # *
 # **************************************************************************
 
-import os
-import json
-
 from pwem.protocols import ProtParticlePicking
-import pyworkflow.protocol.constants as cons
 import pyworkflow.protocol.params as params
 import pyworkflow.utils as pwutils
+from pyworkflow.object import Integer
 
 from .. import Plugin
-from ..constants import INPUT_MODEL_GENERAL, CRYOLO_GENMOD_VAR, CRYOLO_GENMOD
 from ..objects import CryoloModel
+from .protocol_base import ProtCryoloBase
 import sphire.convert as convert
 
 
-class SphireProtCRYOLOTraining(ProtParticlePicking):
+class SphireProtCRYOLOTraining(ProtCryoloBase, ProtParticlePicking):
     """ Train crYOLO picker using a set of coordinates.
     """
     _label = 'cryolo training'
     MODEL = 'model.h5'
     TRAIN = ['train_annotations', 'train_images']
+    _IS_TRAIN = True
 
     # -------------------------- DEFINE param functions -----------------------
     def _defineParams(self, form):
@@ -53,106 +51,35 @@ class SphireProtCRYOLOTraining(ProtParticlePicking):
                       pointerClass='SetOfCoordinates',
                       label='Input coordinates', important=True,
                       help='Select the SetOfCoordinates to be used for training.')
-        form.addParam('input_size', params.IntParam, default=1024,
-                      expertLevel=cons.LEVEL_ADVANCED,
-                      label="Input size",
-                      help="crYOLO extracts a patch and rescales to the given "
-                           "input size and uses the resized patch for training.")
-        form.addParam('boxSize', params.IntParam, default=100,
-                      label='Box size (px)',
-                      allowsPointers=True,
-                      help='Box size in pixels. It should be the size of '
-                           'the minimum particle enclosing a square.')
-        form.addParam('doFineTune', params.BooleanParam, default=True,
-                      label='Fine-tune previous model?',
-                      help='Since crYOLO 1.3 you can train a model for your '
-                           'data by fine-tuning the general model.'
-                           'The general model was trained on a lot of particles '
-                           'with a variety of shapes and therefore learned a '
-                           'very good set of generic features.')
-        form.addParam('inputModelFrom', params.EnumParam,
-                      default=INPUT_MODEL_GENERAL,
-                      choices=['general', 'other'],
-                      condition="doFineTune",
-                      display=params.EnumParam.DISPLAY_HLIST,
-                      label='Use previous model: ',
-                      help="You might use a general network model that consists "
-                           "of real, simulated, particle free datasets on "
-                           "various grids with contamination and skip training "
-                           "completely or if you would like to "
-                           "improve the results you can use the model from a "
-                           "previous training step or an imported one.")
-        form.addParam('inputModel', params.PointerParam,
-                      allowsNull=True,
-                      condition=("doFineTune and inputModelFrom!=%d"
-                                 % INPUT_MODEL_GENERAL),
-                      label="Input model",
-                      pointerClass='CryoloModel',
-                      help='Select an existing crYOLO trained model.')
 
-        form.addParam('numCpus', params.IntParam, default=4,
-                      label="Number of CPUs",
-                      help="*Important!* This is different from number of threads "
-                           "above as threads are used for GPU parallelization. "
-                           "Provide here the number of CPU cores for each crYOLO "
-                           "process.")
+        ProtCryoloBase._defineParams(self, form)
 
+        form.addSection(label="Training")
         form.addParam('eFlagParam', params.IntParam, default=10,
-                      expertLevel=cons.LEVEL_ADVANCED,
                       label="Early stop patience",
                       help="The training stops when the 'loss' metric on the "
                            "validation data does not improve 10 times in a row. "
                            "This is typically enough. In case want to give the "
                            "training more time to find the best model you might "
                            "increase this parameters to a higher value (e.g 15).")
-
-        form.addParam('max_box_per_image', params.IntParam, default=700,
-                      expertLevel=cons.LEVEL_ADVANCED,
-                      label="Maximum particles per image",
-                      help="Maximum number of particles in the image. Only for" 
-                           "the memory handling. Keep the default value of 600 "
-                           "or 1000. ")
-
         form.addParam('nb_epochVal', params.IntParam, default=200,
-                      expertLevel=cons.LEVEL_ADVANCED,
                       label="Maximum number of iterations",
                       help="Maximum number of epochs the network will train. "
                            "Basically never reach this number, as crYOLO "
                            "stops training if it recognize that the validation "
                            "loss is not improving anymore.")
-
         form.addParam('learning_rates', params.FloatParam, default=1e-4,
-                      expertLevel=cons.LEVEL_ADVANCED,
                       label="Learning rates",
                       help="If the number is too small convergence can be slow.")
-
-        form.addParam('lowPassFilter', params.BooleanParam,
-                      expertLevel=cons.LEVEL_ADVANCED,
-                      default=False,
-                      label="Low-pass filter",
-                      help="CrYOLO works on original micrographs but the results"
-                           " will be probably improved by the application of a "
-                           "reasonable low-pass filter.")
-
-        form.addParam('absCutOffFreq', params.FloatParam, default=0.1,
-                      expertLevel=cons.LEVEL_ADVANCED,
-                      condition='lowPassFilter',
-                      label="Cut-off frequency",
-                      help="Specifies the absolute cut-off frequency for the "
-                           "low-pass filter.")
-
         form.addParam('batchSize', params.IntParam, default=4,
-                      expertLevel=cons.LEVEL_ADVANCED,
                       label="Batch size",
                       help="The number of images crYOLO process in parallel "
                            "during training.")
 
-        form.addHidden(params.GPU_LIST, params.StringParam, default='0',
-                       expertLevel=cons.LEVEL_ADVANCED,
-                       label="Choose GPU IDs",
-                       help="Provide one or multiple GPU IDs.")
-
         form.addParallelSection(threads=1, mpi=0)
+
+        # Default box size --> 100
+        form.getParam('boxSize').default = Integer(100)
 
     # --------------------------- INSERT steps functions ----------------------
     def _insertAllSteps(self):
@@ -160,10 +87,10 @@ class SphireProtCRYOLOTraining(ProtParticlePicking):
         self._insertFunctionStep(self.createConfigStep)
 
         if self.doFineTune:
-            self._insertFunctionStep(self.cryoloModelingStep,
+            self._insertFunctionStep(self.cryoloTrainingStep,
                                      ' --fine_tune -lft 2')
         else:
-            self._insertFunctionStep(self.cryoloModelingStep)
+            self._insertFunctionStep(self.cryoloTrainingStep)
 
         self._insertFunctionStep(self.createOutputStep)
 
@@ -178,79 +105,32 @@ class SphireProtCRYOLOTraining(ProtParticlePicking):
 
         paths = []
         for d in self.TRAIN:
-            paths.append(self._getWorkDir(d))
+            paths.append(self._getExtraPath(d))
             pwutils.makePath(paths[-1])
 
         micList = [mic.clone() for mic in inputMics]
         convert.writeSetOfCoordinates(paths[0], coordSet, micList)
         convert.convertMicrographs(micList, paths[1])
 
-    def createConfigStep(self):
-        inputSize = convert.roundInputSize(self.input_size.get())
-        boxSize = self.boxSize.get()
-        maxBoxPerImage = self.max_box_per_image.get()
-        absCutOfffreq = self.absCutOffFreq.get()
-
-        model = {"architecture": "PhosaurusNet",
-                 "input_size": inputSize,
-                 "anchors": [boxSize, boxSize],
-                 "max_box_per_image": maxBoxPerImage,
-                 "norm": "STANDARD",
-                 }
-
+    def cryoloTrainingStep(self, extraArgs=''):
+        params = " -c config.json"
+        params += " -w %d" % (0 if self.doFineTune else 5)
+        params += " -g %(GPU)s"
+        params += " -nc %d" % self.numCpus.get()
+        params += " -e %d" % self.eFlagParam
         if self.lowPassFilter:
-            model.update({
-                "filter": [absCutOfffreq, '../tmp/filtered']
-            })
+            params += " --cleanup"
+        params += extraArgs
 
-        pretrainedModel = self.getInputModel() if self.doFineTune else self.MODEL
+        Plugin.runCryolo(self, 'cryolo_train.py', params,
+                         cwd=self._getExtraPath())
 
-        train = {"train_image_folder": f"{self.TRAIN[1]}/",
-                 "train_annot_folder": f"{self.TRAIN[0]}/",
-                 "train_times": 10,
-                 "pretrained_weights": pretrainedModel,
-                 "batch_size": self.batchSize.get(),
-                 "learning_rate": self.learning_rates.get(),
-                 "nb_epoch": self.nb_epochVal.get(),
-                 "object_scale": 5.0,
-                 "no_object_scale": 1.0,
-                 "coord_scale": 1.0,
-                 "class_scale": 1.0,
-                 "log_path": "logs/",
-                 "saved_weights_name": self.MODEL,
-                 "debug": True
-                 }
-
-        valid = {"valid_image_folder": "",
-                 "valid_annot_folder": "",
-                 "valid_times": 1
-                 }
-
-        jsonDict = {"model": model, "train": train, "valid": valid}
-
-        with open(self._getWorkDir('config.json'), 'w') as fp:
-            json.dump(jsonDict, fp, indent=4)
+        pwutils.moveFile(self._getExtraPath(self.MODEL),
+                         self.getOutputModelPath())
 
     def createOutputStep(self):
         """ Register the output model. """
         self._defineOutputs(outputModel=CryoloModel(self.getOutputModelPath()))
-
-    def runCryoloTrain(self, warmups, extraArgs=''):
-        params = " -c config.json"
-        params += " -w %d" % warmups
-        params += " -g %(GPU)s"
-        params += " -nc %d" % self.numCpus.get()
-        params += " -e %d " % self.eFlagParam
-        if self.lowPassFilter:
-            params += " --cleanup"
-        params += extraArgs
-        Plugin.runCryolo(self, 'cryolo_train.py', params,
-                         cwd=self._getWorkDir())
-
-    def cryoloModelingStep(self, extraArgs=''):
-        warmups = 0 if self.doFineTune else 5
-        self.runCryoloTrain(warmups, extraArgs=extraArgs)
-        pwutils.moveFile(self._getWorkDir(self.MODEL), self.getOutputModelPath())
 
     # --------------------------- INFO functions ------------------------------
     def _summary(self):
@@ -260,42 +140,22 @@ class SphireProtCRYOLOTraining(ProtParticlePicking):
             summary.append(f"Fine-tuning using "
                            f"{self.getEnumText('inputModelFrom')} model: "
                            f"{self.getInputModel()}")
+        else:
+            summary.append("Training a new model from scratch")
 
         return summary
 
     def _validate(self):
-        validateMsgs = []
-
-        if self.numberOfThreads.get() < len(self.getGpuList()):
-            validateMsgs.append("Multiple GPUs can not be used by a single process. "
-                                "Make sure you specify more threads than GPUs.")
+        validateMsgs = ProtCryoloBase._validate(self)
 
         if self.inputCoordinates.get() is None:
-            validateMsgs.append("Please select a set of coordinates, obtained"
-                                " from a previous picking run. Typically the "
+            validateMsgs.append("Please select a set of coordinates, obtained "
+                                "from a previous picking run. Typically the "
                                 "coordinates from ~ 10 micrographs is "
                                 "a good start.")
 
-        if not os.path.exists(self.getInputModel()):
-            validateMsgs.append(f"Input model file {self.getInputModel()} does not exist.")
-            if self.inputModelFrom == INPUT_MODEL_GENERAL:
-                    validateMsgs.append(f"Check your config or run scipion installb {CRYOLO_GENMOD}")
-
         return validateMsgs
 
-    def _citations(self):
-        cites = ['Wagner2019']
-        return cites
-
     # -------------------------- UTILS functions ------------------------------
-    def _getWorkDir(self, *paths):
-        return self._getExtraPath(*paths)
-
     def getOutputModelPath(self):
         return self._getPath(self.MODEL)
-
-    def getInputModel(self):
-        if self.inputModelFrom == INPUT_MODEL_GENERAL:
-            return Plugin.getModelFn(CRYOLO_GENMOD_VAR)
-        else:
-            return os.path.abspath(self.inputModel.get().getPath())

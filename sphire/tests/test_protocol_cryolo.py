@@ -82,7 +82,8 @@ _Confidence #5
 
             return coordsOut
 
-        coordsIn = [(100, 100, 0.), (100, 200, 0.), (200, 100, 0.), (200, 200, 0.)]
+        coordsIn = [(100, 100, 0.), (100, 200, 0.),
+                    (200, 100, 0.), (200, 200, 0.)]
 
         # Case 1: No flip
         coordsOut = _convert(coordsIn)
@@ -107,7 +108,8 @@ _Confidence #5
         # Invoke the createMic function
         convert.convertMicrographs([mic], micDir)
         print(os.path.join(micDir, convert.getMicIdName(mic, '.mrc')))
-        expectedDest = os.path.join(micDir, convert.getMicIdName(mic, suffix='.mrc'))
+        expectedDest = os.path.join(micDir,
+                                    convert.getMicIdName(mic, suffix='.mrc'))
 
         # If ext is not in [".mrc", ".tif", ".jpg"] return .mrc
         self.assertTrue(os.path.exists(expectedDest),
@@ -115,7 +117,6 @@ _Confidence #5
 
     def testWriteSetOfCoordinatesWithoutFlip(self):
         from collections import OrderedDict
-
         # Define a temporary sqlite file for micrographs
         fn = self.getOutputPath('convert_mics.sqlite')
         mics = emobj.SetOfMicrographs(filename=fn)
@@ -173,8 +174,6 @@ _Confidence #5
         self.assertEquals(box1[1], '964')
 
     def testFlipAssessment(self):
-        """ Test the method used to """
-
         mrcFile = self.ds.getFile('micrographs/006.mrc')
 
         # test wrong ispg value (0) in mrc file

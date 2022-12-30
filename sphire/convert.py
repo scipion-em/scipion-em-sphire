@@ -173,7 +173,6 @@ def readSetOfCoordinates3D(tomogram, coord3DSetDict, coordsFile, boxSize,
         coord.setObjId(None)
         coord.setVolume(tomogram)
         coord.setPosition(x, y, z, origin)
-        # Add it to the set
         coord3DSet.append(coord)
 
 
