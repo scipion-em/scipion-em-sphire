@@ -73,7 +73,7 @@ class SphireProtCRYOLOPicking(ProtCryoloBase, ProtParticlePickingAuto):
 
     # --------------------------- INSERT steps functions ----------------------
     def _insertInitialSteps(self):
-        return self._insertFunctionStep(self.createConfigStep)
+        self._insertFunctionStep(self.createConfigStep)
 
     # --------------------------- STEPS functions -----------------------------
     def _pickMicrograph(self, micrograph, *args):
@@ -138,10 +138,10 @@ class SphireProtCRYOLOPicking(ProtCryoloBase, ProtParticlePickingAuto):
         coord._cryoloScore = emobj.Float()
 
         for mic in micDoneList:
-            cboxFile = convert.getMicIdName(mic, suffix='.cbox')
+            cboxFile = convert.getMicFn(mic, "cbox")
             coordsFile = self._getExtraPath(cboxFile)
             if os.path.exists(coordsFile):
-                for x, y, score in reader.iterCoords(coordsFile):
+                for x, y, z, score in reader.iterCoords(coordsFile):
                     # Clean up objId to add as a new coordinate
                     coord.setObjId(None)
                     coord.setPosition(x, y)

@@ -25,11 +25,10 @@
 # **************************************************************************
 
 import os
-import glob
 
 import pyworkflow.utils as pwutils
 from pyworkflow import BETA
-from pyworkflow.object import Boolean, Integer
+from pyworkflow.object import Integer, Float
 
 from tomo.objects import SetOfCoordinates3D
 from tomo.protocols import ProtTomoPicking
@@ -45,7 +44,7 @@ class SphireProtCRYOLOTomoPicking(ProtCryoloBase, ProtTomoPicking):
     """ Picks particles in a set of tomograms.
     """
     _label = 'cryolo tomo picking'
-    boxSizeEstimated = Boolean(False)
+    boxSizeEstimated = False
     _devStatus = BETA
     _possibleOutputs = {'output3DCoordinates': SetOfCoordinates3D}
 
@@ -61,6 +60,8 @@ class SphireProtCRYOLOTomoPicking(ProtCryoloBase, ProtTomoPicking):
 
         # Default box size --> 50
         form.getParam('boxSize').default = Integer(50)
+        # Default lowpass --> 0.3
+        form.getParam('absCutOffFreq').default = Float(0.3)
 
     def _insertAllSteps(self):
         self._insertFunctionStep(self.createConfigStep)
@@ -70,7 +71,8 @@ class SphireProtCRYOLOTomoPicking(ProtCryoloBase, ProtTomoPicking):
     # -------------------------- STEPS functions ------------------------------
     def pickTomogramsStep(self):
         """This function picks from a given set of Tomograms"""
-        tomogramsList = self.inputTomograms.get()
+        inputTomos = self.inputTomograms.get()
+        tomogramsList = [t.clone() for t in inputTomos.iterItems()]
 
         tomogramsDir = self._getTmpPath("tomograms")
         outputDir = self._getExtraPath()
@@ -78,8 +80,7 @@ class SphireProtCRYOLOTomoPicking(ProtCryoloBase, ProtTomoPicking):
         pwutils.makePath(tomogramsDir)
 
         # Create folder with linked tomograms
-        for tomogram in tomogramsList:
-            convert.convertTomograms([tomogram], tomogramsDir)
+        convert.convertMicrographs(tomogramsList, tomogramsDir)
 
         args = "-c %s" % self._getExtraPath('config.json')
         args += " -w %s" % self.getInputModel()
@@ -111,30 +112,29 @@ class SphireProtCRYOLOTomoPicking(ProtCryoloBase, ProtTomoPicking):
         setOfCoord3D.setBoxSize(self.boxSize.get())
 
         for tomogram in setOfTomograms.iterItems():
-            outFile = '%s%05d%s' % (pwutils.removeBaseExt(tomogram.getFileName()),
-                                    tomogram.getObjId(), '.cbox')
-            pattern = os.path.join(outputPath, outFile)
-            files = glob.glob(pattern)
-
-            if not files or not os.path.isfile(files[0]):
-                continue
-
             coord3DSetDict[tomogram.getObjId()] = setOfCoord3D
 
-            # Populate Set of 3D Coordinates
-            filePath = os.path.join(outputPath, outFile)
-            tomogramClone = tomogram.clone()
-            tomogramClone.copyInfo(tomogram)
-            convert.readSetOfCoordinates3D(tomogramClone, coord3DSetDict, filePath,
-                                           self.boxSize.get(),
-                                           origin=tomoConst.BOTTOM_LEFT_CORNER)
-            name = self.OUTPUT_PREFIX + suffix
-            args = {}
-            args[name] = setOfCoord3D
-            self._defineOutputs(**args)
-            self._defineSourceRelation(setOfTomograms, setOfCoord3D)
+            filePath = os.path.join(outputPath, convert.getMicFn(tomogram, "cbox"))
+            if os.path.exists(filePath):
+                tomogramClone = tomogram.clone()
+                tomogramClone.copyInfo(tomogram)
+                convert.readSetOfCoordinates3D(tomogramClone, coord3DSetDict, filePath,
+                                               self.boxSize.get(),
+                                               origin=tomoConst.BOTTOM_LEFT_CORNER)
+                name = self.OUTPUT_PREFIX + suffix
+                self._defineOutputs(**{name: setOfCoord3D})
+                self._defineSourceRelation(setOfTomograms, setOfCoord3D)
 
-            # Update Outputs
-            for index, coord3DSet in coord3DSetDict.items():
-                self._updateOutputSet(name, coord3DSet,
-                                      state=coord3DSet.STREAM_CLOSED)
+                # Update Outputs
+                for index, coord3DSet in coord3DSetDict.items():
+                    self._updateOutputSet(name, coord3DSet,
+                                          state=coord3DSet.STREAM_CLOSED)
+
+    # --------------------------- INFO functions ------------------------------
+    def _validate(self):
+        validateMsgs = ProtCryoloBase._validate(self)
+
+        if self.boxSize.get() == 0:
+            validateMsgs.append("Box size cannot be 0 for tomo picking")
+
+        return validateMsgs

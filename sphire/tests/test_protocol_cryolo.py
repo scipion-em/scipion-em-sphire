@@ -73,7 +73,7 @@ _Confidence #5
             writer = convert.CoordBoxWriter(boxSize, yFlipHeight=yFlipHeight)
             writer.open(tmpFile)
             writer._file.write(HEADER)  # required for cbox
-            for x, y, _ in coordsIn:
+            for x, y, _, _ in coordsIn:
                 writer.writeCoord(emobj.Coordinate(x=x, y=y))
             writer.close()
 
@@ -82,8 +82,8 @@ _Confidence #5
 
             return coordsOut
 
-        coordsIn = [(100, 100, 0.), (100, 200, 0.),
-                    (200, 100, 0.), (200, 200, 0.)]
+        coordsIn = [(100, 100, 0., 0.), (100, 200, 0., 0.),
+                    (200, 100, 0., 0.), (200, 200, 0., 0.)]
 
         # Case 1: No flip
         coordsOut = _convert(coordsIn)
@@ -107,9 +107,9 @@ _Confidence #5
         mic = emobj.Micrograph(objId=1, location=spiMic)
         # Invoke the createMic function
         convert.convertMicrographs([mic], micDir)
-        print(os.path.join(micDir, convert.getMicIdName(mic, '.mrc')))
         expectedDest = os.path.join(micDir,
-                                    convert.getMicIdName(mic, suffix='.mrc'))
+                                    convert.getMicFn(mic, "mrc"))
+        print(expectedDest)
 
         # If ext is not in [".mrc", ".tif", ".jpg"] return .mrc
         self.assertTrue(os.path.exists(expectedDest),
@@ -157,16 +157,16 @@ _Confidence #5
         # Assert output of writesetofcoordinates
         for mic in micList:
             boxFile = os.path.join(boxFolder,
-                                   convert.getMicIdName(mic, suffix='.box'))
+                                   convert.getMicFn(mic, "box"))
             self.assertTrue(os.path.exists(boxFile),
                             'Missing box file: %s' % boxFile)
             micFile = os.path.join(micFolder,
-                                   convert.getMicIdName(mic, suffix='.mrc'))
+                                   convert.getMicFn(mic, "mrc"))
             self.assertTrue(os.path.exists(micFile),
                             'Missing box file: %s' % micFile)
 
         # Assert coordinates in box files
-        fh = open(os.path.join(boxFolder, 'mic00001.box'))
+        fh = open(os.path.join(boxFolder, '006.box'))
         box1 = fh.readline()
         fh.close()
         box1 = box1.split('\t')
@@ -410,35 +410,25 @@ class TestCryoloTomo(BaseTest):
             acquisitionAngleMax=40,
             acquisitionAngleMin=-40,
             samplingRate=1.35)
+
+        print(magentaStr(f"\n==> Importing data - tomograms:"))
         cls.launchProtocol(protImport)
         return protImport
 
     def test_pickingTomograms(self):
         protImport = self._runImportTomograms()
-        output = getattr(protImport, 'outputTomograms', None)
-        self.assertIsNotNone(output,
+        self.assertIsNotNone(protImport.outputTomograms,
                              "There was a problem with Import Tomograms protocol")
-
-        for tomogram in protImport.outputTomograms.iterItems():
-            self.assertTrue(tomogram.getXDim() == 1024,
-                            "There was a problem with Import Tomograms protocol")
-            self.assertIsNotNone(tomogram.getYDim() == 1024,
-                                 "There was a problem with Import Tomograms protocol")
-            self.assertTrue(tomogram.getAcquisition().getAngleMax() == 40,
-                            "There was a problem with the acquisition angle max")
-            self.assertTrue(tomogram.getAcquisition().getAngleMin() == -40,
-                            "There was a problem with the acquisition angle min")
-
-            break
 
         sphireProtCRYOLOTomoPicking = self.newProtocol(protocols.SphireProtCRYOLOTomoPicking,
                                                        inputTomograms=protImport.outputTomograms,
                                                        inputModelFrom=INPUT_MODEL_GENERAL,
                                                        lowPassFilter=False)
 
+        print(magentaStr(f"\n==> Testing sphire - cryolo tomo picking:"))
         self.launchProtocol(sphireProtCRYOLOTomoPicking)
         self.assertIsNotNone(sphireProtCRYOLOTomoPicking.output3DCoordinates,
-                             "There was a problem with Import Tomograms protocol")
+                             "There was a problem with tomo picking protocol")
         self.assertTrue(sphireProtCRYOLOTomoPicking.output3DCoordinates.getSize() > 0,
-                        "There was a problem with the coordinate size")
+                        "There was a problem with tomo picking protocol")
         return sphireProtCRYOLOTomoPicking

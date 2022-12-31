@@ -88,7 +88,8 @@ class CoordBoxReader:
         for row in Table.iterRows(filename, tableName='cryolo'):
             x = row.CoordinateX
             y = row.CoordinateY
-            score = row.Confidence
+            z = row.get("CoordinateZ", 0.0)
+            score = row.get("Confidence", 0.0)
 
             if not self._boxSizeEstimated:
                 x += self._halfBox
@@ -96,30 +97,12 @@ class CoordBoxReader:
 
             sciX = round(x)
             sciY = round(y)
+            sciZ = round(z) if not isinstance(z, str) else 0  # avoid <NA> values
 
             if self._yFlipHeight is not None:
                 sciY = self._yFlipHeight - sciY
 
-            yield sciX, sciY, score
-
-    def iter3DCoords(self, filename):
-        for row in Table.iterRows(filename, tableName='cryolo'):
-            x = row.CoordinateX
-            y = row.CoordinateY
-            z = row.CoordinateZ
-
-            if not self._boxSizeEstimated:
-                x += self._halfBox
-                y += self._halfBox
-
-            sciX = round(x)
-            sciY = round(y)
-            sciZ = round(z)
-
-            if self._yFlipHeight is not None:
-                sciY = self._yFlipHeight - sciY
-
-            yield sciX, sciY, sciZ
+            yield sciX, sciY, sciZ, score
 
 
 def writeSetOfCoordinates(boxDir, coordSet, micList=None):
@@ -151,7 +134,7 @@ def writeSetOfCoordinates(boxDir, coordSet, micList=None):
         if micId != lastMicId:
             doWrite = micId in micIdSet
             if doWrite:
-                writer.open(os.path.join(boxDir, getMicIdName(mic, suffix='.box')))
+                writer.open(os.path.join(boxDir, getMicFn(mic, "box")))
             lastMicId = micId
 
         if doWrite:
@@ -168,7 +151,7 @@ def readSetOfCoordinates3D(tomogram, coord3DSetDict, coordsFile, boxSize,
 
     coord = Coordinate3D()
 
-    for x, y, z in reader.iter3DCoords(coordsFile):
+    for x, y, z, _ in reader.iterCoords(coordsFile):
         # Clean up objId to add as a new coordinate
         coord.setObjId(None)
         coord.setVolume(tomogram)
@@ -193,7 +176,7 @@ def getFlipYHeight(filename):
     return y if needToFlipOnY(filename) else None
 
 
-def convertMicrographs(micList, micDir, prefix='mic'):
+def convertMicrographs(micList, micDir):
     """ Convert (or simply link) input micrographs into the given directory
     in a format that is compatible with crYOLO.
     """
@@ -214,17 +197,12 @@ def convertMicrographs(micList, micDir, prefix='mic'):
         ext = '.mrc'
 
     for mic in micList:
-        func(mic, getMicIdName(mic, prefix=prefix, suffix=ext))
+        func(mic, getMicFn(mic, ext.lstrip(".")))
 
 
-def convertTomograms(micList, micDir):
-    prefix = pwutils.removeBaseExt(micList[0].getFileName())
-    convertMicrographs(micList, micDir, prefix=prefix)
-
-
-def getMicIdName(mic, prefix='mic', suffix=''):
-    """ Return a name for the micrograph based on its IDs. """
-    return '%s%05d%s' % (prefix, mic.getObjId(), suffix)
+def getMicFn(mic, ext='mrc'):
+    """ Return a name for the micrograph based on its filename. """
+    return pwutils.replaceBaseExt(mic.getFileName(), ext)
 
 
 def roundInputSize(inputSize):
