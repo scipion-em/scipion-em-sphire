@@ -29,6 +29,7 @@ import os
 import pyworkflow.utils as pwutils
 from pyworkflow import BETA
 from pyworkflow.object import Integer, Float
+import pyworkflow.protocol.params as params
 
 from tomo.objects import SetOfCoordinates3D
 from tomo.protocols import ProtTomoPicking
@@ -44,7 +45,6 @@ class SphireProtCRYOLOTomoPicking(ProtCryoloBase, ProtTomoPicking):
     """ Picks particles in a set of tomograms.
     """
     _label = 'cryolo tomo picking'
-    boxSizeEstimated = False
     _devStatus = BETA
     _possibleOutputs = {'output3DCoordinates': SetOfCoordinates3D}
 
@@ -55,6 +55,21 @@ class SphireProtCRYOLOTomoPicking(ProtCryoloBase, ProtTomoPicking):
     def _defineParams(self, form):
         ProtTomoPicking._defineParams(self, form)
         ProtCryoloBase._defineParams(self, form)
+
+        form.addSection(label="Tracing")
+        form.addParam('searchRange', params.IntParam, default=-1,
+                      label="Search range (px)",
+                      help="Search range in pixel. On default it will "
+                           "choose 25 percent of the box size (default: -1).")
+        form.addParam('minLength', params.IntParam, default=5,
+                      label="Minimum length",
+                      help="The minimum number of boxes in one trace to be "
+                           "considered as valid particle (default: 5).")
+        form.addParam('memory', params.IntParam, default=0,
+                      label="Tracing memory",
+                      help="The maximum number of frames during which a "
+                           "particle can vanish, then reappear nearby, "
+                           "and be considered the same particle (default: 0).")
 
         form.addParallelSection(threads=1, mpi=1)
 
@@ -89,6 +104,9 @@ class SphireProtCRYOLOTomoPicking(ProtCryoloBase, ProtTomoPicking):
         args += " -t %0.3f" % self.conservPickVar
         args += " -nc %d" % self.numCpus.get()
         args += " --tomogram"
+        args += " -tsr %d" % self.searchRange.get()
+        args += " -tmem %d" % self.memory.get()
+        args += " -tmin %d" % self.minLength.get()
 
         if not self.usingCpu():
             args += " -g %(GPU)s"  # Add GPU that will be set by the executor
@@ -109,7 +127,13 @@ class SphireProtCRYOLOTomoPicking(ProtCryoloBase, ProtTomoPicking):
         setOfCoord3D.setName("tomoCoord")
         setOfCoord3D.setPrecedents(setOfTomograms)
         setOfCoord3D.setSamplingRate(setOfTomograms.getSamplingRate())
-        setOfCoord3D.setBoxSize(self.boxSize.get())
+
+        if self.boxSize.get():  # Box size can be provided by the user
+            boxSize = self.boxSize.get()
+        else:  # If not crYOLO estimates it
+            boxSize = self.getEstimatedBoxSize(self._getExtraPath('DISTR'))
+
+        setOfCoord3D.setBoxSize(boxSize)
 
         for tomogram in setOfTomograms.iterItems():
             coord3DSetDict[tomogram.getObjId()] = setOfCoord3D
@@ -119,7 +143,7 @@ class SphireProtCRYOLOTomoPicking(ProtCryoloBase, ProtTomoPicking):
                 tomogramClone = tomogram.clone()
                 tomogramClone.copyInfo(tomogram)
                 convert.readSetOfCoordinates3D(tomogramClone, coord3DSetDict, filePath,
-                                               self.boxSize.get(),
+                                               boxSize,
                                                origin=tomoConst.BOTTOM_LEFT_CORNER)
                 name = self.OUTPUT_PREFIX + suffix
                 self._defineOutputs(**{name: setOfCoord3D})
@@ -129,12 +153,3 @@ class SphireProtCRYOLOTomoPicking(ProtCryoloBase, ProtTomoPicking):
                 for index, coord3DSet in coord3DSetDict.items():
                     self._updateOutputSet(name, coord3DSet,
                                           state=coord3DSet.STREAM_CLOSED)
-
-    # --------------------------- INFO functions ------------------------------
-    def _validate(self):
-        validateMsgs = ProtCryoloBase._validate(self)
-
-        if self.boxSize.get() == 0:
-            validateMsgs.append("Box size cannot be 0 for tomo picking")
-
-        return validateMsgs

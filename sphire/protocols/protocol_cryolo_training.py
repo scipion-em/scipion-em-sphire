@@ -50,7 +50,10 @@ class SphireProtCRYOLOTraining(ProtCryoloBase, ProtParticlePicking):
         form.addParam('inputCoordinates', params.PointerParam,
                       pointerClass='SetOfCoordinates',
                       label='Input coordinates', important=True,
-                      help='Select the SetOfCoordinates to be used for training.')
+                      help="Please select a set of coordinates, obtained "
+                           "from a previous picking run. Typically the "
+                           "coordinates from ~ 10 micrographs is "
+                           "a good start.")
 
         ProtCryoloBase._defineParams(self, form)
 
@@ -144,17 +147,6 @@ class SphireProtCRYOLOTraining(ProtCryoloBase, ProtParticlePicking):
             summary.append("Training a new model from scratch")
 
         return summary
-
-    def _validate(self):
-        validateMsgs = ProtCryoloBase._validate(self)
-
-        if self.inputCoordinates.get() is None:
-            validateMsgs.append("Please select a set of coordinates, obtained "
-                                "from a previous picking run. Typically the "
-                                "coordinates from ~ 10 micrographs is "
-                                "a good start.")
-
-        return validateMsgs
 
     # -------------------------- UTILS functions ------------------------------
     def getOutputModelPath(self):

@@ -25,6 +25,7 @@
 # **************************************************************************
 
 import json
+from glob import glob
 
 import pyworkflow.protocol.params as params
 import pyworkflow.protocol.constants as cons
@@ -296,3 +297,26 @@ class ProtCryoloBase(EMProtocol):
             m = os.path.abspath(self.inputModel.get().getPath())
 
         return m
+
+    def getEstimatedBoxSize(self, path):
+        sizeSummaryFilePattern = os.path.join(path,
+                                              'size_distribution_summary*.txt')
+        boxSize = None
+        try:
+            distrSummaryFile = glob(sizeSummaryFilePattern)[0]
+            with open(distrSummaryFile) as f:
+                for line in f:
+                    if line.startswith("MEAN,"):
+                        boxSize = int(line.split(",")[-1])
+                        break
+            if not boxSize:
+                raise ValueError
+
+            return boxSize
+
+        except IndexError:
+            raise Exception(f'File not found:\n{sizeSummaryFilePattern}')
+        except ValueError:
+            raise Exception(f'Boxsize not found in file:\n{f.name}')
+        except Exception as e:
+            raise e

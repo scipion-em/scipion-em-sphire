@@ -117,7 +117,7 @@ class SphireProtCRYOLOPicking(ProtCryoloBase, ProtParticlePickingAuto):
             if self.boxSize.get():  # Box size can be provided by the user
                 boxSize = self.boxSize.get()
             else:  # If not crYOLO estimates it
-                boxSize = self._getEstimatedBoxSize()
+                boxSize = self.getEstimatedBoxSize(self._getTmpPath('micrographs_*/DISTR'))
 
                 if self.boxSizeFactor.get() != 1:
                     boxSize = int(boxSize * self.boxSizeFactor.get())
@@ -167,26 +167,3 @@ class SphireProtCRYOLOPicking(ProtCryoloBase, ProtParticlePickingAuto):
         if len(micList) > 1:
             wd += '-%s' % micList[-1].strId()
         return wd
-
-    def _getEstimatedBoxSize(self):
-        sizeSummaryFilePattern = self._getTmpPath('micrographs_*/DISTR',
-                                                  'size_distribution_summary*.txt')
-        boxSize = None
-        try:
-            distrSummaryFile = glob(sizeSummaryFilePattern)[0]
-            with open(distrSummaryFile) as f:
-                for line in f:
-                    if line.startswith("MEAN,"):
-                        boxSize = int(line.split(",")[-1])
-                        break
-            if not boxSize:
-                raise ValueError
-
-            return boxSize
-
-        except IndexError:
-            raise Exception(f'File not found:\n{sizeSummaryFilePattern}')
-        except ValueError:
-            raise Exception(f'Boxsize not found in file:\n{f.name}')
-        except Exception as e:
-            raise e
