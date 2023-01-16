@@ -30,13 +30,13 @@ import pyworkflow.utils as pwutils
 import pyworkflow.protocol.params as params
 from pwem.protocols import ProtImport
 
-from sphire.objects import CryoloModel
+from ..objects import CryoloModel
 
 
 class SphireProtCryoloImport(ProtImport):
     """ Protocol to import an existing crYOLO training model.
     The model will be registered as an output of this protocol and
-    it can be used later for further training or for picking.
+    can be used later for further training or picking.
     """
     _label = 'cryolo import'
 
@@ -46,11 +46,11 @@ class SphireProtCryoloImport(ProtImport):
         form.addParam('modelPath', params.PathParam,
                       label="Training model path",
                       help="Provide the path of a previous crYOLO training "
-                           "model. ")
+                           "model.")
 
     # --------------------------- INSERT steps functions ----------------------
     def _insertAllSteps(self):
-        self._insertFunctionStep("importModelStep")
+        self._insertFunctionStep(self.importModelStep)
 
     # --------------------------- STEPS functions -----------------------------
     def importModelStep(self):
@@ -64,7 +64,7 @@ class SphireProtCryoloImport(ProtImport):
                   "%s -> %s" % (outputPath, absPath))
         self.info("NOTE: If you move this project to another computer, the symbolic"
                   "link to the model will be broken, but you can update the link "
-                  "and get it working again. ")
+                  "and get it working again.")
 
         pwutils.createAbsLink(absPath, outputPath)
 

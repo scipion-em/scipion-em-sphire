@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # **************************************************************************
 # *
 # * Authors:     Jorge Jiménez (jjimenez@cnb.csic.es)
@@ -24,96 +23,79 @@
 # *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
-import glob
+
 import os
-from os.path import basename, exists, join
+from os.path import basename, exists
+import logging
+logger = logging.getLogger(__name__)
 
-from pyworkflow.protocol import params, ValidationException, LEVEL_ADVANCED
-from pyworkflow.utils import moveFile, createLink
-from pyworkflow.utils.properties import Message
+
+from pyworkflow.protocol import params, ValidationException
+from pyworkflow.utils import moveTree, createLink, Message
 from pwem.protocols import ProtMicrographs
-from sphire import Plugin
 
-"""
-This module implements the denoising functionality of Sphire-Janni 
-software within Scipion framework
-"""
+from .. import Plugin
+from ..constants import JANNI_GENMOD_VAR, JANNI_GENMOD
 
 
 class SphireProtJanniDenoising(ProtMicrographs):
-    """ Protocol to denoise a set of micrographs in the project.
-    """
+    """ Protocol to denoise a set of micrographs. """
     _label = 'janni denoising'
-    _input_path = ""
-    _output_path = ""
-    _some_mics_failed = ""
+
+    def __init__(self, **kwargs):
+        ProtMicrographs.__init__(self, **kwargs)
+        self._some_mics_failed = None
 
     # -------------------------- DEFINE param functions -----------------------
     def _defineParams(self, form):
-        """ Define the input parameters that will be used.
-        Params:
-            form: this is the form to be populated with sections and params.
-        """
-        # Create inputs section in the generated pop-up window:
         form.addSection(label=Message.LABEL_INPUT)
-        form.addParam('inputMicrographs',  # Variable name
-                      params.PointerParam,  # Variable type
+        form.addHidden(params.GPU_LIST, params.StringParam,
+                       default='0',
+                       label="Choose GPU ID",
+                       help="JANNI works on a single GPU.")
+        form.addParam('inputMicrographs',
+                      params.PointerParam,
                       pointerClass='SetOfMicrographs',
-                      label='Input Micrographs',
-                      important=True,
-                      help='Path of the directory which contains '
-                           'the images to denoise.')
-
-        form.addHidden(params.GPU_LIST, params.StringParam, default='0',
-                       expertLevel=LEVEL_ADVANCED,
-                       label="Choose GPU IDs")
-
-        form.addParallelSection(threads=1, mpi=1)
+                      label='Input micrographs')
 
     # --------------------------- STEPS functions -----------------------------
     def _insertAllSteps(self):
-        # Insert processing steps
-        self._insertFunctionStep('denoisingStep')
-        self._insertFunctionStep('createOutputStep')
+        self._insertFunctionStep(self.denoisingStep)
+        self._insertFunctionStep(self.createOutputStep)
 
     def denoisingStep(self):
-
         input_mics = self.inputMicrographs.get()
-        # Create links to the movies desired to denoise in tmp folder (subset case, janni only accepts directories
-        # and work with all the files contained in them)
+        # Create links to the movies desired to denoise in tmp folder
+        # janni only accepts directories
         for mic in input_mics:
             micName = mic.getFileName()
-            createLink(mic.getFileName(), self._getTmpPath(basename(micName)))
+            createLink(micName, self._getTmpPath(basename(micName)))
 
-        args = "denoise {}/ {}/ {}".format(self._getTmpPath(),
-                                           self._getTmpPath(),
-                                           self.getInputModel())
-        Plugin.runCryolo(self, 'janni_denoise.py', args)
-        # Move the resulting denoised files to the extra folder
-        [moveFile(file, self._getExtraPath(basename(file))) for file in
-         glob.glob(self._getTmpPath(join('tmp', '*.mrc')))]
+        args = [
+            f"denoise -g {self.gpuList.get()}",
+            f"{self._getTmpPath()}/",
+            f"{self._getTmpPath()}/",
+            f"{self.getInputModel()}"
+        ]
+        Plugin.runCryolo(self, 'janni_denoise.py', " ".join(args))
+
+        # Move the output to the extra folder
+        moveTree(self._getTmpPath("tmp"), self._getExtraPath())
 
     def createOutputStep(self):
-        in_mics = self.inputMicrographs.get()  # Get input set of micrographs
-        out_mics = self._createSetOfMicrographs()  # Create an empty set of micrographs
-        out_mics.copyInfo(in_mics)  # Copy all the info of the inputs,
-        # then the filename attribute will be edited with
-        # the path of the output files
+        in_mics = self.inputMicrographs.get()
+        out_mics = self._createSetOfMicrographs()
+        out_mics.copyInfo(in_mics)
 
-        # Update micrograph name and append to the new Set
         n_failed_mics = 0
         for mic in in_mics:
-            # current_out_mic = self._getOutputMicrograph(mic)
             current_out_mic = self._getExtraPath(basename(mic.getFileName()))
             if exists(current_out_mic):
                 mic.setFileName(current_out_mic)
                 out_mics.append(mic)
-
             else:
                 n_failed_mics += 1
-                print("Denoised mic wasn't correctly generated --> {}",
-                      mic.getFileName())
-                continue
+                logger.error(f"Failed to process the micrograph: {mic.getFileName()}")
 
         # Check if the output list is empty
         if n_failed_mics > 0:
@@ -121,52 +103,40 @@ class SphireProtJanniDenoising(ProtMicrographs):
             if n_failed_mics == n_mics_in:
                 raise ValidationException("No output micrographs were generated.")
             else:
-                _some_mics_failed = "{} of {} micrographs weren't correctly processed. "\
-                                    "Please check the log for more " \
-                                    "details".format(n_failed_mics, n_mics_in)
+                self._some_mics_failed = (f"{n_failed_mics} of {n_mics_in} micrographs "
+                                          "weren't correctly processed. "
+                                          "Please check the log for more details")
 
         self._defineOutputs(outputMicrographs=out_mics)
         self._defineTransformRelation(self.inputMicrographs, out_mics)
 
     # --------------------------- INFO functions ------------------------------
     def _summary(self):
-        """ Summarize what the protocol has done"""
         summary = []
 
         if self.isFinished():
-            summary.append("Denoising using general model: {}".format(self.getInputModel()))
-            summary.append("Micrographs processed: {}".format(self.outputMicrographs.getSize()))
+            summary.append(f"Denoising using model: {self.getInputModel()}")
+            summary.append(f"Micrographs processed: {self.outputMicrographs.getSize()}")
             summary.append(self._some_mics_failed)
 
         return summary
 
-    def _methods(self):
-        methods = []
-
-        if self.isFinished():
-            methods.append("The micrographs in set {} were denoised.".format(self.getObjectTag('inputMicrographs')))
-            methods.append("The resulting set of micrographs is {}.".format(self.getObjectTag('outputMicrographs')))
-
-        return methods
-
     def _validate(self):
         validateMsgs = []
         modelPath = self.getInputModel()
-        nprocs = max(self.numberOfMpi.get(), self.numberOfThreads.get())
-        if nprocs < len(self.getGpuList()):
-            validateMsgs.append("Multiple GPUs can not be used by a single process. "
-                                "Make sure you specify more threads than GPUs.")
+
+        if len(self.getGpuList()) > 1:
+            validateMsgs.append("Multiple GPUs cannot be used by JANNI.")
+
         if not os.path.exists(modelPath):
-            validateMsgs.append("Input model file '%s' does not exists." % modelPath)
+            validateMsgs.append(f"Input model file {modelPath} does not exist."
+                                f"Check your config or scipion installb {JANNI_GENMOD}")
 
         return validateMsgs
 
     def _citations(self):
-        cites = ['thorsten_wagner_2019_3378300']
-        return cites
+        return ['thorsten_wagner_2019_3378300']
 
     # -------------------------- UTILS functions ------------------------------
     def getInputModel(self):
-
-        m = Plugin.getJanniGeneralModel()
-        return os.path.abspath(m) if m else ''
+        return Plugin.getModelFn(JANNI_GENMOD_VAR)
