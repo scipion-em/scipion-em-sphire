@@ -1,5 +1,33 @@
-from sphire.tests.test_protocol_janni import *
-from sphire.tests.test_protocol_cryolo import *
+# **************************************************************************
+# *
+# * Authors:     Pablo Conesa (pconesa@cnb.csic.es) [1]
+# *              Peter Horvath (phorvath@cnb.csic.es) [1]
+# *
+# * [1] I2PC center
+# *
+# * This program is free software; you can redistribute it and/or modify
+# * it under the terms of the GNU General Public License as published by
+# * the Free Software Foundation; either version 3 of the License, or
+# * (at your option) any later version.
+# *
+# * This program is distributed in the hope that it will be useful,
+# * but WITHOUT ANY WARRANTY; without even the implied warranty of
+# * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# * GNU General Public License for more details.
+# *
+# * You should have received a copy of the GNU General Public License
+# * along with this program; if not, write to the Free Software
+# * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
+# * 02111-1307  USA
+# *
+# *  All comments concerning this program package may be sent to the
+# *  e-mail address 'scipion@cnb.csic.es'
+# *
+# **************************************************************************
+
+from .test_protocol_janni import *
+from .test_protocol_cryolo import *
+
 
 DataSet(name='negative_stain',
         folder='negative_stain',
@@ -8,7 +36,6 @@ DataSet(name='negative_stain',
             'mic1': '8b001.tif',
             'mic2': '20180612_SOS1_dil2_SS2_009.tif',
         })
-
 
 DataSet(name='tomo-em', folder='tomo-em',
         files={
