@@ -32,7 +32,7 @@ import pyworkflow.utils as pwutils
 from .constants import *
 
 
-__version__ = '3.1'
+__version__ = '3.1.1'
 _logo = "sphire_logo.png"
 _references = ['Wagner2019']
 
@@ -96,7 +96,7 @@ class Plugin(pwem.Plugin):
         suffix = 'cpu' if useCpu else 'gpu'
         CRYOLO_INSTALLED = f"cryolo{archFlag}_{version}_installed"
         ENV_NAME = getCryoloEnvName(version, useCpu)
-        cudaVersion = cls.guessCudaVersion(CRYOLO_CUDA_LIB)
+        cudaVersion = cls.guessCudaVersion(CRYOLO_CUDA_LIB, default="11.7")
 
         if cudaVersion.major == 10:
             extrapkgs = "python=3.7 cudatoolkit=10.0.130 cudnn=7.6.5"
