@@ -143,10 +143,9 @@ def writeSetOfCoordinates(boxDir, coordSet, micList=None):
     writer.close()
 
 
-def readSetOfCoordinates3D(tomogram, coord3DSetDict, coordsFile, boxSize,
+def readSetOfCoordinates3D(tomogram, coord3DSet, coordsFile, boxSize,
                            origin=None):
     reader = CoordBoxReader(boxSize)
-    coord3DSet = coord3DSetDict[tomogram.getObjId()]
     coord3DSet.enableAppend()
 
     coord = Coordinate3D()
