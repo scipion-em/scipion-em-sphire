@@ -32,7 +32,7 @@ import pyworkflow.utils as pwutils
 from .constants import *
 
 
-__version__ = '3.1.1'
+__version__ = '3.1.2'
 _logo = "sphire_logo.png"
 _references = ['Wagner2019']
 
@@ -101,7 +101,7 @@ class Plugin(pwem.Plugin):
         if cudaVersion.major == 10:
             extrapkgs = "python=3.7 cudatoolkit=10.0.130 cudnn=7.6.5"
         else:  # cuda 11
-            extrapkgs = "python=3"
+            extrapkgs = "python=3.8"
 
         installCmd = [
             cls.getCondaActivationCmd(),
