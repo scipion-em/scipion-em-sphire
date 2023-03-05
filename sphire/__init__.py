@@ -32,7 +32,7 @@ import pyworkflow.utils as pwutils
 from .constants import *
 
 
-__version__ = '3.1.2'
+__version__ = '3.1.3'
 _logo = "sphire_logo.png"
 _references = ['Wagner2019']
 
@@ -106,7 +106,7 @@ class Plugin(pwem.Plugin):
         installCmd = [
             cls.getCondaActivationCmd(),
             f'conda create -y -n {ENV_NAME} -c conda-forge -c anaconda',
-            f'pyqt=5 {extrapkgs} numpy==1.18.5 libtiff wxPython=4.1.1 adwaita-icon-theme &&',
+            f'pyqt=5 {extrapkgs} numpy==1.18.5 libtiff wxPython=4.1.1 adwaita-icon-theme "setuptools<66" &&',
             f'conda activate {ENV_NAME} &&'
         ]
 
@@ -141,7 +141,8 @@ class Plugin(pwem.Plugin):
 
         _add(V1_8_2)
         _add(V1_8_4)
-        _add(V1_8_5, default=True)
+        _add(V1_8_5)
+        _add(V1_9_2, default=True)
 
         def _addModel(model, version, link, filename, default=False):
             env.addPackage(model, version=version,

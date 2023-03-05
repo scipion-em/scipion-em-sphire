@@ -1,3 +1,4 @@
+3.1.3: add cryolo 1.9.2
 3.1.2:
     - Fix installation? Forcing python3.8?
     - Output creation ot tomo picking improved: Using pointer to tomos so streaming works
