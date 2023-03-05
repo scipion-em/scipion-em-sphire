@@ -74,7 +74,7 @@ depending on your conda version and shell you will need something different:
 
 CONDA_ACTIVATION_CMD = eval "$(/extra/miniconda3/bin/conda shell.bash hook)"
 
-**CRYOLO_ENV_ACTIVATION** (default = conda activate cryolo-1.8.5):
+**CRYOLO_ENV_ACTIVATION** (default = conda activate cryolo-1.9.3):
 Command to activate the crYOLO environment.
 
 Downloaded crYOLO and JANNI general models can be found in the following locations:
@@ -101,7 +101,7 @@ The CPU version of crYOLO is installed under a separate conda environment called
 Supported versions
 ------------------
 
-1.8.2, 1.8.4, 1.8.5
+1.8.2, 1.8.4, 1.8.5, 1.9.3
 
 Protocols
 ---------
