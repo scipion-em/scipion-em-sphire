@@ -36,7 +36,8 @@ from tomo.protocols import ProtTomoPicking
 import tomo.constants as tomoConst
 
 from .. import Plugin
-from ..constants import INPUT_MODEL_GENERAL_DENOISED
+from ..constants import INPUT_MODEL_GENERAL_DENOISED, STRAIGHTNESS_METHOD, \
+    DIRECTIONAL_METHOD
 from .protocol_base import ProtCryoloBase
 import sphire.convert as convert
 
@@ -70,6 +71,79 @@ class SphireProtCRYOLOTomoPicking(ProtCryoloBase, ProtTomoPicking):
                       help="The maximum number of frames during which a "
                            "particle can vanish, then reappear nearby, "
                            "and be considered the same particle (default: 0).")
+
+        form.addSection(label="Filament")
+        form.addParam('doFilament', params.BooleanParam, default=False,
+                      label='Activate filament mode?')
+        form.addParam('box_distance', params.IntParam, default=20,
+                      condition='doFilament',
+                      label="Box distance",
+                      help="Distance in pixel between two boxes")
+        form.addParam('minimum_number_boxes', params.IntParam, default=None,
+                      allowsNull=True,
+                      condition='doFilament',
+                      label="Minimun number of boxes",
+                      help="Minimun number of boxes per filament")
+
+        form.addParam('straightness_method', params.EnumParam, default=1,
+                      condition='doFilament',
+                      label='Straightness method',
+                      choices=['NONE', 'LINE_STRAIGHTNESS', 'RMSD'],
+                      help="Method to measure the straightness of a line.\n"
+                           "LINE_STRAIGHTNESS divides the length from start to "
+                           "end by accumulated length betwee adjacent boxes.\n"
+                           "RMSD calulates the root means squared deviation of "
+                           "the line points to line given by start and the "
+                           "endpoint of the filament. Adjust the "
+                           "straightness_method accorfingly!")
+
+        form.addParam('straightness_threshold', params.FloatParam, default=0.95,
+                      condition='doFilament',
+                      label="Straightness threshold",
+                      help="Threshold value for the straightness method. The default"
+                           "value works good for LINE_STRAIGHTNESS. Lines with"
+                           "a LINE_STRAIGHTNESS lower than this threshold get "
+                           "splitted. For RMSD, lines with a RMSD higher than "
+                           "this threshold will be splitted. A good value for "
+                           "RMSD is 20 percent of your filament width")
+
+        form.addParam('search_range_factor', params.FloatParam, default=1.41,
+                      condition='doFilament',
+                      label="Search range factor",
+                      help="The search range for connecting boxes is the box "
+                           "size times this factor")
+
+        form.addParam('angle_delta', params.IntParam, default=10,
+                      condition='doFilament',
+                      label="Angle delta",
+                      help="Angle delta in degree. This value is good more or"
+                           " less straight filament. More curvy filament might "
+                           "require values around 20")
+
+        form.addParam('directional_method', params.EnumParam, default=1,
+                      condition='doFilament',
+                      label='Directional method',
+                      choices=['CONVOLUTION', 'PREDICTED'],
+                      help="Directional method")
+
+        form.addParam('filament_width', params.IntParam, default=None,
+                      allowsNull=True,
+                      condition='doFilament and directional_method==0',
+                      label="Filament width",
+                      help="Filament width in pixel")
+
+        form.addParam('mask_width', params.IntParam, default=100,
+                      condition='doFilament',
+                      label="Mask width",
+                      help="Mask width in pixel. A gaussian filter mask is used"
+                           "to estimate the direction of the filaments. This"
+                           "parameter defines how elongated the mask is. The "
+                           "default value typically don't has to be changed")
+
+        form.addParam('nomerging', params.BooleanParam, default=False,
+                      condition='doFilament',
+                      label='No merge filaments?',
+                      help="The filament mode does not merge filaments")
 
         form.addParallelSection(threads=1, mpi=1)
 
@@ -114,12 +188,31 @@ class SphireProtCRYOLOTomoPicking(ProtCryoloBase, ProtTomoPicking):
         if self.lowPassFilter or self.inputModelFrom == INPUT_MODEL_GENERAL_DENOISED:
             args += ' --cleanup'
 
+        # Filament options
+        if self.doFilament:
+            args += " --filament -bd %d" % self.box_distance.get()
+            if self.minimum_number_boxes.get():
+                args += " -mn %d" % self.minimum_number_boxes.get()
+
+            args += " -sm %s -st %f -sr %f -ad %d --directional_method %s -mw %d" \
+                    % (STRAIGHTNESS_METHOD[self.straightness_method.get()],
+                       self.straightness_threshold.get(),
+                       self.search_range_factor.get(),
+                       self.angle_delta.get(),
+                       DIRECTIONAL_METHOD[self.directional_method.get()],
+                       self.mask_width.get())
+            if self.filament_width.get():
+                args += " -fw %d" % self.filament_width.get()
+
+            if self.nomerging.get():
+                args += " --nomerging"
+
         Plugin.runCryolo(self, 'cryolo_predict.py', args,
                          useCpu=not self.useGpu.get())
 
     def createOutputStep(self):
         setOfTomograms = self.inputTomograms.get()
-        outputPath = self._getExtraPath("CBOX_3D")
+        outputPath = self._getExtraPath("CBOX_3D") if not self.doFilament else self._getExtraPath("CBOX")
         suffix = self._getOutputSuffix(SetOfCoordinates3D)
 
         setOfCoord3D = self._createSetOfCoordinates3D(self.inputTomograms, suffix)
