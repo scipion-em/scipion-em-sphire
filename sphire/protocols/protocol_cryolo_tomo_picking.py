@@ -136,7 +136,7 @@ class SphireProtCRYOLOTomoPicking(ProtCryoloBase, ProtTomoPicking):
         for tomogram in setOfTomograms.iterItems():
 
             filePath = os.path.join(outputPath, convert.getMicFn(tomogram, "cbox"))
-            if os.path.exists(filePath):
+            if os.path.exists(filePath) and os.path.getsize(filePath):
                 tomogramClone = tomogram.clone()
                 tomogramClone.copyInfo(tomogram)
                 convert.readSetOfCoordinates3D(tomogramClone, setOfCoord3D, filePath,
@@ -147,4 +147,3 @@ class SphireProtCRYOLOTomoPicking(ProtCryoloBase, ProtTomoPicking):
         name = self.OUTPUT_PREFIX + suffix
         self._defineOutputs(**{name: setOfCoord3D})
         self._defineSourceRelation(setOfTomograms, setOfCoord3D)
-
