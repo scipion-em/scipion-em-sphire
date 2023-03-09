@@ -78,8 +78,6 @@ class CoordBoxReader:
         :param boxSize: The box size of the coordinates that will be read
         :param yFlipHeight: if not None, the y coordinates will be flipped
         """
-        self._file = None
-        self._boxSize = boxSize
         self._halfBox = boxSize / 2.0
         self._yFlipHeight = yFlipHeight
         self._boxSizeEstimated = boxSizeEstimated

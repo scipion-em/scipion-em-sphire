@@ -140,7 +140,7 @@ class SphireProtCRYOLOPicking(ProtCryoloBase, ProtParticlePickingAuto):
         for mic in micDoneList:
             cboxFile = convert.getMicFn(mic, "cbox")
             coordsFile = self._getExtraPath(cboxFile)
-            if os.path.exists(coordsFile):
+            if os.path.exists(coordsFile) and os.path.getsize(coordsFile):
                 for x, y, z, score in reader.iterCoords(coordsFile):
                     # Clean up objId to add as a new coordinate
                     coord.setObjId(None)
