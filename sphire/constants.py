@@ -39,8 +39,9 @@ def getCryoloEnvName(version, useCpu=False):
 V1_8_2 = "1.8.2"
 V1_8_4 = "1.8.4"
 V1_8_5 = "1.8.5"
+V1_9_3 = "1.9.3"
 
-VERSIONS = [V1_8_2, V1_8_4, V1_8_5]
+VERSIONS = [V1_8_2, V1_8_4, V1_8_5, V1_9_3]
 CRYOLO_DEFAULT_VER_NUM = VERSIONS[-1]
 
 DEFAULT_ENV_NAME = getCryoloEnvName(CRYOLO_DEFAULT_VER_NUM)
