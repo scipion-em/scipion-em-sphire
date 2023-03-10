@@ -121,11 +121,9 @@ class SphireProtCRYOLOTomoPicking(ProtCryoloBase, ProtTomoPicking):
         setOfTomograms = self.inputTomograms.get()
         outputPath = self._getExtraPath("CBOX_3D")
         suffix = self._getOutputSuffix(SetOfCoordinates3D)
-        coord3DSetDict = {}
 
-        setOfCoord3D = self._createSetOfCoordinates3D(setOfTomograms, suffix)
+        setOfCoord3D = self._createSetOfCoordinates3D(self.inputTomograms, suffix)
         setOfCoord3D.setName("tomoCoord")
-        setOfCoord3D.setPrecedents(setOfTomograms)
         setOfCoord3D.setSamplingRate(setOfTomograms.getSamplingRate())
 
         if self.boxSize.get():  # Box size can be provided by the user
@@ -136,20 +134,16 @@ class SphireProtCRYOLOTomoPicking(ProtCryoloBase, ProtTomoPicking):
         setOfCoord3D.setBoxSize(boxSize)
 
         for tomogram in setOfTomograms.iterItems():
-            coord3DSetDict[tomogram.getObjId()] = setOfCoord3D
 
             filePath = os.path.join(outputPath, convert.getMicFn(tomogram, "cbox"))
-            if os.path.exists(filePath):
+            if os.path.exists(filePath) and os.path.getsize(filePath):
                 tomogramClone = tomogram.clone()
                 tomogramClone.copyInfo(tomogram)
-                convert.readSetOfCoordinates3D(tomogramClone, coord3DSetDict, filePath,
+                convert.readSetOfCoordinates3D(tomogramClone, setOfCoord3D, filePath,
                                                boxSize,
                                                origin=tomoConst.BOTTOM_LEFT_CORNER)
-                name = self.OUTPUT_PREFIX + suffix
-                self._defineOutputs(**{name: setOfCoord3D})
-                self._defineSourceRelation(setOfTomograms, setOfCoord3D)
 
-                # Update Outputs
-                for index, coord3DSet in coord3DSetDict.items():
-                    self._updateOutputSet(name, coord3DSet,
-                                          state=coord3DSet.STREAM_CLOSED)
+
+        name = self.OUTPUT_PREFIX + suffix
+        self._defineOutputs(**{name: setOfCoord3D})
+        self._defineSourceRelation(setOfTomograms, setOfCoord3D)

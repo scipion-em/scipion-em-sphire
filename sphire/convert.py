@@ -78,8 +78,6 @@ class CoordBoxReader:
         :param boxSize: The box size of the coordinates that will be read
         :param yFlipHeight: if not None, the y coordinates will be flipped
         """
-        self._file = None
-        self._boxSize = boxSize
         self._halfBox = boxSize / 2.0
         self._yFlipHeight = yFlipHeight
         self._boxSizeEstimated = boxSizeEstimated
@@ -143,10 +141,9 @@ def writeSetOfCoordinates(boxDir, coordSet, micList=None):
     writer.close()
 
 
-def readSetOfCoordinates3D(tomogram, coord3DSetDict, coordsFile, boxSize,
+def readSetOfCoordinates3D(tomogram, coord3DSet, coordsFile, boxSize,
                            origin=None):
     reader = CoordBoxReader(boxSize)
-    coord3DSet = coord3DSetDict[tomogram.getObjId()]
     coord3DSet.enableAppend()
 
     coord = Coordinate3D()
