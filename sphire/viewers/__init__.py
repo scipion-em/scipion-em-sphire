@@ -1,12 +1,13 @@
 # **************************************************************************
 # *
-# * Authors:     J.M. De la Rosa Trevin (delarosatrevin@scilifelab.se) [1]
+# * Authors: Yunior C. Fonseca Reyna    (cfonseca@cnb.csic.es)
 # *
-# * [1] SciLifeLab, Stockholm University
+# *
+# * Unidad de  Bioinformatica of Centro Nacional de Biotecnologia , CSIC
 # *
 # * This program is free software; you can redistribute it and/or modify
 # * it under the terms of the GNU General Public License as published by
-# * the Free Software Foundation; either version 3 of the License, or
+# * the Free Software Foundation; either version 2 of the License, or
 # * (at your option) any later version.
 # *
 # * This program is distributed in the hope that it will be useful,
@@ -24,13 +25,4 @@
 # *
 # **************************************************************************
 
-from pyworkflow.utils import weakImport
-
-from .protocol_cryolo_training import SphireProtCRYOLOTraining
-from .protocol_cryolo_picking import SphireProtCRYOLOPicking
-from .protocol_cryolo_import import SphireProtCryoloImport
-from .protocol_janni_denoise import SphireProtJanniDenoising
-with weakImport('tomo'):
-    from .protocol_cryolo_tomo_picking import SphireProtCRYOLOTomoPicking
-    from .protocol_cryolo_napari_filament_picking import SphireProtCRYOLOFilamentPicker
-
+from .views_tkinter_tree import SphireGenericViewer

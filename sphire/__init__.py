@@ -184,3 +184,15 @@ class Plugin(pwem.Plugin):
                                        cls.getCryoloEnvActivation(useCpu), program)
         protocol.runJob(fullProgram, args, env=cls.getEnviron(), cwd=cwd,
                         numberOfMpi=1)
+
+    @classmethod
+    def runNapariBoxManager(cls, protocol, program, args):
+        """ Run Napari boxmanager from a given protocol. """
+        launchPath = protocol._getExtraPath()
+        fullProgram = '%s %s && cd %s && %s' % (cls.getCondaActivationCmd(),
+                                                NAPARI_ACTIVATION_CMD,
+                                                launchPath,
+                                                program)
+        protocol.runJob(fullProgram, args, env=cls.getEnviron(), cwd=None,
+                        numberOfMpi=1)
+
