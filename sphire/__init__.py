@@ -166,7 +166,7 @@ class Plugin(pwem.Plugin):
             cls.addCryoloPackage(env, version, **kwargs)
 
         def _addNapari(version,  **kwargs):
-            cls.addNapariPackage(env, default=False)
+            cls.addNapariPackage(env, version, default=False)
 
         _add(V1_8_2)
         _add(V1_8_4)
