@@ -30,7 +30,7 @@ from pwem.protocols import EMProtocol
 
 from pyworkflow import BETA
 from pyworkflow.gui import askYesNo
-from pyworkflow.protocol import PointerParam
+from pyworkflow.protocol import PointerParam, IntParam
 from pyworkflow.utils import createAbsLink, removeExt, Message
 
 from tomo.objects import SetOfCoordinates3D
@@ -63,6 +63,13 @@ class SphireProtCRYOLOFilamentPicker(ProtCryoloBase, ProtTomoPicking):
                       label="Set of Tomograms", important=True,
                       help='Select the Tomograms to be used during '
                            'picking.')
+        form.addParam('boxSize', IntParam,
+                      default=20,
+                      label='Box Size (optional)',
+                      allowsPointers=True,
+                      help='Box size in pixels. It should be the size of '
+                           'the minimum particle enclosing square in pixel. '
+                           'If introduced value is zero, it is estimated.')
 
     def _insertAllSteps(self):
         self.inputTiltSeries = None
@@ -118,7 +125,7 @@ class SphireProtCRYOLOFilamentPicker(ProtCryoloBase, ProtTomoPicking):
                                                       suffix)
         setOfCoord3D.setName("tomoCoord")
         setOfCoord3D.setSamplingRate(setOfTomograms.getSamplingRate())
-        boxSize = 20.0
+        boxSize = self.boxSize.get()
         setOfCoord3D.setBoxSize(boxSize)
 
         for tomogram in setOfTomograms.iterItems():

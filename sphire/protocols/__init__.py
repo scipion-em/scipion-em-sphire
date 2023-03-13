@@ -33,4 +33,5 @@ from .protocol_janni_denoise import SphireProtJanniDenoising
 with weakImport('tomo'):
     from .protocol_cryolo_tomo_picking import SphireProtCRYOLOTomoPicking
     from .protocol_cryolo_napari_filament_picking import SphireProtCRYOLOFilamentPicker
+    from .protocol_cryolo_tomo_training import SphireProtCRYOLOTomoTraining
 

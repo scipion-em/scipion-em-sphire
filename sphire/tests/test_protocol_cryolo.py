@@ -53,6 +53,8 @@ class TestSphireConvert(BaseTest):
         setupTestOutput(cls)
 
     def testConvertCoords(self):
+        import time
+        time.sleep(10)
         boxSize = 100
         boxDir = self.getOutputPath('boxDir')
         pwutils.makePath(boxDir)
@@ -73,7 +75,7 @@ _Confidence #5
             writer = convert.CoordBoxWriter(boxSize, yFlipHeight=yFlipHeight)
             writer.open(tmpFile)
             writer._file.write(HEADER)  # required for cbox
-            for x, y, _, _ in coordsIn:
+            for x, y, _, _, _, _ in coordsIn:
                 writer.writeCoord(emobj.Coordinate(x=x, y=y))
             writer.close()
 
@@ -82,8 +84,8 @@ _Confidence #5
 
             return coordsOut
 
-        coordsIn = [(100, 100, 0., 0.), (100, 200, 0., 0.),
-                    (200, 100, 0., 0.), (200, 200, 0., 0.)]
+        coordsIn = [(100, 100, 0., 0., 0, 100), (100, 200, 0., 0.,  0, 100),
+                    (200, 100, 0., 0.,  0, 100), (200, 200, 0., 0.,  0, 100)]
 
         # Case 1: No flip
         coordsOut = _convert(coordsIn)

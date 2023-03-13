@@ -133,15 +133,46 @@ class Plugin(pwem.Plugin):
                        vars=installEnvVars)
 
     @classmethod
+    def addNapariPackage(cls, env, version, default=False):
+        ENV_NAME = getNaparyEnvName(version)
+        NAPARI_INSTALLED = f"napari_cryolo-{version}_installed"
+        installCmd = [cls.getCondaActivationCmd(),
+            f'conda create -y -n {ENV_NAME} -c conda-forge -c anaconda',
+            f'python=3.10 napari=0.4.17 pyqt pip &&',
+            f'conda activate {ENV_NAME} &&']
+
+        installCmd.append(f'pip install napari_boxmanager=={version}')
+
+        # Flag installation finished
+        installCmd.append(f'&& touch {NAPARI_INSTALLED}')
+
+        napari_commands = [(" ".join(installCmd), NAPARI_INSTALLED)]
+
+        envPath = os.environ.get('PATH',
+                                 "")  # keep path since conda likely in there
+        installEnvVars = {'PATH': envPath} if envPath else None
+        env.addPackage(f'napari_cryolo', version=version,
+                       tar='void.tgz',
+                       commands=napari_commands,
+                       neededProgs=cls.getDependencies(),
+                       default=default,
+                       vars=installEnvVars)
+
+    @classmethod
     def defineBinaries(cls, env):
         def _add(version, **kwargs):
             cls.addCryoloPackage(env, version, **kwargs)
             kwargs['useCpu'] = True
             cls.addCryoloPackage(env, version, **kwargs)
 
+        def _addNapari(version,  **kwargs):
+            cls.addNapariPackage(env, default=False)
+
         _add(V1_8_2)
         _add(V1_8_4)
         _add(V1_8_5, default=True)
+
+        _addNapari(defaultVersion)
 
         def _addModel(model, version, link, filename, default=False):
             env.addPackage(model, version=version,
