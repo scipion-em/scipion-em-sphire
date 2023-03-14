@@ -37,7 +37,7 @@ import sphire.convert as convert
 class SphireProtCRYOLOTomoTraining(SphireProtCRYOLOTraining):
     """ Train crYOLO picker using a set of coordinates.
        """
-    _label = 'cryolo tomo_training'
+    _label = 'cryolo tomo training'
     MODEL = 'model.h5'
     TRAIN = ['train_annotations', 'train_images']
     _IS_TRAIN = True

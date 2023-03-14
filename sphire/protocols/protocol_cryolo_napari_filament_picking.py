@@ -45,10 +45,10 @@ import sphire.convert as convert
 
 class SphireProtCRYOLOFilamentPicker(ProtCryoloBase, ProtTomoPicking):
     """
-    Picks filaments in a set of tomograms using napari_boxmanager.
+    Picks filaments and particles in a set of tomograms using napari_boxmanager.
     """
 
-    _label = 'filament picker'
+    _label = 'cryolo tomo picking(manual)'
     _devStatus = BETA
     _interactiveMode = True
     _possibleOutputs = {'output3DCoordinates': SetOfCoordinates3D}
@@ -63,13 +63,6 @@ class SphireProtCRYOLOFilamentPicker(ProtCryoloBase, ProtTomoPicking):
                       label="Set of Tomograms", important=True,
                       help='Select the Tomograms to be used during '
                            'picking.')
-        form.addParam('boxSize', IntParam,
-                      default=20,
-                      label='Box Size (optional)',
-                      allowsPointers=True,
-                      help='Box size in pixels. It should be the size of '
-                           'the minimum particle enclosing square in pixel. '
-                           'If introduced value is zero, it is estimated.')
 
     def _insertAllSteps(self):
         self.inputTiltSeries = None
@@ -125,8 +118,6 @@ class SphireProtCRYOLOFilamentPicker(ProtCryoloBase, ProtTomoPicking):
                                                       suffix)
         setOfCoord3D.setName("tomoCoord")
         setOfCoord3D.setSamplingRate(setOfTomograms.getSamplingRate())
-        boxSize = self.boxSize.get()
-        setOfCoord3D.setBoxSize(boxSize)
 
         for tomogram in setOfTomograms.iterItems():
 
@@ -137,8 +128,9 @@ class SphireProtCRYOLOFilamentPicker(ProtCryoloBase, ProtTomoPicking):
                 tomogramClone.copyInfo(tomogram)
                 convert.readSetOfCoordinates3D(tomogramClone, setOfCoord3D,
                                                filePath,
-                                               boxSize,
+                                               None,
                                                origin=tomoConst.BOTTOM_LEFT_CORNER)
+
 
         name = self.OUTPUT_PREFIX + suffix
         self._defineOutputs(**{name: setOfCoord3D})

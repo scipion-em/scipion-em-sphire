@@ -124,7 +124,7 @@ class CoordBoxReader:
         """
         self._file = None
         self._boxSize = boxSize
-        self._halfBox = boxSize / 2.0
+        self._halfBox = boxSize / 2.0 if self._boxSize is not None else None
         self._yFlipHeight = yFlipHeight
         self._boxSizeEstimated = boxSizeEstimated
 
@@ -136,6 +136,10 @@ class CoordBoxReader:
             score = row.get("Confidence", 0.0)
             groupId = int(row.get('filamentid', 0))
             width = int(row.get('Width', 0))
+
+            if self._boxSize is None:
+                self._boxSize = width
+                self._halfBox = self._boxSize / 2.0
 
             if not self._boxSizeEstimated:
                 x += self._halfBox
