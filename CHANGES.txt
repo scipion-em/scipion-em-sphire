@@ -1,3 +1,4 @@
+3.1.5: fix auto picking streaming
 3.1.4: add a check for empty cbox files
 3.1.3: add cryolo 1.9.3, fix actual cryolo version, fix setuptools dependency
 3.1.2:
