@@ -73,7 +73,8 @@ class SphireProtCRYOLOPicking(ProtCryoloBase, ProtParticlePickingAuto):
 
     # --------------------------- INSERT steps functions ----------------------
     def _insertInitialSteps(self):
-        self._insertFunctionStep(self.createConfigStep)
+        stepId = self._insertFunctionStep(self.createConfigStep)
+        return stepId
 
     # --------------------------- STEPS functions -----------------------------
     def _pickMicrograph(self, micrograph, *args):
@@ -81,7 +82,10 @@ class SphireProtCRYOLOPicking(ProtCryoloBase, ProtParticlePickingAuto):
         self._pickMicrographList([micrograph], args)
 
     def _pickMicrographList(self, micList, *args):
+        print("------------MIC LIIIIIIIIIIIST SPHIRE PROTOCOLO------")
+        print(micList)
         if not micList:  # maybe in continue cases, need to properly check
+            print("no llega a picar nunca")
             return
 
         workingDir = self._getTmpPath(self.getMicsWorkingDir(micList))
