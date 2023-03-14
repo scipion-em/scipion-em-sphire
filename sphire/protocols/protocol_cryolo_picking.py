@@ -82,10 +82,7 @@ class SphireProtCRYOLOPicking(ProtCryoloBase, ProtParticlePickingAuto):
         self._pickMicrographList([micrograph], args)
 
     def _pickMicrographList(self, micList, *args):
-        print("------------MIC LIIIIIIIIIIIST SPHIRE PROTOCOLO------")
-        print(micList)
         if not micList:  # maybe in continue cases, need to properly check
-            print("no llega a picar nunca")
             return
 
         workingDir = self._getTmpPath(self.getMicsWorkingDir(micList))
