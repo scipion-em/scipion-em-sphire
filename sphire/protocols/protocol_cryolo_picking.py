@@ -73,7 +73,8 @@ class SphireProtCRYOLOPicking(ProtCryoloBase, ProtParticlePickingAuto):
 
     # --------------------------- INSERT steps functions ----------------------
     def _insertInitialSteps(self):
-        self._insertFunctionStep(self.createConfigStep)
+        stepId = self._insertFunctionStep(self.createConfigStep)
+        return stepId
 
     # --------------------------- STEPS functions -----------------------------
     def _pickMicrograph(self, micrograph, *args):
