@@ -180,7 +180,7 @@ class ProtCryoloBase(EMProtocol):
         jsonDict = {"model": model}
 
         if self._IS_TRAIN:
-            pretrainedModel = self.getInputModel() if self.doFineTune else self.MODEL
+            pretrainedModel = self.getInputModel() if self.doFineTune else ""
 
             train = {"train_image_folder": f"{self.TRAIN[1]}/",
                      "train_annot_folder": f"{self.TRAIN[0]}/",
