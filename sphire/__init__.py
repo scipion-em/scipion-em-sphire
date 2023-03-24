@@ -28,7 +28,7 @@
 
 import pwem
 import pyworkflow.utils as pwutils
-from pyworkflow.utils import runJob
+from pyworkflow.utils import runJob, weakImport
 
 from .constants import *
 
@@ -174,7 +174,8 @@ class Plugin(pwem.Plugin):
         _add(V1_8_5)
         _add(V1_9_3, default=True)
 
-        _addNapari(defaultVersion, default=True)
+        with weakImport('tomo'):
+            _addNapari(defaultVersion, default=True)
 
         def _addModel(model, version, link, filename, default=False):
             env.addPackage(model, version=version,
