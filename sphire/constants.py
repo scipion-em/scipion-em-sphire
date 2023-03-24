@@ -109,6 +109,8 @@ defaultVersion = V0_3_11
 
 NAPARI_ACTIVATION_CMD = 'conda activate %s' % getNaparyEnvName(defaultVersion)
 NAPARI_BOXMANAGER = 'napari_boxmanager'
+CBOX_FILAMENTS_FOLDER = 'CBOX_FILAMENTS_TRACED'
+NAPARI_VIEWER_CBOX_FILES = 'napariViewerCboxFiles'
 
 # Filament parameters
 STRAIGHTNESS_METHOD = ['NONE', 'LINE_STRAIGHTNESS', 'RMSD']

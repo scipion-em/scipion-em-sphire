@@ -30,16 +30,15 @@ from pwem.protocols import EMProtocol
 
 from pyworkflow import BETA
 from pyworkflow.gui import askYesNo
-from pyworkflow.protocol import PointerParam, IntParam
-from pyworkflow.utils import createAbsLink, removeExt, Message
+from pyworkflow.protocol import PointerParam
+from pyworkflow.utils import createAbsLink, Message
 
 from tomo.objects import SetOfCoordinates3D
 from tomo.protocols import ProtTomoPicking
 import tomo.constants as tomoConst
 
 from sphire.protocols.protocol_base import ProtCryoloBase
-from sphire.viewers.views_tkinter_tree import SphireGenericViewer
-from sphire import Plugin, NAPARI_BOXMANAGER
+from sphire.viewers.views_tkinter_tree import SphireGenericView
 import sphire.convert as convert
 
 
@@ -84,7 +83,7 @@ class SphireProtCRYOLOFilamentPicker(ProtCryoloBase, ProtTomoPicking):
 
     def runCoordinatePickingStep(self):
 
-        view = SphireGenericViewer(None, self, self.inputSetOfTomograms.get(),
+        view = SphireGenericView(None, self, self.inputSetOfTomograms.get(),
                                    isInteractive=True,
                                    itemDoubleClick=True)
         view.show()
@@ -92,22 +91,6 @@ class SphireProtCRYOLOFilamentPicker(ProtCryoloBase, ProtTomoPicking):
         import tkinter as tk
         if askYesNo(Message.TITLE_SAVE_OUTPUT, Message.LABEL_SAVE_OUTPUT,  tk.Frame()):
             self.createOutput()
-
-    def napariPickerSteps(self, obj):
-        for item in self.inputSetOfTomograms.get():
-            if item.getTsId() == obj.getTsId():
-                self.runNapariBoxmanager(item)
-                break
-
-    def runNapariBoxmanager(self, tomogram):
-        tomogramId = os.path.basename(tomogram.getFileName())
-        tomogramPath = self._getExtraPath(tomogramId)
-        if os.path.exists(tomogramPath):
-            args = tomogramId
-            cboxFile = removeExt(tomogramId) + '.cbox'
-            if os.path.exists(self._getExtraPath(cboxFile)):
-                args += " %s" % cboxFile
-            Plugin.runNapariBoxManager(self, NAPARI_BOXMANAGER, args)
 
     def createOutput(self):
         setOfTomograms = self.inputSetOfTomograms.get()

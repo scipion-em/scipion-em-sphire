@@ -59,6 +59,8 @@ from pyworkflow.gui.dialog import ListDialog
 import pyworkflow.viewer as pwviewer
 from pyworkflow.plugin import Domain
 import tomo.objects
+from pyworkflow.utils import removeExt
+from sphire.constants import CBOX_FILAMENTS_FOLDER, NAPARI_VIEWER_CBOX_FILES
 
 
 class SphireGenericTreeProvider(TreeProvider):
@@ -150,10 +152,10 @@ class SphireGenericTreeProvider(TreeProvider):
 
     def getSphirePickerColumnValues(self, obj, values):
         status = 'pending'
-        for item in self.protocol.inputSetOfTomograms.get():
+        for item in self.objs:
             if item.getTsId() == obj.getTsId():
                 # .cbox file
-                coordinatesFilePath = self.protocol._getExtraPath(item.getTsId()) + '.cbox'
+                coordinatesFilePath = self.getCboxFile(item)
                 if os.path.exists(coordinatesFilePath):
                     coordTable = emtable.Table(fileName=coordinatesFilePath,
                                                tableName='cryolo')
@@ -169,6 +171,17 @@ class SphireGenericTreeProvider(TreeProvider):
     def getObjStatus(self, obj, values):
         status = self.getSphirePickerColumnValues(obj, values)
         return status
+
+    def getCboxFile(self, item):
+        cboxFileName = item.getTsId() + '.cbox'
+        coordinatesFilePath = self.protocol._getExtraPath(cboxFileName)
+        if not os.path.exists(coordinatesFilePath):
+            coordinatesFilePath = self.protocol._getExtraPath(CBOX_FILAMENTS_FOLDER,
+                                                              cboxFileName)
+            if not os.path.exists(coordinatesFilePath):
+                coordinatesFilePath = self.protocol._getExtraPath(NAPARI_VIEWER_CBOX_FILES,
+                                                                  cboxFileName)
+        return coordinatesFilePath
 
     def getObjectActions(self, obj):
         actions = []
@@ -215,11 +228,31 @@ class SphireListDialog(ListDialog):
 
     def doubleClickOnItem(self, e=None):
         ts = e
-        protocol = self.provider.protocol
-        self.proc = threading.Thread(target=protocol.napariPickerSteps,
+        self.proc = threading.Thread(target=self.napariPicker,
                                      args=(ts,))
         self.proc.start()
         self.after(1000, self.refresh_gui)
+
+    def napariPicker(self, obj):
+        for item in self.provider.objs:
+            if item.getTsId() == obj.getTsId():
+                self.runNapariBoxmanager(item)
+                break
+
+    def runNapariBoxmanager(self, tomogram):
+        from sphire import Plugin, NAPARI_BOXMANAGER
+        tomogramId = os.path.basename(tomogram.getFileName())
+        tomogramPath = os.path.abspath(tomogram.getFileName())
+        if os.path.exists(tomogramPath):
+            args = tomogramPath
+            cboxFile = removeExt(tomogramId) + '.cbox'
+            # .cbox file
+            coordinatesFilePath = self.provider.protocol._getExtraPath(NAPARI_VIEWER_CBOX_FILES, cboxFile)
+            if os.path.exists(coordinatesFilePath):
+                args += " %s" % os.path.abspath(coordinatesFilePath)
+
+            Plugin.runNapariBoxManager(self.provider.protocol, NAPARI_BOXMANAGER,
+                                       args)
 
     def refresh_gui(self):
         self.tree.update()
@@ -227,7 +260,7 @@ class SphireListDialog(ListDialog):
             self.after(1000, self.refresh_gui)
 
 
-class SphireGenericViewer(pwviewer.View):
+class SphireGenericView(pwviewer.View):
     """ This class implements a view using Tkinter ListDialog
     and the SphireTreeProvider.
     """

@@ -36,8 +36,8 @@ from tomo.protocols import ProtTomoPicking
 import tomo.constants as tomoConst
 
 from .. import Plugin
-from ..constants import INPUT_MODEL_GENERAL_DENOISED, STRAIGHTNESS_METHOD, \
-    DIRECTIONAL_METHOD
+from ..constants import (INPUT_MODEL_GENERAL_DENOISED, STRAIGHTNESS_METHOD,
+                         DIRECTIONAL_METHOD, CBOX_FILAMENTS_FOLDER)
 from .protocol_base import ProtCryoloBase
 import sphire.convert as convert
 
@@ -212,7 +212,7 @@ class SphireProtCRYOLOTomoPicking(ProtCryoloBase, ProtTomoPicking):
 
     def createOutputStep(self):
         setOfTomograms = self.inputTomograms.get()
-        outputPath = self._getExtraPath("CBOX_3D") if not self.doFilament else self._getExtraPath("CBOX")
+        outputPath = self._getExtraPath("CBOX_3D") if not self.doFilament else self._getExtraPath(CBOX_FILAMENTS_FOLDER)
         suffix = self._getOutputSuffix(SetOfCoordinates3D)
 
         setOfCoord3D = self._createSetOfCoordinates3D(self.inputTomograms, suffix)

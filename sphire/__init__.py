@@ -28,6 +28,7 @@
 
 import pwem
 import pyworkflow.utils as pwutils
+from pyworkflow.utils import runJob
 
 from .constants import *
 
@@ -173,7 +174,7 @@ class Plugin(pwem.Plugin):
         _add(V1_8_5)
         _add(V1_9_3, default=True)
 
-        _addNapari(defaultVersion)
+        _addNapari(defaultVersion, default=True)
 
         def _addModel(model, version, link, filename, default=False):
             env.addPackage(model, version=version,
@@ -225,6 +226,6 @@ class Plugin(pwem.Plugin):
                                                 NAPARI_ACTIVATION_CMD,
                                                 launchPath,
                                                 program)
-        protocol.runJob(fullProgram, args, env=cls.getEnviron(), cwd=None,
-                        numberOfMpi=1)
+        runJob(None, fullProgram, args, env=cls.getEnviron(), cwd=None,
+               numberOfMpi=1)
 

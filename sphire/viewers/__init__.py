@@ -24,5 +24,8 @@
 # *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
+from pyworkflow.utils import weakImport
 
-from .views_tkinter_tree import SphireGenericViewer
+with weakImport('tomo'):
+    from .views_tkinter_tree import SphireGenericView
+    from .viewer_napari import NapariViewer
