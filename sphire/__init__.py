@@ -28,11 +28,12 @@
 
 import pwem
 import pyworkflow.utils as pwutils
+from pyworkflow.utils import runJob, weakImport
 
 from .constants import *
 
 
-__version__ = '3.1.6'
+__version__ = '3.1.7'
 _logo = "sphire_logo.png"
 _references = ['Wagner2019']
 
@@ -133,16 +134,48 @@ class Plugin(pwem.Plugin):
                        vars=installEnvVars)
 
     @classmethod
+    def addNapariPackage(cls, env, version, default=False):
+        ENV_NAME = getNaparyEnvName(version)
+        NAPARI_INSTALLED = f"napari_cryolo-{version}_installed"
+        installCmd = [cls.getCondaActivationCmd(),
+            f'conda create -y -n {ENV_NAME} -c conda-forge -c anaconda',
+            f'python=3.10 napari=0.4.17 pyqt pip &&',
+            f'conda activate {ENV_NAME} &&']
+
+        installCmd.append(f'pip install napari_boxmanager=={version}')
+
+        # Flag installation finished
+        installCmd.append(f'&& touch {NAPARI_INSTALLED}')
+
+        napari_commands = [(" ".join(installCmd), NAPARI_INSTALLED)]
+
+        envPath = os.environ.get('PATH',
+                                 "")  # keep path since conda likely in there
+        installEnvVars = {'PATH': envPath} if envPath else None
+        env.addPackage(f'napari_cryolo', version=version,
+                       tar='void.tgz',
+                       commands=napari_commands,
+                       neededProgs=cls.getDependencies(),
+                       default=default,
+                       vars=installEnvVars)
+
+    @classmethod
     def defineBinaries(cls, env):
         def _add(version, **kwargs):
             cls.addCryoloPackage(env, version, **kwargs)
             kwargs['useCpu'] = True
             cls.addCryoloPackage(env, version, **kwargs)
 
+        def _addNapari(version,  **kwargs):
+            cls.addNapariPackage(env, version, default=False)
+
         _add(V1_8_2)
         _add(V1_8_4)
         _add(V1_8_5)
         _add(V1_9_3, default=True)
+
+        with weakImport('tomo'):
+            _addNapari(defaultVersion, default=True)
 
         def _addModel(model, version, link, filename, default=False):
             env.addPackage(model, version=version,
@@ -185,3 +218,15 @@ class Plugin(pwem.Plugin):
                                        cls.getCryoloEnvActivation(useCpu), program)
         protocol.runJob(fullProgram, args, env=cls.getEnviron(), cwd=cwd,
                         numberOfMpi=1)
+
+    @classmethod
+    def runNapariBoxManager(cls, protocol, program, args):
+        """ Run Napari boxmanager from a given protocol. """
+        launchPath = protocol._getExtraPath()
+        fullProgram = '%s %s && cd %s && %s' % (cls.getCondaActivationCmd(),
+                                                NAPARI_ACTIVATION_CMD,
+                                                launchPath,
+                                                program)
+        runJob(None, fullProgram, args, env=cls.getEnviron(), cwd=None,
+               numberOfMpi=1)
+
