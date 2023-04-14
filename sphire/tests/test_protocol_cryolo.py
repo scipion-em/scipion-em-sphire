@@ -53,8 +53,6 @@ class TestSphireConvert(BaseTest):
         setupTestOutput(cls)
 
     def testConvertCoords(self):
-        import time
-        time.sleep(10)
         boxSize = 100
         boxDir = self.getOutputPath('boxDir')
         pwutils.makePath(boxDir)
