@@ -1,4 +1,4 @@
-3.1.6:
+3.1.7:
      - Creating a manual picking protocol using napari-boxmanager
      - Creating a tomogram training protocol
      - Adding the filaments options to cryolo tomogram picking protocol
