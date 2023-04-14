@@ -38,12 +38,11 @@ from tomo.objects import SetOfCoordinates3D
 from tomo.protocols import ProtTomoPicking
 import tomo.constants as tomoConst
 
-from sphire.protocols.protocol_base import ProtCryoloBase
 from sphire.viewers.views_tkinter_tree import SphireGenericView
 import sphire.convert as convert
 
 
-class SphireProtCRYOLOFilamentPicker(ProtCryoloBase, ProtTomoPicking):
+class SphireProtCRYOLOFilamentPicker(ProtTomoPicking):
     """
     Picks filaments and particles in a set of tomograms using napari_boxmanager.
     """
