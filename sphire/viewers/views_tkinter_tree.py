@@ -245,9 +245,12 @@ class SphireListDialog(ListDialog):
         tomogramPath = os.path.abspath(tomogram.getFileName())
         if os.path.exists(tomogramPath):
             args = tomogramPath
-            cboxFile = removeExt(tomogramId) + '.cbox'
-            # .cbox file
+            cboxFile = removeExt(tomogramId) + '.cbox'  # .cbox file
+
             coordinatesFilePath = self.provider.protocol._getExtraPath(NAPARI_VIEWER_CBOX_FILES, cboxFile)
+            if not os.path.exists(coordinatesFilePath):
+               coordinatesFilePath = self.provider.protocol._getExtraPath(cboxFile)
+
             if os.path.exists(coordinatesFilePath):
                 args += " %s" % os.path.abspath(coordinatesFilePath)
 

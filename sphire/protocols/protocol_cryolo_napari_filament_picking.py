@@ -25,6 +25,7 @@
 # *
 # **************************************************************************
 import os
+import time
 
 from pwem.protocols import EMProtocol
 
@@ -82,15 +83,29 @@ class SphireProtCRYOLOFilamentPicker(ProtCryoloBase, ProtTomoPicking):
             createAbsLink(source, dest)
 
     def runCoordinatePickingStep(self):
+        # Getting the first tomogram to check if the .cbox file exist
+        tomogram = self.inputSetOfTomograms.get().getFirstItem()
+        filePath = os.path.join(self._getExtraPath(),
+                                convert.getMicFn(tomogram, "cbox"))
+        creationOldTime = None
+        if os.path.exists(filePath):
+            creationOldTime = time.ctime(os.path.getctime(filePath))
 
         view = SphireGenericView(None, self, self.inputSetOfTomograms.get(),
                                    isInteractive=True,
                                    itemDoubleClick=True)
         view.show()
-        # Open dialog to request confirmation to create output
-        import tkinter as tk
-        if askYesNo(Message.TITLE_SAVE_OUTPUT, Message.LABEL_SAVE_OUTPUT,  tk.Frame()):
-            self.createOutput()
+
+        if os.path.exists(filePath):
+            if creationOldTime is not None:
+                modificationTime = time.ctime(os.path.getctime(filePath))
+                if creationOldTime != modificationTime:
+                    # Open dialog to request confirmation to create output
+                    import tkinter as tk
+                    if askYesNo(Message.TITLE_SAVE_OUTPUT, Message.LABEL_SAVE_OUTPUT,  tk.Frame()):
+                        self.createOutput()
+            else:
+                self.createOutput()
 
     def createOutput(self):
         setOfTomograms = self.inputSetOfTomograms.get()
