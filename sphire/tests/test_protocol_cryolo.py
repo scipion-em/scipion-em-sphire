@@ -419,11 +419,11 @@ class TestCryoloTomo(BaseTest):
 
     def test_pickingTomograms(self):
         protImport = self._runImportTomograms()
-        self.assertIsNotNone(protImport.outputTomograms,
+        self.assertIsNotNone(protImport.Tomograms,
                              "There was a problem with Import Tomograms protocol")
 
         sphireProtCRYOLOTomoPicking = self.newProtocol(protocols.SphireProtCRYOLOTomoPicking,
-                                                       inputTomograms=protImport.outputTomograms,
+                                                       inputTomograms=protImport.Tomograms,
                                                        inputModelFrom=INPUT_MODEL_GENERAL,
                                                        lowPassFilter=False)
 
