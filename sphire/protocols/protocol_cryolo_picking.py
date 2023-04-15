@@ -28,7 +28,6 @@
 # **************************************************************************
 
 import os
-from glob import glob
 
 import pyworkflow.utils as pwutils
 from pyworkflow.object import Integer

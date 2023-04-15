@@ -220,7 +220,7 @@ def writeSetOfCoordinates3D(boxDir, coord3DSet, tomoList=None):
     """
     tomoSet = coord3DSet.getPrecedents()
     tomoIdSet = tomoSet.getIdSet() if tomoList is None else set(m.getObjId()
-                                                             for m in tomoList)
+                                                                for m in tomoList)
 
     # Get first tomo from to
     tomo = tomoSet.getFirstItem()

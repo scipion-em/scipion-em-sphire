@@ -236,7 +236,6 @@ class SphireProtCRYOLOTomoPicking(ProtCryoloBase, ProtTomoPicking):
                                                boxSize,
                                                origin=tomoConst.BOTTOM_LEFT_CORNER)
 
-
         name = self.OUTPUT_PREFIX + suffix
         self._defineOutputs(**{name: setOfCoord3D})
         self._defineSourceRelation(setOfTomograms, setOfCoord3D)

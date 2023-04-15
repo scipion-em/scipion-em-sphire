@@ -138,9 +138,9 @@ class Plugin(pwem.Plugin):
         ENV_NAME = getNaparyEnvName(version)
         NAPARI_INSTALLED = f"napari_cryolo-{version}_installed"
         installCmd = [cls.getCondaActivationCmd(),
-            f'conda create -y -n {ENV_NAME} -c conda-forge -c anaconda',
-            f'python=3.10 napari=0.4.17 pyqt pip &&',
-            f'conda activate {ENV_NAME} &&']
+                      f'conda create -y -n {ENV_NAME} -c conda-forge -c anaconda',
+                      f'python=3.10 napari=0.4.17 pyqt pip &&',
+                      f'conda activate {ENV_NAME} &&']
 
         installCmd.append(f'pip install napari_boxmanager=={version}')
 

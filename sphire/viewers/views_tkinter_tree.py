@@ -194,6 +194,7 @@ class SphireGenericTreeProvider(TreeProvider):
                     item = self.objs[obj.getObjId()]  # to load mapper
 
                     return lambda: viewerClass(project=proj, protocol=self.protocol).visualize(item)
+
                 actions.append(('Open with %s' % viewerClass.__name__,
                                 createViewer(viewerClass, obj)))
         return actions
@@ -210,7 +211,7 @@ class SphireListDialog(ListDialog):
         self._itemDoubleClick = itemDoubleClick
         self.provider = provider
         ListDialog.__init__(self, parent, title, provider, message=None,
-                            allowSelect=False,  cancelButton=True, **kwargs)
+                            allowSelect=False, cancelButton=True, **kwargs)
 
     def body(self, bodyFrame):
         bodyFrame.config()
@@ -249,7 +250,7 @@ class SphireListDialog(ListDialog):
 
             coordinatesFilePath = self.provider.protocol._getExtraPath(NAPARI_VIEWER_CBOX_FILES, cboxFile)
             if not os.path.exists(coordinatesFilePath):
-               coordinatesFilePath = self.provider.protocol._getExtraPath(cboxFile)
+                coordinatesFilePath = self.provider.protocol._getExtraPath(cboxFile)
 
             if os.path.exists(coordinatesFilePath):
                 args += " %s" % os.path.abspath(coordinatesFilePath)
@@ -267,6 +268,7 @@ class SphireGenericView(pwviewer.View):
     """ This class implements a view using Tkinter ListDialog
     and the SphireTreeProvider.
     """
+
     def __init__(self, parent, protocol, objs, isInteractive=False,
                  itemDoubleClick=False, **kwargs):
         self._tkParent = parent
@@ -277,5 +279,4 @@ class SphireGenericView(pwviewer.View):
 
     def show(self):
         SphireListDialog(self._tkParent, self.title, self._provider,
-                       itemDoubleClick=self.itemDoubleClick)
-
+                         itemDoubleClick=self.itemDoubleClick)

@@ -84,7 +84,7 @@ class SphireProtCRYOLOTomoTraining(SphireProtCRYOLOTraining):
         # Default box size --> 100
         form.getParam('boxSize').default = Integer(100)
 
-     # --------------------------- STEPS functions -----------------------------
+    # --------------------------- STEPS functions -----------------------------
     def convertInputStep(self):
         """ Converts a set of coordinates to box files and binaries to mrc.
         It generates 2 folders: one for the box files and another for

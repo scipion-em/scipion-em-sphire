@@ -28,7 +28,6 @@ import os
 import time
 
 from pwem.protocols import EMProtocol
-
 from pyworkflow import BETA
 from pyworkflow.gui import askYesNo
 from pyworkflow.protocol import PointerParam
@@ -38,7 +37,7 @@ from tomo.objects import SetOfCoordinates3D
 from tomo.protocols import ProtTomoPicking
 import tomo.constants as tomoConst
 
-from sphire.viewers.views_tkinter_tree import SphireGenericView
+from ..viewers.views_tkinter_tree import SphireGenericView
 import sphire.convert as convert
 
 
@@ -47,7 +46,7 @@ class SphireProtCRYOLOFilamentPicker(ProtTomoPicking):
     Picks filaments and particles in a set of tomograms using napari_boxmanager.
     """
 
-    _label = 'cryolo tomo picking(manual)'
+    _label = 'cryolo tomo picking (manual)'
     _devStatus = BETA
     _interactiveMode = True
     _possibleOutputs = {'output3DCoordinates': SetOfCoordinates3D}
@@ -78,7 +77,7 @@ class SphireProtCRYOLOFilamentPicker(ProtTomoPicking):
         for tomogram in self.inputSetOfTomograms.get():
             tomoFn = tomogram.getFileName()
             source = os.path.abspath(tomoFn)
-            dest = os.path.abspath(self._getExtraPath(os.path.basename(tomoFn)))
+            dest = self._getExtraPath(os.path.basename(tomoFn))
             createAbsLink(source, dest)
 
     def runCoordinatePickingStep(self):
@@ -91,8 +90,8 @@ class SphireProtCRYOLOFilamentPicker(ProtTomoPicking):
             creationOldTime = time.ctime(os.path.getctime(filePath))
 
         view = SphireGenericView(None, self, self.inputSetOfTomograms.get(),
-                                   isInteractive=True,
-                                   itemDoubleClick=True)
+                                 isInteractive=True,
+                                 itemDoubleClick=True)
         view.show()
 
         if os.path.exists(filePath):
@@ -101,7 +100,7 @@ class SphireProtCRYOLOFilamentPicker(ProtTomoPicking):
                 if creationOldTime != modificationTime:
                     # Open dialog to request confirmation to create output
                     import tkinter as tk
-                    if askYesNo(Message.TITLE_SAVE_OUTPUT, Message.LABEL_SAVE_OUTPUT,  tk.Frame()):
+                    if askYesNo(Message.TITLE_SAVE_OUTPUT, Message.LABEL_SAVE_OUTPUT, tk.Frame()):
                         self.createOutput()
             else:
                 self.createOutput()
@@ -127,7 +126,6 @@ class SphireProtCRYOLOFilamentPicker(ProtTomoPicking):
                                                filePath,
                                                None,
                                                origin=tomoConst.BOTTOM_LEFT_CORNER)
-
 
         name = self.OUTPUT_PREFIX + suffix
         self._defineOutputs(**{name: setOfCoord3D})
