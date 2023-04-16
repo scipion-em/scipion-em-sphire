@@ -37,7 +37,7 @@ def getCryoloEnvName(version, useCpu=False):
 
 
 def getNaparyEnvName(version):
-    return f"napari_cryolo-{version}"
+    return f"napari-{version}"
 
 
 V1_8_2 = "1.8.2"

@@ -2,7 +2,6 @@
 # *
 # * Authors: Yunior C. Fonseca Reyna    (cfonseca@cnb.csic.es)
 # *
-# *
 # * Unidad de  Bioinformatica of Centro Nacional de Biotecnologia , CSIC
 # *
 # * This program is free software; you can redistribute it and/or modify
@@ -28,9 +27,8 @@ import os
 import time
 
 from pwem.protocols import EMProtocol
-from pyworkflow import BETA
-from pyworkflow.gui import askYesNo
-from pyworkflow.protocol import PointerParam
+from pyworkflow.constants import BETA
+from pyworkflow.gui.dialog import askYesNo
 from pyworkflow.utils import createAbsLink, Message
 
 from tomo.objects import SetOfCoordinates3D
@@ -41,12 +39,10 @@ from ..viewers.views_tkinter_tree import SphireGenericView
 import sphire.convert as convert
 
 
-class SphireProtCRYOLOFilamentPicker(ProtTomoPicking):
-    """
-    Picks filaments and particles in a set of tomograms using napari_boxmanager.
-    """
+class SphireProtCRYOLOTomoFilamentPicker(ProtTomoPicking):
+    """ Picks filaments in a set of tomograms using napari_boxmanager. """
 
-    _label = 'cryolo tomo picking (manual)'
+    _label = 'cryolo tomo filament picking (manual)'
     _devStatus = BETA
     _interactiveMode = True
     _possibleOutputs = {'output3DCoordinates': SetOfCoordinates3D}
@@ -54,16 +50,7 @@ class SphireProtCRYOLOFilamentPicker(ProtTomoPicking):
     def __init__(self, **args):
         EMProtocol.__init__(self, **args)
 
-    def _defineParams(self, form):
-        form.addSection(label='Input')
-        form.addParam('inputSetOfTomograms', PointerParam,
-                      pointerClass='SetOfTomograms',
-                      label="Set of Tomograms", important=True,
-                      help='Select the Tomograms to be used during '
-                           'picking.')
-
     def _insertAllSteps(self):
-        self.inputTiltSeries = None
         self._insertFunctionStep(self.prepareDataStep)
         self._insertFunctionStep(self.runCoordinatePickingStep,
                                  interactive=True)
@@ -74,7 +61,7 @@ class SphireProtCRYOLOFilamentPicker(ProtTomoPicking):
         This step prepare a folder with a link to the tomograms and create a
         folder where the .cbox files will be generated
         """
-        for tomogram in self.inputSetOfTomograms.get():
+        for tomogram in self.getInputTomos():
             tomoFn = tomogram.getFileName()
             source = os.path.abspath(tomoFn)
             dest = self._getExtraPath(os.path.basename(tomoFn))
@@ -82,14 +69,14 @@ class SphireProtCRYOLOFilamentPicker(ProtTomoPicking):
 
     def runCoordinatePickingStep(self):
         # Getting the first tomogram to check if the .cbox file exist
-        tomogram = self.inputSetOfTomograms.get().getFirstItem()
+        tomogram = self.getInputTomos().getFirstItem()
         filePath = os.path.join(self._getExtraPath(),
                                 convert.getMicFn(tomogram, "cbox"))
         creationOldTime = None
         if os.path.exists(filePath):
             creationOldTime = time.ctime(os.path.getctime(filePath))
 
-        view = SphireGenericView(None, self, self.inputSetOfTomograms.get(),
+        view = SphireGenericView(None, self, self.getInputTomos(),
                                  isInteractive=True,
                                  itemDoubleClick=True)
         view.show()
@@ -106,11 +93,11 @@ class SphireProtCRYOLOFilamentPicker(ProtTomoPicking):
                 self.createOutput()
 
     def createOutput(self):
-        setOfTomograms = self.inputSetOfTomograms.get()
+        setOfTomograms = self.getInputTomos()
         outputPath = self._getExtraPath()
         suffix = self._getOutputSuffix(SetOfCoordinates3D)
 
-        setOfCoord3D = self._createSetOfCoordinates3D(self.inputSetOfTomograms,
+        setOfCoord3D = self._createSetOfCoordinates3D(self.getInputTomos(pointer=True),
                                                       suffix)
         setOfCoord3D.setName("tomoCoord")
         setOfCoord3D.setSamplingRate(setOfTomograms.getSamplingRate())
@@ -123,21 +110,16 @@ class SphireProtCRYOLOFilamentPicker(ProtTomoPicking):
                 tomogramClone = tomogram.clone()
                 tomogramClone.copyInfo(tomogram)
                 convert.readSetOfCoordinates3D(tomogramClone, setOfCoord3D,
-                                               filePath,
-                                               None,
+                                               filePath, None,
                                                origin=tomoConst.BOTTOM_LEFT_CORNER)
 
         name = self.OUTPUT_PREFIX + suffix
         self._defineOutputs(**{name: setOfCoord3D})
         self._defineSourceRelation(setOfTomograms, setOfCoord3D)
 
-    def _validate(self):
-        return []
-
-    def _warnings(self):
-        warnings = []
-        return warnings
-
-    def _summary(self):
-        summary = []
-        return summary
+    # -------------------------- UTILS functions ------------------------------
+    def getInputTomos(self, pointer=False):
+        if pointer:
+            return self.inputTomograms
+        else:
+            return self.inputTomograms.get()
