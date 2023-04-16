@@ -206,16 +206,17 @@ def readSetOfCoordinates3D(tomogram, coord3DSet, coordsFile, boxSize,
         coord.setVolume(tomogram)
         coord.setPosition(x, y, z, origin)
         coord.setGroupId(groupId)
-        coord.setBoxSize(width)
         coord3DSet.append(coord)
+
+    coord3DSet.setBoxSize(boxSize if boxSize is not None else width)
 
 
 def writeSetOfCoordinates3D(boxDir, coord3DSet, tomoList=None):
-    """ Convert a SetOfCoordinates to Cryolo box files.
+    """ Convert a SetOfCoordinates to Cryolo cbox files.
     Params:
         boxDir: the output directory where to generate the files.
         coordSet: the input SetOfCoordinates that will be converted.
-        micList: if not None, only coordinates from this micrographs
+        tomoList: if not None, only coordinates from this micrographs
             will be written.
     """
     tomoSet = coord3DSet.getPrecedents()
@@ -240,7 +241,7 @@ def writeSetOfCoordinates3D(boxDir, coord3DSet, tomoList=None):
             doWrite = tomoId in tomoIdSet
             if doWrite:
                 zCoorList = []
-                writer.open(os.path.join(boxDir, getTomoFn(tomo, "cbox")))
+                writer.open(os.path.join(boxDir, getMicFn(tomo, "cbox")))
                 writer.writeCoordinate3DHeader()
             lastTomoId = tomoId
 
@@ -296,11 +297,7 @@ def convertMicrographs(micList, micDir):
         func(mic, getMicFn(mic, ext.lstrip(".")))
 
 
-def convertTomograms(tomoList, tomoDir):
-    """ Convert (or simply link) input tomograms into the given directory
-       in a format that is compatible with crYOLO.
-       """
-    convertMicrographs(tomoList, tomoDir)
+convertTomograms = convertMicrographs
 
 
 def getMicFn(mic, ext='mrc'):
@@ -308,13 +305,8 @@ def getMicFn(mic, ext='mrc'):
     return pwutils.replaceBaseExt(mic.getFileName(), ext)
 
 
-def getTomoFn(tomo, ext='mrc'):
-    """ Return a name for the micrograph based on its filename. """
-    return pwutils.replaceBaseExt(tomo.getFileName(), ext)
-
-
 def roundInputSize(inputSize):
-    """ Returns the closest value to inputSize th is multiple of 32"""
+    """ Returns the closest value to inputSize that is multiple of 32"""
     rounded = int(32 * round(float(inputSize) / 32))
 
     if rounded != inputSize:
