@@ -37,24 +37,14 @@ import sphire.convert as convert
 
 
 class SphireProtCRYOLOTraining(ProtCryoloBase, ProtParticlePicking):
-    """ Train crYOLO picker using a set of coordinates.
-    """
+    """ Train crYOLO picker using a set of coordinates. """
     _label = 'cryolo training'
     MODEL = 'model.h5'
     TRAIN = ['train_annotations', 'train_images']
     _IS_TRAIN = True
 
     # -------------------------- DEFINE param functions -----------------------
-    def _defineParams(self, form):
-        ProtParticlePicking._defineParams(self, form)
-        form.addParam('inputCoordinates', params.PointerParam,
-                      pointerClass='SetOfCoordinates',
-                      label='Input coordinates', important=True,
-                      help="Please select a set of coordinates, obtained "
-                           "from a previous picking run. Typically the "
-                           "coordinates from ~ 10 micrographs is "
-                           "a good start.")
-
+    def _defineTrainParams(self, form):
         ProtCryoloBase._defineParams(self, form)
 
         form.addSection(label="Training")
@@ -83,6 +73,17 @@ class SphireProtCRYOLOTraining(ProtCryoloBase, ProtParticlePicking):
 
         # Default box size --> 100
         form.getParam('boxSize').default = Integer(100)
+
+    def _defineParams(self, form):
+        ProtParticlePicking._defineParams(self, form)
+        form.addParam('inputCoordinates', params.PointerParam,
+                      pointerClass='SetOfCoordinates',
+                      label='Input coordinates', important=True,
+                      help="Please select a set of coordinates, obtained "
+                           "from a previous picking run. Typically the "
+                           "coordinates from ~ 10 micrographs is "
+                           "a good start.")
+        self._defineTrainParams(form)
 
     # --------------------------- INSERT steps functions ----------------------
     def _insertAllSteps(self):

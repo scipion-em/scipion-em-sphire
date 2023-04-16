@@ -1,9 +1,8 @@
 # **************************************************************************
 # *
-# * Authors: Yunior C. Fonseca Reyna    (cfonseca@cnb.csic.es)
+# * Authors: Yunior C. Fonseca Reyna (cfonseca@cnb.csic.es)
 # *
-# *
-# * Unidad de  Bioinformatica of Centro Nacional de Biotecnologia , CSIC
+# * Unidad de Bioinformatica of Centro Nacional de Biotecnologia, CSIC
 # *
 # * This program is free software; you can redistribute it and/or modify
 # * it under the terms of the GNU General Public License as published by
@@ -27,16 +26,13 @@
 
 import pyworkflow.protocol.params as params
 import pyworkflow.utils as pwutils
-from pyworkflow.object import Integer
-from . import SphireProtCRYOLOTraining
 
-from .protocol_base import ProtCryoloBase
+from . import SphireProtCRYOLOTraining
 import sphire.convert as convert
 
 
 class SphireProtCRYOLOTomoTraining(SphireProtCRYOLOTraining):
-    """ Train crYOLO picker using a set of coordinates.
-       """
+    """ Train crYOLO picker using a set of 3D coordinates. """
     _label = 'cryolo tomo training'
     MODEL = 'model.h5'
     TRAIN = ['train_annotations', 'train_images']
@@ -55,39 +51,13 @@ class SphireProtCRYOLOTomoTraining(SphireProtCRYOLOTraining):
                       label='Input coordinates 3D', important=True,
                       help="Please select a set of coordinates 3D, obtained "
                            "from a previous picking run.")
-        ProtCryoloBase._defineParams(self, form)
 
-        form.addSection(label="Training")
-        form.addParam('eFlagParam', params.IntParam, default=10,
-                      label="Early stop patience",
-                      help="The training stops when the 'loss' metric on the "
-                           "validation data does not improve 10 times in a row. "
-                           "This is typically enough. In case want to give the "
-                           "training more time to find the best model you might "
-                           "increase this parameters to a higher value (e.g 15).")
-        form.addParam('nb_epochVal', params.IntParam, default=200,
-                      label="Maximum number of iterations",
-                      help="Maximum number of epochs the network will train. "
-                           "Basically never reach this number, as crYOLO "
-                           "stops training if it recognize that the validation "
-                           "loss is not improving anymore.")
-        form.addParam('learning_rates', params.FloatParam, default=1e-4,
-                      label="Learning rates",
-                      help="If the number is too small convergence can be slow.")
-        form.addParam('batchSize', params.IntParam, default=4,
-                      label="Batch size",
-                      help="The number of images crYOLO process in parallel "
-                           "during training.")
-
-        form.addParallelSection(threads=1, mpi=0)
-
-        # Default box size --> 100
-        form.getParam('boxSize').default = Integer(100)
+        SphireProtCRYOLOTraining._defineTrainParams(self, form)
 
     # --------------------------- STEPS functions -----------------------------
     def convertInputStep(self):
-        """ Converts a set of coordinates to box files and binaries to mrc.
-        It generates 2 folders: one for the box files and another for
+        """ Converts a set of coordinates to cbox files and binaries to mrc.
+        It generates 2 folders: one for the cbox files and another for
         the mrc files.
         """
         inputTomos = self.inputTomograms.get()

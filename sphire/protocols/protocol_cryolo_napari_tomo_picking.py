@@ -39,10 +39,10 @@ from ..viewers.views_tkinter_tree import SphireGenericView
 import sphire.convert as convert
 
 
-class SphireProtCRYOLOTomoFilamentPicker(ProtTomoPicking):
-    """ Picks filaments in a set of tomograms using napari_boxmanager. """
+class SphireProtCRYOLONapariTomoPicker(ProtTomoPicking):
+    """ Picks particles or filaments in a set of tomograms using napari_boxmanager. """
 
-    _label = 'cryolo tomo filament picking (manual)'
+    _label = 'cryolo tomo picking (manual)'
     _devStatus = BETA
     _interactiveMode = True
     _possibleOutputs = {'output3DCoordinates': SetOfCoordinates3D}
@@ -103,14 +103,12 @@ class SphireProtCRYOLOTomoFilamentPicker(ProtTomoPicking):
         setOfCoord3D.setSamplingRate(setOfTomograms.getSamplingRate())
 
         for tomogram in setOfTomograms.iterItems():
-
-            filePath = os.path.join(outputPath,
-                                    convert.getMicFn(tomogram, "cbox"))
-            if os.path.exists(filePath):
+            filePath = os.path.join(outputPath, convert.getMicFn(tomogram, "cbox"))
+            if os.path.exists(filePath) and os.path.getsize(filePath):
                 tomogramClone = tomogram.clone()
                 tomogramClone.copyInfo(tomogram)
                 convert.readSetOfCoordinates3D(tomogramClone, setOfCoord3D,
-                                               filePath, None,
+                                               filePath, boxSize=None,
                                                origin=tomoConst.BOTTOM_LEFT_CORNER)
 
         name = self.OUTPUT_PREFIX + suffix
