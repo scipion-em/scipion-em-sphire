@@ -1,29 +1,3 @@
-# **************************************************************************
-# *
-# * Authors: Yunior C. Fonseca Reyna    (cfonseca@cnb.csic.es)
-# *
-# *
-# * Unidad de  Bioinformatica of Centro Nacional de Biotecnologia , CSIC
-# *
-# * This program is free software; you can redistribute it and/or modify
-# * it under the terms of the GNU General Public License as published by
-# * the Free Software Foundation; either version 2 of the License, or
-# * (at your option) any later version.
-# *
-# * This program is distributed in the hope that it will be useful,
-# * but WITHOUT ANY WARRANTY; without even the implied warranty of
-# * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# * GNU General Public License for more details.
-# *
-# * You should have received a copy of the GNU General Public License
-# * along with this program; if not, write to the Free Software
-# * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
-# * 02111-1307  USA
-# *
-# *  All comments concerning this program package may be sent to the
-# *  e-mail address 'scipion@cnb.csic.es'
-# *
-# **************************************************************************
 # *****************************************************************************
 # *
 # * Authors: Yunior C. Fonseca Reyna    (cfonseca@cnb.csic.es)
@@ -58,13 +32,15 @@ from pyworkflow.gui.tree import TreeProvider
 from pyworkflow.gui.dialog import ListDialog
 import pyworkflow.viewer as pwviewer
 from pyworkflow.plugin import Domain
-import tomo.objects
 from pyworkflow.utils import removeExt
+
+import tomo.objects
+
 from sphire.constants import CBOX_FILAMENTS_FOLDER, NAPARI_VIEWER_CBOX_FILES
 
 
 class SphireGenericTreeProvider(TreeProvider):
-    """ Model class that will retrieve the information from   Tomogram and
+    """ Model class that will retrieve the information from Tomogram and
         prepare the columns/rows models required by the TreeDialog GUI.
     """
     COL_TOMOGRAM = 'Tomograms'
@@ -194,6 +170,7 @@ class SphireGenericTreeProvider(TreeProvider):
                     item = self.objs[obj.getObjId()]  # to load mapper
 
                     return lambda: viewerClass(project=proj, protocol=self.protocol).visualize(item)
+
                 actions.append(('Open with %s' % viewerClass.__name__,
                                 createViewer(viewerClass, obj)))
         return actions
@@ -210,7 +187,7 @@ class SphireListDialog(ListDialog):
         self._itemDoubleClick = itemDoubleClick
         self.provider = provider
         ListDialog.__init__(self, parent, title, provider, message=None,
-                            allowSelect=False,  cancelButton=True, **kwargs)
+                            allowSelect=False, cancelButton=True, **kwargs)
 
     def body(self, bodyFrame):
         bodyFrame.config()
@@ -249,7 +226,7 @@ class SphireListDialog(ListDialog):
 
             coordinatesFilePath = self.provider.protocol._getExtraPath(NAPARI_VIEWER_CBOX_FILES, cboxFile)
             if not os.path.exists(coordinatesFilePath):
-               coordinatesFilePath = self.provider.protocol._getExtraPath(cboxFile)
+                coordinatesFilePath = self.provider.protocol._getExtraPath(cboxFile)
 
             if os.path.exists(coordinatesFilePath):
                 args += " %s" % os.path.abspath(coordinatesFilePath)
@@ -267,6 +244,7 @@ class SphireGenericView(pwviewer.View):
     """ This class implements a view using Tkinter ListDialog
     and the SphireTreeProvider.
     """
+
     def __init__(self, parent, protocol, objs, isInteractive=False,
                  itemDoubleClick=False, **kwargs):
         self._tkParent = parent
@@ -277,5 +255,4 @@ class SphireGenericView(pwviewer.View):
 
     def show(self):
         SphireListDialog(self._tkParent, self.title, self._provider,
-                       itemDoubleClick=self.itemDoubleClick)
-
+                         itemDoubleClick=self.itemDoubleClick)

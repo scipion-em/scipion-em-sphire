@@ -37,7 +37,8 @@ def getCryoloEnvName(version, useCpu=False):
 
 
 def getNaparyEnvName(version):
-    return f"napari_cryolo-{version}"
+    return f"napari-{version}"
+
 
 V1_8_2 = "1.8.2"
 V1_8_4 = "1.8.4"
@@ -102,7 +103,7 @@ JANNI_GENMOD_20190703_FN = f"gmodel_janni_{JANNI_GENMOD_20190703}.h5"
 JANNI_GENMOD_DEFAULT = os.path.join(f"{JANNI_GENMOD}-{JANNI_GENMOD_20190703}",
                                     JANNI_GENMOD_20190703_FN)
 
-#Napari variables
+# Napari variables
 V0_3_11 = '0.3.11'
 
 defaultVersion = V0_3_11
