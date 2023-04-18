@@ -91,9 +91,11 @@ _Confidence #5
             self.assertEqual(c1, c2)
 
         # Case 2: Flipping on Y
-        coordsOut = _convert(coordsIn, yFlipHeight=300)
+        yFlipHeight = 300
+        coordsOut = _convert(coordsIn, yFlipHeight=yFlipHeight)
         for c1, c2 in zip(coordsIn, coordsOut):
-            self.assertEqual(c1, c2)
+            self.assertNotEqual(c1, c2)
+            self.assertEqual(yFlipHeight - c1[1], c2[1])
 
     def testConvertMic(self):
         """Check extension of the input micrographs"""
