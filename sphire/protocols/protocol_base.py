@@ -287,15 +287,20 @@ class ProtCryoloBase(EMProtocol):
             return not self.useGpu.get()
 
     def getInputModel(self):
-        if self.inputModelFrom == INPUT_MODEL_GENERAL:
-            m = Plugin.getModelFn(CRYOLO_GENMOD_VAR)
-        elif self.inputModelFrom == INPUT_MODEL_GENERAL_DENOISED:
-            m = Plugin.getModelFn(CRYOLO_GENMOD_NN_VAR)
-        elif self.inputModelFrom == INPUT_MODEL_GENERAL_NS:
-            m = Plugin.getModelFn(CRYOLO_NS_GENMOD_VAR)
+        if self._IS_TRAIN:
+            if self.inputModelFrom == INPUT_MODEL_GENERAL:
+                m = Plugin.getModelFn(CRYOLO_GENMOD_VAR)
+            else:
+                m = os.path.abspath(self.inputModel.get().getPath())
         else:
-            m = os.path.abspath(self.inputModel.get().getPath())
-
+            if self.inputModelFrom == INPUT_MODEL_GENERAL:
+                m = Plugin.getModelFn(CRYOLO_GENMOD_VAR)
+            elif self.inputModelFrom == INPUT_MODEL_GENERAL_DENOISED:
+                m = Plugin.getModelFn(CRYOLO_GENMOD_NN_VAR)
+            elif self.inputModelFrom == INPUT_MODEL_GENERAL_NS:
+                m = Plugin.getModelFn(CRYOLO_NS_GENMOD_VAR)
+            else:
+                m = os.path.abspath(self.inputModel.get().getPath())
         return m
 
     def getEstimatedBoxSize(self, path):
