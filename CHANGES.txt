@@ -1,3 +1,4 @@
+3.1.8: Fix: coordinates 3d sent to napari are not flipped on Y axis.
 3.1.7:
      - Creating a manual picking protocol using napari-boxmanager
      - Creating a tomogram training protocol
