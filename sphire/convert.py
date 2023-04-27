@@ -25,6 +25,8 @@
 # *
 # **************************************************************************
 
+import logging
+logger = logging.getLogger(__name__)
 import os
 from emtable import Table
 
@@ -225,9 +227,8 @@ def writeSetOfCoordinates3D(boxDir, coord3DSet, tomoList=None):
 
     # Get first tomo from to
     tomo = tomoSet.getFirstItem()
-    # Get fileName from tomo
-    writer = CoordBoxWriter(coord3DSet.getBoxSize(),
-                            getFlipYHeight(tomo.getFileName()))
+
+    writer = CoordBoxWriter(coord3DSet.getBoxSize())
     lastTomoId = None
     doWrite = True
     zCoorList = []
@@ -262,14 +263,16 @@ def needToFlipOnY(filename):
 
     if ext in ".mrc":
         header = Ccp4Header(filename, readHeader=True)
-        return header.getISPG() != 0  # ISPG 1, cryolo will not flip the image
-
+        flip = header.getISPG() != 0  # ISPG 1, cryolo will not flip the image
+        logger.info("File %s DOES%s need flipping the coordinates on Y based on its headers." % (filename,"" if flip else "N'T"))
+        return flip
     return ext in constants.CRYOLO_SUPPORTED_FORMATS
 
 
 def getFlipYHeight(filename):
     """ Return y-Height if flipping is needed, None otherwise """
     x, y, z, n = ImageHandler().getDimensions(filename)
+    logger.info("Calculating if %s need flipping on Y." % filename)
     return y if needToFlipOnY(filename) else None
 
 
