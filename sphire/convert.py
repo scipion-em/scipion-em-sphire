@@ -25,6 +25,8 @@
 # *
 # **************************************************************************
 
+import logging
+logger = logging.getLogger(__name__)
 import os
 from emtable import Table
 
@@ -33,6 +35,7 @@ from pwem.emlib.image import ImageHandler
 from pwem.convert import Ccp4Header
 
 import sphire.constants as constants
+from tomo.constants import BOTTOM_LEFT_CORNER
 
 with pwutils.weakImport('tomo'):
     from tomo.objects import Coordinate3D
@@ -53,7 +56,7 @@ class CoordBoxWriter:
     def open(self, filename):
         """ Open a new filename to write, close previous one if open. """
         self.close()
-        self._file = open(filename, 'w')
+        self._file = open(filename, 'a+')
 
     def writeCoord(self, coord):
         box = self._boxSize
@@ -65,6 +68,49 @@ class CoordBoxWriter:
             y = self._yFlipHeight - coord.getY() - half
         score = getattr(coord, '_cryoloScore', 0.0)
         self._file.write("%s\t%s\t%s\t%s\t%s\n" % (x, y, box, box, score))
+
+    def writeCoordinate3DHeader(self):
+        HEADER = """
+data_cryolo
+
+loop_
+_CoordinateX #1
+_CoordinateY #2
+_CoordinateZ #3
+_Width #4
+_Height #5
+_Depth #6
+_filamentid #7
+_Confidence #8
+_EstWidth #9
+_EstHeight #10
+_NumBoxes #11
+"""
+        self._file.write(HEADER)
+
+    def writeCoord3D(self, coord3d):
+        box = self._boxSize
+        half = self._halfBox
+        x = coord3d.getX(BOTTOM_LEFT_CORNER) - half
+        if self._yFlipHeight is None:
+            y = coord3d.getY(BOTTOM_LEFT_CORNER) - half
+        else:
+            y = self._yFlipHeight - coord3d.getY(BOTTOM_LEFT_CORNER) - half
+        z = coord3d.getZ(BOTTOM_LEFT_CORNER)
+        groupId = coord3d.getGroupId()
+        self._file.write("%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n"
+                         % (x, y, z, box, box, box, groupId, box, box, box, 10))
+
+    def writeIncludeBlock(self, zCoordinates):
+        INCLUDE_BLOCK = """
+data_cryolo_include
+
+loop_
+_slice_index #1
+"""
+        self._file.write(INCLUDE_BLOCK)
+        for zCoordinate in zCoordinates:
+            self._file.write("%s\n" % zCoordinate)
 
     def close(self):
         if self._file:
@@ -78,7 +124,9 @@ class CoordBoxReader:
         :param boxSize: The box size of the coordinates that will be read
         :param yFlipHeight: if not None, the y coordinates will be flipped
         """
-        self._halfBox = boxSize / 2.0
+        self._file = None
+        self._boxSize = boxSize
+        self._halfBox = boxSize / 2.0 if self._boxSize is not None else None
         self._yFlipHeight = yFlipHeight
         self._boxSizeEstimated = boxSizeEstimated
 
@@ -88,6 +136,12 @@ class CoordBoxReader:
             y = row.CoordinateY
             z = row.get("CoordinateZ", 0.0)
             score = row.get("Confidence", 0.0)
+            groupId = int(row.get('filamentid', 0))
+            width = int(row.get('Width', 0))
+
+            if self._boxSize is None:
+                self._boxSize = width
+                self._halfBox = self._boxSize / 2.0
 
             if not self._boxSizeEstimated:
                 x += self._halfBox
@@ -100,7 +154,7 @@ class CoordBoxReader:
             if self._yFlipHeight is not None:
                 sciY = self._yFlipHeight - sciY
 
-            yield sciX, sciY, sciZ, score
+            yield sciX, sciY, sciZ, score, groupId, width
 
 
 def writeSetOfCoordinates(boxDir, coordSet, micList=None):
@@ -148,12 +202,59 @@ def readSetOfCoordinates3D(tomogram, coord3DSet, coordsFile, boxSize,
 
     coord = Coordinate3D()
 
-    for x, y, z, _ in reader.iterCoords(coordsFile):
+    for x, y, z, score, groupId, width in reader.iterCoords(coordsFile):
         # Clean up objId to add as a new coordinate
         coord.setObjId(None)
         coord.setVolume(tomogram)
         coord.setPosition(x, y, z, origin)
+        coord.setGroupId(groupId)
         coord3DSet.append(coord)
+
+    coord3DSet.setBoxSize(boxSize if boxSize is not None else width)
+
+
+def writeSetOfCoordinates3D(boxDir, coord3DSet, tomoList=None):
+    """ Convert a SetOfCoordinates to Cryolo cbox files.
+    Params:
+        boxDir: the output directory where to generate the files.
+        coordSet: the input SetOfCoordinates that will be converted.
+        tomoList: if not None, only coordinates from this micrographs
+            will be written.
+    """
+    tomoSet = coord3DSet.getPrecedents()
+    tomoIdSet = tomoSet.getIdSet() if tomoList is None else set(m.getObjId()
+                                                                for m in tomoList)
+
+    # Get first tomo from to
+    tomo = tomoSet.getFirstItem()
+
+    writer = CoordBoxWriter(coord3DSet.getBoxSize())
+    lastTomoId = None
+    doWrite = True
+    zCoorList = []
+    for coord in coord3DSet.iterCoordinates():
+        tomoId = coord.getVolume().getObjId()
+        tomo = tomoSet[tomoId]
+
+        if tomoId != lastTomoId:
+            if lastTomoId is not None:
+                writer.writeIncludeBlock(zCoorList)
+            doWrite = tomoId in tomoIdSet
+            if doWrite:
+                zCoorList = []
+                writer.open(os.path.join(boxDir, getMicFn(tomo, "cbox")))
+                writer.writeCoordinate3DHeader()
+            lastTomoId = tomoId
+
+        if doWrite:
+            writer.writeCoord3D(coord)
+            zValue = coord.getZ(BOTTOM_LEFT_CORNER)
+            if zValue not in zCoorList:
+                zCoorList.append(zValue)
+
+    writer.writeIncludeBlock(zCoorList)
+
+    writer.close()
 
 
 def needToFlipOnY(filename):
@@ -162,14 +263,16 @@ def needToFlipOnY(filename):
 
     if ext in ".mrc":
         header = Ccp4Header(filename, readHeader=True)
-        return header.getISPG() != 0  # ISPG 1, cryolo will not flip the image
-
+        flip = header.getISPG() != 0  # ISPG 1, cryolo will not flip the image
+        logger.info("File %s DOES%s need flipping the coordinates on Y based on its headers." % (filename,"" if flip else "N'T"))
+        return flip
     return ext in constants.CRYOLO_SUPPORTED_FORMATS
 
 
 def getFlipYHeight(filename):
     """ Return y-Height if flipping is needed, None otherwise """
     x, y, z, n = ImageHandler().getDimensions(filename)
+    logger.info("Calculating if %s need flipping on Y." % filename)
     return y if needToFlipOnY(filename) else None
 
 
@@ -197,13 +300,16 @@ def convertMicrographs(micList, micDir):
         func(mic, getMicFn(mic, ext.lstrip(".")))
 
 
+convertTomograms = convertMicrographs
+
+
 def getMicFn(mic, ext='mrc'):
     """ Return a name for the micrograph based on its filename. """
     return pwutils.replaceBaseExt(mic.getFileName(), ext)
 
 
 def roundInputSize(inputSize):
-    """ Returns the closest value to inputSize th is multiple of 32"""
+    """ Returns the closest value to inputSize that is multiple of 32"""
     rounded = int(32 * round(float(inputSize) / 32))
 
     if rounded != inputSize:

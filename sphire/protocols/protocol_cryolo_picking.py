@@ -28,7 +28,6 @@
 # **************************************************************************
 
 import os
-from glob import glob
 
 import pyworkflow.utils as pwutils
 from pyworkflow.object import Integer
@@ -142,7 +141,7 @@ class SphireProtCRYOLOPicking(ProtCryoloBase, ProtParticlePickingAuto):
             cboxFile = convert.getMicFn(mic, "cbox")
             coordsFile = self._getExtraPath(cboxFile)
             if os.path.exists(coordsFile) and os.path.getsize(coordsFile):
-                for x, y, z, score in reader.iterCoords(coordsFile):
+                for x, y, z, score, _, _ in reader.iterCoords(coordsFile):
                     # Clean up objId to add as a new coordinate
                     coord.setObjId(None)
                     coord.setPosition(x, y)

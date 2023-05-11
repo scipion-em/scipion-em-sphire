@@ -44,6 +44,9 @@ here = path.abspath(path.dirname(__file__))
 with open(path.join(here, 'README.rst'), encoding='utf-8') as f:
     long_description = f.read()
 
+with open('requirements.txt') as f:
+    requirements = f.read().splitlines()
+
 # Arguments marked as "Required" below must be included for upload to PyPI.
 # Fields marked as "Optional" may be commented out.
 
@@ -92,7 +95,7 @@ setup(
 
     # This should be your name or the name of the organization which owns the
     # project.
-    author='I2PC, Jose Miguel de La Rosa, Jorge Jiménez',  # Optional
+    author='I2PC, Jose Miguel de La Rosa Trevin, Jorge Jiménez',  # Optional
 
     # This should be a valid email address corresponding to the author listed
     # above.
@@ -143,7 +146,7 @@ setup(
     #
     # For an analysis of "install_requires" vs pip's requirements files see:
     # https://packaging.python.org/en/latest/requirements.html
-    #install_requires=[],  # Optional
+    install_requires=[requirements],
 
     # List additional groups of dependencies here (e.g. development
     # dependencies). Users will be able to install these using the "extras"
