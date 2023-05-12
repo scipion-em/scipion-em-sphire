@@ -33,7 +33,7 @@ from pyworkflow.utils import runJob, weakImport
 from .constants import *
 
 
-__version__ = '3.1.8'
+__version__ = '3.1.9'
 _logo = "sphire_logo.png"
 _references = ['Wagner2019']
 
@@ -179,20 +179,22 @@ class Plugin(pwem.Plugin):
         def _addModel(model, version, link, filename, default=False):
             env.addPackage(model, version=version,
                            tar='void.tgz',
-                           commands=[(f"wget {link}/{filename}", filename)],
+                           commands=[(f"wget {link} -O {filename}", filename)],
                            neededProgs=["wget"],
                            default=default)
 
-        url = "ftp://ftp.gwdg.de/pub/misc/sphire/crYOLO-GENERAL-MODELS"
-        _addModel(CRYOLO_GENMOD, CRYOLO_GENMOD_202005, url,
+        _addModel(CRYOLO_GENMOD, CRYOLO_GENMOD_202005,
+                  "https://owncloud.gwdg.de/index.php/s/AdVdYdcCg4XaNRw/download",
                   CRYOLO_GENMOD_202005_FN, True)
-        _addModel(CRYOLO_GENMOD, CRYOLO_GENMOD_NN_202005, url,
+        _addModel(CRYOLO_GENMOD, CRYOLO_GENMOD_NN_202005,
+                  "https://owncloud.gwdg.de/index.php/s/RVEnx1t0t7DTbgA/download",
                   CRYOLO_GENMOD_NN_202005_FN, True)
-        _addModel(CRYOLO_NS_GENMOD, CRYOLO_NS_GENMOD_20190226, url,
+        _addModel(CRYOLO_NS_GENMOD, CRYOLO_NS_GENMOD_20190226,
+                  "https://owncloud.gwdg.de/index.php/s/KpSw1gGIM3Q3KGa/download",
                   CRYOLO_NS_GENMOD_20190226_FN, False)
 
         url = "https://github.com/MPI-Dortmund/sphire-janni/raw/master/janni_general_models/"
-        _addModel(JANNI_GENMOD, JANNI_GENMOD_20190703, url,
+        _addModel(JANNI_GENMOD, JANNI_GENMOD_20190703, url + JANNI_GENMOD_20190703_FN,
                   JANNI_GENMOD_20190703_FN, True)
 
     @classmethod
