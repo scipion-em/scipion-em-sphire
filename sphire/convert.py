@@ -35,10 +35,10 @@ from pwem.emlib.image import ImageHandler
 from pwem.convert import Ccp4Header
 
 import sphire.constants as constants
-from tomo.constants import BOTTOM_LEFT_CORNER
 
 with pwutils.weakImport('tomo'):
     from tomo.objects import Coordinate3D
+    from tomo.constants import BOTTOM_LEFT_CORNER
 
 
 class CoordBoxWriter:
