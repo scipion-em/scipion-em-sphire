@@ -217,7 +217,7 @@ class SphireListDialog(ListDialog):
         ext = getExt(tomogram.getFileName())
 
         if ext in CRYOLO_SUPPORTED_FORMATS:
-            tomogramPath = tomogram.getFileName()
+            tomogramPath = os.path.basename(tomogram.getFileName())
         else:
             tomogramPath = replaceBaseExt(tomogram.getFileName(), "mrc")
 
