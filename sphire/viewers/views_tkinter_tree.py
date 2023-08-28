@@ -23,7 +23,7 @@
 # *  e-mail address 'scipion@cnb.csic.es'
 # *
 # *****************************************************************************
-
+import os.path
 import threading
 
 import emtable
@@ -32,11 +32,11 @@ from pyworkflow.gui.tree import TreeProvider
 from pyworkflow.gui.dialog import ListDialog
 import pyworkflow.viewer as pwviewer
 from pyworkflow.plugin import Domain
-from pyworkflow.utils import removeExt
+from pyworkflow.utils import replaceBaseExt, getExt
 
 import tomo.objects
 
-from sphire.constants import CBOX_FILAMENTS_FOLDER, NAPARI_VIEWER_CBOX_FILES
+from sphire.constants import CRYOLO_SUPPORTED_FORMATS
 
 
 class SphireGenericTreeProvider(TreeProvider):
@@ -50,7 +50,7 @@ class SphireGenericTreeProvider(TreeProvider):
 
     ORDER_DICT = {COL_TOMOGRAM: 'id'}
 
-    def __init__(self, protocol, objs, isInteractive=False):
+    def __init__(self, protocol, objs, isInteractive=False, tmpDir=None):
         self.title = 'Sphire set viewer'
         if isinstance(objs, tomo.objects.SetOfTomograms):
             self.COL_TOMOGRAM = 'Tomograms'
@@ -63,6 +63,7 @@ class SphireGenericTreeProvider(TreeProvider):
         self.selectedDict = {}
         self.mapper = protocol.mapper
         self.maxNum = 200
+        self.tmpDir = tmpDir
 
     def getObjects(self):
         # Retrieve all objects of type className
@@ -150,13 +151,8 @@ class SphireGenericTreeProvider(TreeProvider):
 
     def getCboxFile(self, item):
         cboxFileName = item.getTsId() + '.cbox'
-        coordinatesFilePath = self.protocol._getExtraPath(cboxFileName)
-        if not os.path.exists(coordinatesFilePath):
-            coordinatesFilePath = self.protocol._getExtraPath(CBOX_FILAMENTS_FOLDER,
-                                                              cboxFileName)
-            if not os.path.exists(coordinatesFilePath):
-                coordinatesFilePath = self.protocol._getExtraPath(NAPARI_VIEWER_CBOX_FILES,
-                                                                  cboxFileName)
+        coordinatesFilePath = os.path.join(self.tmpDir, cboxFileName)
+
         return coordinatesFilePath
 
     def getObjectActions(self, obj):
@@ -166,9 +162,8 @@ class SphireGenericTreeProvider(TreeProvider):
                                          pwviewer.DESKTOP_TKINTER)
             for viewerClass in viewers:
                 def createViewer(viewerClass, obj):
-                    proj = self.protocol.getProject()
                     item = self.objs[obj.getObjId()]  # to load mapper
-
+                    proj = self.protocol.getProject()
                     return lambda: viewerClass(project=proj, protocol=self.protocol).visualize(item)
 
                 actions.append(('Open with %s' % viewerClass.__name__,
@@ -182,10 +177,11 @@ class SphireGenericTreeProvider(TreeProvider):
 
 class SphireListDialog(ListDialog):
     def __init__(self, parent, title, provider, createSetButton=False,
-                 itemDoubleClick=False, **kwargs):
+                 itemDoubleClick=False, tmpDir=None, **kwargs):
         self.createSetButton = createSetButton
         self._itemDoubleClick = itemDoubleClick
         self.provider = provider
+        self.tmpDir = tmpDir
         ListDialog.__init__(self, parent, title, provider, message=None,
                             allowSelect=False, cancelButton=True, **kwargs)
 
@@ -218,21 +214,21 @@ class SphireListDialog(ListDialog):
 
     def runNapariBoxmanager(self, tomogram):
         from sphire import Plugin, NAPARI_BOXMANAGER
-        tomogramId = os.path.basename(tomogram.getFileName())
-        tomogramPath = os.path.abspath(tomogram.getFileName())
-        if os.path.exists(tomogramPath):
+        ext = getExt(tomogram.getFileName())
+
+        if ext in CRYOLO_SUPPORTED_FORMATS:
+            tomogramPath = tomogram.getFileName()
+        else:
+            tomogramPath = replaceBaseExt(tomogram.getFileName(), "mrc")
+
+        if os.path.exists(os.path.join(self.tmpDir, tomogramPath)):
             args = tomogramPath
-            cboxFile = removeExt(tomogramId) + '.cbox'  # .cbox file
+            coordinatesPath = replaceBaseExt(tomogram.getFileName(), 'cbox')
 
-            coordinatesFilePath = self.provider.protocol._getExtraPath(NAPARI_VIEWER_CBOX_FILES, cboxFile)
-            if not os.path.exists(coordinatesFilePath):
-                coordinatesFilePath = self.provider.protocol._getExtraPath(cboxFile)
+            if os.path.exists(os.path.join(self.tmpDir, coordinatesPath)):
+                args += f" {coordinatesPath}"
 
-            if os.path.exists(coordinatesFilePath):
-                args += " %s" % os.path.abspath(coordinatesFilePath)
-
-            Plugin.runNapariBoxManager(self.provider.protocol, NAPARI_BOXMANAGER,
-                                       args)
+            Plugin.runNapariBoxManager(self.tmpDir, NAPARI_BOXMANAGER, args)
 
     def refresh_gui(self):
         self.tree.update()
@@ -246,13 +242,14 @@ class SphireGenericView(pwviewer.View):
     """
 
     def __init__(self, parent, protocol, objs, isInteractive=False,
-                 itemDoubleClick=False, **kwargs):
+                 itemDoubleClick=False, tmpDir=None, **kwargs):
         self._tkParent = parent
         self._protocol = protocol
-        self._provider = SphireGenericTreeProvider(protocol, objs, isInteractive)
+        self._provider = SphireGenericTreeProvider(protocol, objs, isInteractive, tmpDir)
         self.title = self._provider.title
         self.itemDoubleClick = itemDoubleClick
+        self.tmpDir = tmpDir
 
     def show(self):
         SphireListDialog(self._tkParent, self.title, self._provider,
-                         itemDoubleClick=self.itemDoubleClick)
+                         itemDoubleClick=self.itemDoubleClick, tmpDir=self.tmpDir)

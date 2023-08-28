@@ -61,11 +61,8 @@ class SphireProtCRYOLONapariTomoPicker(ProtTomoPicking):
         This step prepare a folder with a link to the tomograms and create a
         folder where the .cbox files will be generated
         """
-        for tomogram in self.getInputTomos():
-            tomoFn = tomogram.getFileName()
-            source = os.path.abspath(tomoFn)
-            dest = self._getExtraPath(os.path.basename(tomoFn))
-            createAbsLink(source, dest)
+        tomoList = [tomo.clone() for tomo in self.getInputTomos()]
+        convert.convertMicrographs(tomoList, self._getExtraPath())
 
     def runCoordinatePickingStep(self):
         # Getting the first tomogram to check if the .cbox file exist
@@ -78,7 +75,8 @@ class SphireProtCRYOLONapariTomoPicker(ProtTomoPicking):
 
         view = SphireGenericView(None, self, self.getInputTomos(),
                                  isInteractive=True,
-                                 itemDoubleClick=True)
+                                 itemDoubleClick=True,
+                                 tmpDir=self._getExtraPath())
         view.show()
 
         if os.path.exists(filePath):
