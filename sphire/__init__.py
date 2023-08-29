@@ -33,7 +33,7 @@ from pyworkflow.utils import runJob, weakImport
 from .constants import *
 
 
-__version__ = '3.1.10'
+__version__ = '3.1.11'
 _logo = "sphire_logo.png"
 _references = ['Wagner2019']
 
@@ -52,6 +52,7 @@ class Plugin(pwem.Plugin):
         cls._defineEmVar(JANNI_GENMOD_VAR, JANNI_GENMOD_DEFAULT)
         cls._defineEmVar(CRYOLO_NS_GENMOD_VAR, CRYOLO_NS_GENMOD_DEFAULT)
         cls._defineVar(CRYOLO_CUDA_LIB, pwem.Config.CUDA_LIB)
+        cls._defineVar(NAPARI_ENV_ACTIVATION, NAPARI_ACTIVATION_CMD)
 
     @classmethod
     def getCryoloEnvActivation(cls, useCpu=False):
@@ -117,6 +118,7 @@ class Plugin(pwem.Plugin):
             installCmd.append(f"pip install nvidia-pyindex && pip install 'cryolo[c11]=={version}'")
 
         # downgrade imageio, because numpy must be 1.18.5
+        # FIXME: remove this line once we drop cryolo 1.8.5 support
         installCmd.append("&& pip install 'imageio<=2.15.0'")
 
         # Flag installation finished
@@ -141,7 +143,7 @@ class Plugin(pwem.Plugin):
                       f'conda create -y -n {ENV_NAME} -c conda-forge',
                       'python=3.10 napari=0.4.17 pyqt pip &&',
                       f'conda activate {ENV_NAME} &&',
-                      f'pip install napari_boxmanager=={version}']
+                      f'pip install napari-tomotwin napari-boxmanager=={version}']
 
         # Flag installation finished
         installCmd.append(f'&& touch {NAPARI_INSTALLED}')
@@ -168,13 +170,14 @@ class Plugin(pwem.Plugin):
         def _addNapari(version,  **kwargs):
             cls.addNapariPackage(env, version, default=False)
 
-        _add(V1_8_2)
         _add(V1_8_4)
         _add(V1_8_5)
-        _add(V1_9_3, default=True)
+        _add(V1_9_3)
+        _add(V1_9_6, default=True)
 
         with weakImport('tomo'):
-            _addNapari(defaultVersion, default=True)
+            _addNapari(V0_3_11)
+            _addNapari(NAPARI_DEF_VER, default=True)
 
         def _addModel(model, version, link, filename, default=False):
             env.addPackage(model, version=version,
@@ -221,13 +224,10 @@ class Plugin(pwem.Plugin):
                         numberOfMpi=1)
 
     @classmethod
-    def runNapariBoxManager(cls, protocol, program, args):
+    def runNapariBoxManager(cls, tmpDir, program, args):
         """ Run Napari boxmanager from a given protocol. """
-        launchPath = protocol._getExtraPath()
-        fullProgram = '%s %s && cd %s && %s' % (cls.getCondaActivationCmd(),
-                                                NAPARI_ACTIVATION_CMD,
-                                                launchPath,
-                                                program)
-        runJob(None, fullProgram, args, env=cls.getEnviron(), cwd=None,
-               numberOfMpi=1)
-
+        fullProgram = '%s %s && %s' % (cls.getCondaActivationCmd(),
+                                       cls.getVar(NAPARI_ENV_ACTIVATION),
+                                       program)
+        runJob(None, fullProgram, args, env=cls.getEnviron(),
+               cwd=tmpDir, numberOfMpi=1)

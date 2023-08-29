@@ -29,7 +29,6 @@ import pyworkflow.utils as pwutils
 
 import tomo.objects
 import sphire.convert
-from sphire import NAPARI_VIEWER_CBOX_FILES
 
 
 class NapariViewer(pwviewer.Viewer):
@@ -49,25 +48,24 @@ class NapariViewer(pwviewer.Viewer):
 
         if issubclass(cls, tomo.objects.SetOfCoordinates3D):
             from .views_tkinter_tree import SphireGenericView
-            self.generateCboxFiles(obj.getPrecedents(), obj)
+            tmpDir = self.generateCboxFiles(obj.getPrecedents(), obj)
             setCoord3DView = SphireGenericView(self.getTkRoot(), self.protocol,
                                                obj.getPrecedents(),
                                                isInteractive=True,
-                                               itemDoubleClick=True)
+                                               itemDoubleClick=True,
+                                               tmpDir=tmpDir)
             views.append(setCoord3DView)
 
         return views
 
     def generateCboxFiles(self, tomograms, coordinates3D):
-        """ Converts a set of coordinates to box files and binaries to mrc.
-        It generates 2 folders: one for the box files and another for
-        the mrc files.
-        """
-        inputTomos = tomograms
-        coordSet = coordinates3D
+        """ Converts a set of coordinates to cbox files and tomograms to mrc. """
+        tmpDir = self._getTmpPath(coordinates3D.getName())
+        pwutils.cleanPath(tmpDir)
+        pwutils.makePath(tmpDir)
 
-        path = self.protocol._getExtraPath(NAPARI_VIEWER_CBOX_FILES)
-        pwutils.makePath(path)
+        tomoList = [tomo.clone() for tomo in tomograms]
+        sphire.convert.convertMicrographs(tomoList, tmpDir)
+        sphire.convert.writeSetOfCoordinates3D(tmpDir, coordinates3D, tomoList)
 
-        tomoList = [tomo.clone() for tomo in inputTomos]
-        sphire.convert.writeSetOfCoordinates3D(path, coordSet, tomoList)
+        return tmpDir
