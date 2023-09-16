@@ -29,7 +29,7 @@ import time
 from pwem.protocols import EMProtocol
 from pyworkflow.constants import BETA
 from pyworkflow.gui.dialog import askYesNo
-from pyworkflow.utils import createAbsLink, Message
+from pyworkflow.utils import Message
 
 from tomo.objects import SetOfCoordinates3D
 from tomo.protocols import ProtTomoPicking
