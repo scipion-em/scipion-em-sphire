@@ -29,7 +29,7 @@ import time
 from pwem.protocols import EMProtocol
 from pyworkflow.constants import BETA
 from pyworkflow.gui.dialog import askYesNo
-from pyworkflow.utils import createAbsLink, Message
+from pyworkflow.utils import Message
 
 from tomo.objects import SetOfCoordinates3D
 from tomo.protocols import ProtTomoPicking
@@ -73,10 +73,9 @@ class SphireProtCRYOLONapariTomoPicker(ProtTomoPicking):
         if os.path.exists(filePath):
             creationOldTime = time.ctime(os.path.getctime(filePath))
 
-        view = SphireGenericView(None, self, self.getInputTomos(),
-                                 isInteractive=True,
-                                 itemDoubleClick=True,
-                                 tmpDir=self._getExtraPath())
+        view = SphireGenericView(None,
+                                 [tomo.clone() for tomo in self.getInputTomos()],
+                                 self._getExtraPath(), isInteractive=True)
         view.show()
 
         if os.path.exists(filePath):
