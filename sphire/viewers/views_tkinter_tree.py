@@ -64,19 +64,35 @@ class SphireTomogramProvider(TomogramsTreeProvider):
         for item in self.tomoList:
             if item.getTsId() == tomo.getTsId():
                 # .cbox file
-                coordinatesFilePath = self.getCboxFile(item)
+                coordinatesFilePath = self.getCoordinatesFile(item, ext='.cbox')
+                if not os.path.exists(coordinatesFilePath):
+                    coordinatesFilePath = self.getCoordinatesFile(item, ext='.coords')
                 if os.path.exists(coordinatesFilePath):
-                    coordTable = emtable.Table(fileName=coordinatesFilePath,
-                                               tableName='cryolo')
-                    values.append(str(coordTable.size()))
+                    coordTable = self.getCoordsCount(coordinatesFilePath)
+                    values.append(str(coordTable))
                     values.append('Done')
                 else:
                     values.append('0')
                     values.append('Pending')
         return values, tags
 
-    def getCboxFile(self, item):
-        cboxFileName = item.getTsId() + '.cbox'
+    def getCoordsCount(self, coordFilePath: str) -> int:
+        """Method to get the number of coordinates from a coordinates file"""
+        ext = os.path.splitext(coordFilePath)[1]
+        # Check the extension and count the corresponding coordinates
+        if ext == '.coords':
+            with open(coordFilePath, 'r') as file:
+                lines = file.readlines()
+                coordCount = len(lines)
+        elif ext == '.cbox':
+            # Use the emtable class to count coordinates in .cbox files
+            coordTable = emtable.Table(fileName=coordFilePath, tableName='cryolo')
+            coordCount = len(coordTable)
+
+        return coordCount
+
+    def getCoordinatesFile(self, item, ext='.cbox'):
+        cboxFileName = os.path.basename(os.path.splitext(item.getFileName())[0]) + ext
         coordinatesFilePath = os.path.join(self._path, cboxFileName)
 
         return coordinatesFilePath
@@ -113,6 +129,9 @@ class SphireListDialog(ToolbarListDialog):
         if os.path.exists(os.path.join(self.path, tomogramPath)):
             args = tomogramPath
             coordinatesPath = replaceBaseExt(tomogram.getFileName(), 'cbox')
+
+            if not os.path.exists(os.path.join(self.path, coordinatesPath)):
+                coordinatesPath = replaceBaseExt(tomogram.getFileName(), 'coords')
 
             if os.path.exists(os.path.join(self.path, coordinatesPath)):
                 args += f" {coordinatesPath}"

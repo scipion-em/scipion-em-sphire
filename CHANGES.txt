@@ -2,6 +2,9 @@
     - add cryolo 1.9.6 and napari-boxmanager 0.4.4
     - convert tomograms to mrc for napari_boxmanager viewer
     - napari viewer runs in the project Tmp folder
+    - reading .coords files from napari-boxmanager
+    - checking all coordinates files to generate new outputs
+
 3.1.10: Fix: plugin works in the absence of tomo plugin
 3.1.9: ftp links are not working, replaced by https
 3.1.8: Fix: coordinates 3d sent to napari are not flipped on Y axis.
