@@ -68,7 +68,7 @@ class SphireProtCRYOLOPicking(ProtCryoloBase, ProtParticlePickingAuto):
 
         self._defineStreamingParams(form)
         # Default batch size --> 16
-        form.getParam('streamingBatchSize').default = Integer(16)
+        form.getParam('streamingBatchSize').setDefault(16)
 
     # --------------------------- INSERT steps functions ----------------------
     def _insertInitialSteps(self):
@@ -76,6 +76,31 @@ class SphireProtCRYOLOPicking(ProtCryoloBase, ProtParticlePickingAuto):
         return stepId
 
     # --------------------------- STEPS functions -----------------------------
+    def _pickMicrographsBatch(self, micList, workingDir, gpuId):
+        pwutils.cleanPath(workingDir)
+        pwutils.makePath(workingDir)
+
+        # Create folder with linked mics
+        convert.convertMicrographs(micList, workingDir)
+
+        configJson = os.path.relpath(self._getExtraPath('config.json'),
+                                     workingDir)
+        args = " -c %s" % configJson
+        args += " -w %s" % self.getInputModel()
+        args += " -i ./ -o ./ "
+        args += " -t %0.3f" % self.conservPickVar
+        args += " -nc %d" % self.numCpus
+
+        if not self.usingCpu():
+            args += " -g %s " % gpuId
+
+        if self.lowPassFilter or self.inputModelFrom == INPUT_MODEL_GENERAL_DENOISED:
+            args += ' --cleanup'
+
+        Plugin.runCryolo(self, 'cryolo_predict.py', args,
+                         cwd=workingDir,
+                         useCpu=self.usingCpu())
+
     def _pickMicrograph(self, micrograph, *args):
         """This function picks from a given micrograph"""
         self._pickMicrographList([micrograph], args)
@@ -85,27 +110,7 @@ class SphireProtCRYOLOPicking(ProtCryoloBase, ProtParticlePickingAuto):
             return
 
         workingDir = self._getTmpPath(self.getMicsWorkingDir(micList))
-        pwutils.cleanPath(workingDir)
-        pwutils.makePath(workingDir)
-
-        # Create folder with linked mics
-        convert.convertMicrographs(micList, workingDir)
-
-        args = " -c %s" % self._getExtraPath('config.json')
-        args += " -w %s" % self.getInputModel()
-        args += " -i %s/" % workingDir
-        args += " -o %s/" % workingDir
-        args += " -t %0.3f" % self.conservPickVar
-        args += " -nc %d" % self.numCpus.get()
-
-        if not self.usingCpu():
-            args += " -g %(GPU)s"  # Add GPU that will be set by the executor
-
-        if self.lowPassFilter or self.inputModelFrom == INPUT_MODEL_GENERAL_DENOISED:
-            args += ' --cleanup'
-
-        Plugin.runCryolo(self, 'cryolo_predict.py', args, useCpu=self.usingCpu())
-
+        self._pickMicrographsBatch(micList, workingDir, '%(GPU)s')
         # Move output files to extra folder
         pwutils.moveTree(os.path.join(workingDir, "CBOX"), self._getExtraPath())
 

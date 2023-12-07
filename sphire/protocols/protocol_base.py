@@ -168,13 +168,13 @@ class ProtCryoloBase(EMProtocol):
         if boxSize:
             model.update({"anchors": [boxSize, boxSize]})
         if self.lowPassFilter:
-            model.update({"filter": [absCutOfffreq, self._getTmpPath("filtered")]})
+            model.update({"filter": [absCutOfffreq, "filtered"]})
         elif self.inputModelFrom == INPUT_MODEL_GENERAL_DENOISED:
             model.update({"filter": [
                 Plugin.getModelFn(JANNI_GENMOD_VAR),
                 24,
                 3,
-                self._getTmpPath("filtered")
+                "filtered"
             ]})
 
         jsonDict = {"model": model}
