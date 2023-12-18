@@ -106,6 +106,7 @@ class SphireListDialog(ToolbarListDialog):
                                    allowsEmptySelection=False,
                                    itemDoubleClick=self.doubleClickOnItem,
                                    allowSelect=False,
+                                   lockGui=False,
                                    cancelButton=True,
                                    **kwargs)
 
