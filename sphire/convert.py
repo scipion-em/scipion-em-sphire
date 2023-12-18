@@ -26,6 +26,9 @@
 # **************************************************************************
 
 import logging
+
+import numpy as np
+
 logger = logging.getLogger(__name__)
 import os
 from emtable import Table
@@ -159,16 +162,11 @@ class CoordBoxReader:
                 yield sciX, sciY, sciZ, score, groupId, width
 
         elif ext == '.coords':
-            with open(filename, 'r') as file:
-                lines = file.readlines()
-                for line in lines:
-                    values = line.strip().split(' ')
-                    sciX = round(float(values[0]))
-                    sciY = round(float(values[0]))
-                    sciZ = round(float(values[0]))
-                    #TODO Since .coords files not generate the boxsize(width), we take a default value
-                    width = 10
-                    yield sciX, sciY, sciZ, 0.0, 0.0, width
+            values = np.genfromtxt(filename, dtype=float)
+            for row in values:
+                # Since .coords files not contain the boxsize (width),
+                # we set a default value = 32
+                yield tuple(map(round, row[:3])) + (0.0, 0.0, 32)
 
 
 def writeSetOfCoordinates(boxDir, coordSet, micList=None):
