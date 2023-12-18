@@ -30,7 +30,7 @@ import emtable
 from pyworkflow.gui import *
 from pyworkflow.gui.dialog import ToolbarListDialog
 import pyworkflow.viewer as pwviewer
-from pyworkflow.utils import replaceBaseExt, getExt
+import pyworkflow.utils as pwutils
 
 from tomo.viewers.views_tkinter_tree import TomogramsTreeProvider
 
@@ -63,7 +63,6 @@ class SphireTomogramProvider(TomogramsTreeProvider):
         tags = 'pending' if self.isInteractive else 'done'
         for item in self.tomoList:
             if item.getTsId() == tomo.getTsId():
-                # .cbox file
                 coordinatesFilePath = self.getCoordinatesFile(item, ext='.cbox')
                 if not os.path.exists(coordinatesFilePath):
                     coordinatesFilePath = self.getCoordinatesFile(item, ext='.coords')
@@ -78,7 +77,7 @@ class SphireTomogramProvider(TomogramsTreeProvider):
 
     def getCoordsCount(self, coordFilePath: str) -> int:
         """Method to get the number of coordinates from a coordinates file"""
-        ext = os.path.splitext(coordFilePath)[1]
+        ext = pwutils.getExt(coordFilePath)
         # Check the extension and count the corresponding coordinates
         if ext == '.coords':
             with open(coordFilePath, 'r') as file:
@@ -92,7 +91,7 @@ class SphireTomogramProvider(TomogramsTreeProvider):
         return coordCount
 
     def getCoordinatesFile(self, item, ext='.cbox'):
-        cboxFileName = os.path.basename(os.path.splitext(item.getFileName())[0]) + ext
+        cboxFileName = pwutils.replaceBaseExt(item.getFileName(), ext)
         coordinatesFilePath = os.path.join(self._path, cboxFileName)
 
         return coordinatesFilePath
@@ -119,19 +118,20 @@ class SphireListDialog(ToolbarListDialog):
 
     def runNapariBoxmanager(self, tomogram):
         from sphire import Plugin, NAPARI_BOXMANAGER
-        ext = getExt(tomogram.getFileName())
+        from sphire.convert import getMicFn
+        ext = pwutils.getExt(tomogram.getFileName())
 
         if ext in CRYOLO_SUPPORTED_FORMATS:
             tomogramPath = os.path.basename(tomogram.getFileName())
         else:
-            tomogramPath = replaceBaseExt(tomogram.getFileName(), "mrc")
+            tomogramPath = getMicFn(tomogram, "mrc")
 
         if os.path.exists(os.path.join(self.path, tomogramPath)):
             args = tomogramPath
-            coordinatesPath = replaceBaseExt(tomogram.getFileName(), 'cbox')
+            coordinatesPath = getMicFn(tomogram, 'cbox')
 
             if not os.path.exists(os.path.join(self.path, coordinatesPath)):
-                coordinatesPath = replaceBaseExt(tomogram.getFileName(), 'coords')
+                coordinatesPath = getMicFn(tomogram, 'coords')
 
             if os.path.exists(os.path.join(self.path, coordinatesPath)):
                 args += f" {coordinatesPath}"
