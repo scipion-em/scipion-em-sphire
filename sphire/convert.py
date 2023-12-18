@@ -26,6 +26,9 @@
 # **************************************************************************
 
 import logging
+
+import numpy as np
+
 logger = logging.getLogger(__name__)
 import os
 from emtable import Table
@@ -131,30 +134,39 @@ class CoordBoxReader:
         self._boxSizeEstimated = boxSizeEstimated
 
     def iterCoords(self, filename):
-        for row in Table.iterRows(filename, tableName='cryolo'):
-            x = row.CoordinateX
-            y = row.CoordinateY
-            z = row.get("CoordinateZ", 0.0)
-            score = row.get("Confidence", 0.0)
-            groupId = int(row.get('filamentid', 0))
-            width = int(row.get('Width', 0))
+        ext = pwutils.getExt(filename)
+        if ext == '.cbox':
+            for row in Table.iterRows(filename, tableName='cryolo'):
+                x = row.CoordinateX
+                y = row.CoordinateY
+                z = row.get("CoordinateZ", 0.0)
+                score = row.get("Confidence", 0.0)
+                groupId = int(row.get('filamentid', 0))
+                width = int(row.get('Width', 0))
 
-            if self._boxSize is None:
-                self._boxSize = width
-                self._halfBox = self._boxSize / 2.0
+                if self._boxSize is None:
+                    self._boxSize = width
+                    self._halfBox = self._boxSize / 2.0
 
-            if not self._boxSizeEstimated:
-                x += self._halfBox
-                y += self._halfBox
+                if not self._boxSizeEstimated:
+                    x += self._halfBox
+                    y += self._halfBox
 
-            sciX = round(x)
-            sciY = round(y)
-            sciZ = round(z) if not isinstance(z, str) else 0  # avoid <NA> values
+                sciX = round(x)
+                sciY = round(y)
+                sciZ = round(z) if not isinstance(z, str) else 0  # avoid <NA> values
 
-            if self._yFlipHeight is not None:
-                sciY = self._yFlipHeight - sciY
+                if self._yFlipHeight is not None:
+                    sciY = self._yFlipHeight - sciY
 
-            yield sciX, sciY, sciZ, score, groupId, width
+                yield sciX, sciY, sciZ, score, groupId, width
+
+        elif ext == '.coords':
+            values = np.genfromtxt(filename, dtype=float)
+            for row in values:
+                # Since .coords files not contain the boxsize (width),
+                # we set a default value = 32
+                yield tuple(map(round, row[:3])) + (0.0, 0.0, 32)
 
 
 def writeSetOfCoordinates(boxDir, coordSet, micList=None):

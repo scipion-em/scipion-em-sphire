@@ -65,33 +65,42 @@ class SphireProtCRYOLONapariTomoPicker(ProtTomoPicking):
         convert.convertMicrographs(tomoList, self._getExtraPath())
 
     def runCoordinatePickingStep(self):
-        # Getting the first tomogram to check if the .cbox file exist
-        tomogram = self.getInputTomos().getFirstItem()
-        filePath = os.path.join(self._getExtraPath(),
-                                convert.getMicFn(tomogram, "cbox"))
-        creationOldTime = None
-        if os.path.exists(filePath):
-            creationOldTime = time.ctime(os.path.getctime(filePath))
+        """Run napari-boxmanager"""
+        fileDict = {}
+        tomoList = [tomo.clone() for tomo in self.getInputTomos()]
+        # Finding the coordinate file per tomogram
+        for tomogram in tomoList:
+            filePath = self._getExtraPath(convert.getMicFn(tomogram, "cbox"))
+            if not os.path.exists(filePath):
+                filePath = self._getExtraPath(convert.getMicFn(tomogram, "coords"))
 
-        view = SphireGenericView(None,
-                                 [tomo.clone() for tomo in self.getInputTomos()],
+            if os.path.exists(filePath):
+                creationOldTime = time.ctime(os.path.getctime(filePath))
+                fileDict[filePath] = creationOldTime
+
+        view = SphireGenericView(None, tomoList,
                                  self._getExtraPath(), isInteractive=True)
         view.show()
 
-        if os.path.exists(filePath):
-            if creationOldTime is not None:
+        for tomogram in tomoList:
+            filePath = self._getExtraPath(convert.getMicFn(tomogram,  "cbox"))
+            if not os.path.exists(filePath):
+                filePath = self._getExtraPath(convert.getMicFn(tomogram, "coords"))
+
+            if filePath in fileDict:
                 modificationTime = time.ctime(os.path.getctime(filePath))
-                if creationOldTime != modificationTime:
+                if fileDict[filePath] != modificationTime:
                     # Open dialog to request confirmation to create output
                     import tkinter as tk
                     if askYesNo(Message.TITLE_SAVE_OUTPUT, Message.LABEL_SAVE_OUTPUT, tk.Frame()):
                         self.createOutput()
-            else:
+                        break
+            elif os.path.exists(filePath):
                 self.createOutput()
+                break
 
     def createOutput(self):
         setOfTomograms = self.getInputTomos()
-        outputPath = self._getExtraPath()
         suffix = self._getOutputSuffix(SetOfCoordinates3D)
 
         setOfCoord3D = self._createSetOfCoordinates3D(self.getInputTomos(pointer=True),
@@ -100,7 +109,10 @@ class SphireProtCRYOLONapariTomoPicker(ProtTomoPicking):
         setOfCoord3D.setSamplingRate(setOfTomograms.getSamplingRate())
 
         for tomogram in setOfTomograms.iterItems():
-            filePath = os.path.join(outputPath, convert.getMicFn(tomogram, "cbox"))
+            filePath = self._getExtraPath(convert.getMicFn(tomogram, "cbox"))
+            if not os.path.exists(filePath):
+                filePath = self._getExtraPath(convert.getMicFn(tomogram, "coords"))
+
             if os.path.exists(filePath) and os.path.getsize(filePath):
                 tomogramClone = tomogram.clone()
                 tomogramClone.copyInfo(tomogram)
