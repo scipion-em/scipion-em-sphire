@@ -66,27 +66,26 @@ class SphireProtCRYOLONapariTomoPicker(ProtTomoPicking):
 
     def runCoordinatePickingStep(self):
         """Run napari-boxmanager"""
-
         fileDict = {}
+        tomoList = [tomo.clone() for tomo in self.getInputTomos()]
         # Finding the coordinate file per tomogram
-        for tomogram in self.getInputTomos().iterItems():
-            filePath = os.path.join(self._getExtraPath(),  convert.getMicFn(tomogram, "cbox"))
+        for tomogram in tomoList:
+            filePath = self._getExtraPath(convert.getMicFn(tomogram, "cbox"))
             if not os.path.exists(filePath):
-                filePath = os.path.join(self._getExtraPath(), convert.getMicFn(tomogram, "coords"))
+                filePath = self._getExtraPath(convert.getMicFn(tomogram, "coords"))
 
             if os.path.exists(filePath):
                 creationOldTime = time.ctime(os.path.getctime(filePath))
                 fileDict[filePath] = creationOldTime
 
-        view = SphireGenericView(None,
-                                 [tomo.clone() for tomo in self.getInputTomos()],
+        view = SphireGenericView(None, tomoList,
                                  self._getExtraPath(), isInteractive=True)
         view.show()
 
-        for tomogram in self.getInputTomos().iterItems():
-            filePath = os.path.join(self._getExtraPath(), convert.getMicFn(tomogram,  "cbox"))
+        for tomogram in tomoList:
+            filePath = self._getExtraPath(convert.getMicFn(tomogram,  "cbox"))
             if not os.path.exists(filePath):
-                filePath = os.path.join(self._getExtraPath(), convert.getMicFn(tomogram, "coords"))
+                filePath = self._getExtraPath(convert.getMicFn(tomogram, "coords"))
 
             if filePath in fileDict:
                 modificationTime = time.ctime(os.path.getctime(filePath))
@@ -102,7 +101,6 @@ class SphireProtCRYOLONapariTomoPicker(ProtTomoPicking):
 
     def createOutput(self):
         setOfTomograms = self.getInputTomos()
-        outputPath = self._getExtraPath()
         suffix = self._getOutputSuffix(SetOfCoordinates3D)
 
         setOfCoord3D = self._createSetOfCoordinates3D(self.getInputTomos(pointer=True),
@@ -111,9 +109,9 @@ class SphireProtCRYOLONapariTomoPicker(ProtTomoPicking):
         setOfCoord3D.setSamplingRate(setOfTomograms.getSamplingRate())
 
         for tomogram in setOfTomograms.iterItems():
-            filePath = os.path.join(outputPath, convert.getMicFn(tomogram, "cbox"))
+            filePath = self._getExtraPath(convert.getMicFn(tomogram, "cbox"))
             if not os.path.exists(filePath):
-                filePath = os.path.join(outputPath, convert.getMicFn(tomogram, "coords"))
+                filePath = self._getExtraPath(convert.getMicFn(tomogram, "coords"))
 
             if os.path.exists(filePath) and os.path.getsize(filePath):
                 tomogramClone = tomogram.clone()
