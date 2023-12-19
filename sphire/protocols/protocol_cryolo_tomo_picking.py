@@ -115,8 +115,8 @@ class SphireProtCRYOLOTomoPicking(ProtCryoloBase, ProtTomoPicking):
         form.addParam('angle_delta', params.IntParam, default=10,
                       condition='doFilament',
                       label="Angle delta",
-                      help="Angle delta in degree. This value is good more or"
-                           " less straight filament. More curvy filament might "
+                      help="Angle delta in degree. This value is good more or "
+                           "less straight filament. More curvy filament might "
                            "require values around 20")
 
         form.addParam('directional_method', params.EnumParam, default=1,
@@ -126,8 +126,6 @@ class SphireProtCRYOLOTomoPicking(ProtCryoloBase, ProtTomoPicking):
                       help="Directional method")
 
         form.addParam('filament_width', params.IntParam, default=None,
-                      expertLevel=params.LEVEL_ADVANCED,
-                      allowsNull=True,
                       condition='doFilament and directional_method==0',
                       label="Filament width (px)")
 
@@ -135,7 +133,7 @@ class SphireProtCRYOLOTomoPicking(ProtCryoloBase, ProtTomoPicking):
                       expertLevel=params.LEVEL_ADVANCED,
                       condition='doFilament and directional_method==0',
                       label="Mask width",
-                      help="Mask width in pixel. A gaussian filter mask is used"
+                      help="Mask width in pixel. A gaussian filter mask is used "
                            "to estimate the direction of the filaments. This "
                            "parameter defines how elongated the mask is. The "
                            "default value typically don't has to be changed")

@@ -36,16 +36,12 @@ def getCryoloEnvName(version, useCpu=False):
     return f"cryolo{'CPU' if useCpu else ''}-{version}"
 
 
-def getNaparyEnvName(version):
-    return f"napari-{version}"
-
-
-V1_8_2 = "1.8.2"
 V1_8_4 = "1.8.4"
 V1_8_5 = "1.8.5"
 V1_9_3 = "1.9.3"
+V1_9_6 = "1.9.6"
 
-VERSIONS = [V1_8_2, V1_8_4, V1_8_5, V1_9_3]
+VERSIONS = [V1_8_4, V1_8_5, V1_9_3, V1_9_6]
 CRYOLO_DEFAULT_VER_NUM = VERSIONS[-1]
 
 DEFAULT_ENV_NAME = getCryoloEnvName(CRYOLO_DEFAULT_VER_NUM)
@@ -104,15 +100,10 @@ JANNI_GENMOD_DEFAULT = os.path.join(f"{JANNI_GENMOD}-{JANNI_GENMOD_20190703}",
                                     JANNI_GENMOD_20190703_FN)
 
 # Napari variables
-V0_3_11 = '0.3.11'
-
-defaultVersion = V0_3_11
-
-NAPARI_ACTIVATION_CMD = 'conda activate %s' % getNaparyEnvName(defaultVersion)
+NAPARI_ENV_ACTIVATION = 'NAPARI_ENV_ACTIVATION'
 NAPARI_BOXMANAGER = 'napari_boxmanager'
-CBOX_FILAMENTS_FOLDER = 'CBOX_FILAMENTS_TRACED'
-NAPARI_VIEWER_CBOX_FILES = 'napariViewerCboxFiles'
 
 # Filament parameters
+CBOX_FILAMENTS_FOLDER = 'CBOX_FILAMENTS_TRACED'
 STRAIGHTNESS_METHOD = ['NONE', 'LINE_STRAIGHTNESS', 'RMSD']
 DIRECTIONAL_METHOD = ['CONVOLUTION', 'PREDICTED']
