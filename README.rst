@@ -77,7 +77,7 @@ CONDA_ACTIVATION_CMD = eval "$(/extra/miniconda3/bin/conda shell.bash hook)"
 **CRYOLO_ENV_ACTIVATION** (default = conda activate cryolo-1.9.6):
 Command to activate the crYOLO environment.
 
-**NAPARI_ENV_ACTIVATION** (default = conda activate napari-0.4.4):
+**NAPARI_ENV_ACTIVATION** (default = conda activate napari-0.4.17):
 Command to activate napari environment (used only for tomo picker viewer).
 
 Downloaded crYOLO and JANNI general models can be found in the following locations:
