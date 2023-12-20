@@ -63,9 +63,9 @@ class SphireTomogramProvider(TomogramsTreeProvider):
         tags = 'pending' if self.isInteractive else 'done'
         for item in self.tomoList:
             if item.getTsId() == tomo.getTsId():
-                coordinatesFilePath = self.getCoordinatesFile(item, ext='.cbox')
+                coordinatesFilePath = self.getCoordinatesFile(item, ext='cbox')
                 if not os.path.exists(coordinatesFilePath):
-                    coordinatesFilePath = self.getCoordinatesFile(item, ext='.coords')
+                    coordinatesFilePath = self.getCoordinatesFile(item, ext='coords')
                 if os.path.exists(coordinatesFilePath):
                     coordTable = self.getCoordsCount(coordinatesFilePath)
                     values.append(str(coordTable))
@@ -90,7 +90,7 @@ class SphireTomogramProvider(TomogramsTreeProvider):
 
         return coordCount
 
-    def getCoordinatesFile(self, item, ext='.cbox'):
+    def getCoordinatesFile(self, item, ext='cbox'):
         cboxFileName = pwutils.replaceBaseExt(item.getFileName(), ext)
         coordinatesFilePath = os.path.join(self._path, cboxFileName)
 
