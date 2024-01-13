@@ -237,9 +237,6 @@ def writeSetOfCoordinates3D(boxDir, coord3DSet, tomoList=None):
     tomoIdSet = tomoSet.getIdSet() if tomoList is None else set(m.getObjId()
                                                                 for m in tomoList)
 
-    # Get first tomo from to
-    tomo = tomoSet.getFirstItem()
-
     writer = CoordBoxWriter(coord3DSet.getBoxSize())
     lastTomoId = None
     doWrite = True
@@ -276,7 +273,7 @@ def needToFlipOnY(filename):
     if ext in ".mrc":
         header = Ccp4Header(filename, readHeader=True)
         flip = header.getISPG() != 0  # ISPG 1, cryolo will not flip the image
-        logger.info("File %s DOES%s need flipping the coordinates on Y based on its headers." % (filename,"" if flip else "N'T"))
+        logger.info("File %s DOES%s need flipping the coordinates on Y based on its headers." % (filename, "" if flip else "N'T"))
         return flip
     return ext in constants.CRYOLO_SUPPORTED_FORMATS
 
