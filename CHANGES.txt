@@ -1,3 +1,7 @@
+3.1.13:
+    - add cryolo 1.9.7
+    - add sonarcloud settings
+    - update GH workflow actions
 3.1.12: hotfix coords file extension
 3.1.11:
     - add cryolo 1.9.6 and napari-boxmanager 0.4.4
