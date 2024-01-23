@@ -111,7 +111,7 @@ class ProtCryoloBase(EMProtocol):
                       condition='lowPassFilter',
                       label="Cut-off resolution (A)",
                       help="Specifies the absolute cut-off resolution for the "
-                           "low-pass filter.")
+                           "low-pass filter. Recommended value sampling/0.3")
         form.addParam('numCpus', params.IntParam, default=4,
                       label="Number of CPUs",
                       help="*Important!* This is different from number of threads "
