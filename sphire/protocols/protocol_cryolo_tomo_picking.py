@@ -146,11 +146,11 @@ class SphireProtCRYOLOTomoPicking(ProtCryoloBase, ProtTomoPicking):
 
         # Default box size --> 50
         form.getParam('boxSize').default = Integer(50)
-        # Default lowpass --> 0.3
-        form.getParam('absCutOffFreq').default = Float(0.3)
+        # Default lowpass --> 20
+        form.getParam('absCutOffFreq').default = Float(20.0)
 
     def _insertAllSteps(self):
-        self._insertFunctionStep(self.createConfigStep)
+        self._insertFunctionStep(self.createConfigStep, self.inputTomograms.get())
         self._insertFunctionStep(self.pickTomogramsStep)
         self._insertFunctionStep(self.createOutputStep)
 
