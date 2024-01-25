@@ -77,6 +77,7 @@ class SphireTomogramProvider(TomogramsTreeProvider):
 
     def getCoordsCount(self, coordFilePath: str) -> int:
         """Method to get the number of coordinates from a coordinates file"""
+        coordCount = 0
         ext = pwutils.getExt(coordFilePath)
         # Check the extension and count the corresponding coordinates
         if ext == '.coords':

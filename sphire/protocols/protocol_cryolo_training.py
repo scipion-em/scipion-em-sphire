@@ -149,6 +149,11 @@ class SphireProtCRYOLOTraining(ProtCryoloBase, ProtParticlePicking):
 
         return summary
 
+    def _methods(self):
+        methods = []
+
+        return methods
+
     # -------------------------- UTILS functions ------------------------------
     def getOutputModelPath(self):
         return self._getPath(self.MODEL)
