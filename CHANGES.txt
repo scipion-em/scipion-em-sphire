@@ -1,3 +1,6 @@
+3.1.14:
+    - fix bug in training protocol
+    - converting frequency to Angstroms for filtering params
 3.1.13:
     - add cryolo 1.9.7
     - add sonarcloud settings
