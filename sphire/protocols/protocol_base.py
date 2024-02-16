@@ -107,11 +107,11 @@ class ProtCryoloBase(EMProtocol):
                            "results will be probably improved by the application"
                            " of a reasonable low-pass filter.")
         form.addParam('absCutOffFreq', params.FloatParam,
-                      default=0.1,
+                      default=10.0,
                       condition='lowPassFilter',
-                      label="Cut-off frequency",
-                      help="Specifies the absolute cut-off frequency for the "
-                           "low-pass filter.")
+                      label="Cut-off resolution (A)",
+                      help="Specifies the absolute cut-off resolution for the "
+                           "low-pass filter. Recommended value sampling/0.3")
         form.addParam('numCpus', params.IntParam, default=4,
                       label="Number of CPUs",
                       help="*Important!* This is different from number of threads "
@@ -154,10 +154,15 @@ class ProtCryoloBase(EMProtocol):
                             " set to i.e. *0 1 2*.")
 
     # --------------------------- STEPS functions -----------------------------
-    def createConfigStep(self):
+    def createConfigStep(self, inputData):
         inputSize = convert.roundInputSize(self.input_size.get())
         maxBoxPerImage = self.max_box_per_image.get()
-        absCutOfffreq = self.absCutOffFreq.get()
+        sampling = inputData.getSamplingRate()
+        nyquist = 2*sampling
+        if nyquist >= self.absCutOffFreq.get():
+            absCutOfffreq = 0.5
+        else:
+            absCutOfffreq = sampling/self.absCutOffFreq.get()
         model = {
             "architecture": "PhosaurusNet",
             "input_size": inputSize,

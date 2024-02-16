@@ -88,7 +88,8 @@ class SphireProtCRYOLOTraining(ProtCryoloBase, ProtParticlePicking):
     # --------------------------- INSERT steps functions ----------------------
     def _insertAllSteps(self):
         self._insertFunctionStep(self.convertInputStep)
-        self._insertFunctionStep(self.createConfigStep)
+        self._insertFunctionStep(self.createConfigStep,
+                                 self.inputMicrographs.get())
 
         if self.doFineTune:
             self._insertFunctionStep(self.cryoloTrainingStep,
@@ -148,6 +149,11 @@ class SphireProtCRYOLOTraining(ProtCryoloBase, ProtParticlePicking):
             summary.append("Training a new model from scratch")
 
         return summary
+
+    def _methods(self):
+        methods = []
+
+        return methods
 
     # -------------------------- UTILS functions ------------------------------
     def getOutputModelPath(self):

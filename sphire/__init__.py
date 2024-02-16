@@ -33,7 +33,7 @@ from pyworkflow.utils import runJob
 from .constants import *
 
 
-__version__ = '3.1.11'
+__version__ = '3.1.14'
 _logo = "sphire_logo.png"
 _references = ['Wagner2019']
 
@@ -141,10 +141,10 @@ class Plugin(pwem.Plugin):
             kwargs['useCpu'] = True
             cls.addCryoloPackage(env, version, **kwargs)
 
-        _add(V1_8_4)
         _add(V1_8_5)
         _add(V1_9_3)
-        _add(V1_9_6, default=True)
+        _add(V1_9_6)
+        _add(V1_9_7, default=True)
 
         def _addModel(model, version, link, filename, default=False):
             env.addPackage(model, version=version,
