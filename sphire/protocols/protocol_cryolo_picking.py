@@ -76,9 +76,10 @@ class SphireProtCRYOLOPicking(ProtCryoloBase, ProtParticlePickingAuto):
         return stepId
 
     # --------------------------- STEPS functions -----------------------------
-    def _pickMicrographsBatch(self, micList, workingDir, gpuId):
-        pwutils.cleanPath(workingDir)
-        pwutils.makePath(workingDir)
+    def _pickMicrographsBatch(self, micList, workingDir, gpuId, clean=True):
+        if clean:
+            pwutils.cleanPath(workingDir)
+            pwutils.makePath(workingDir)
 
         # Create folder with linked mics
         convert.convertMicrographs(micList, workingDir)
@@ -112,7 +113,15 @@ class SphireProtCRYOLOPicking(ProtCryoloBase, ProtParticlePickingAuto):
         workingDir = self._getTmpPath(self.getMicsWorkingDir(micList))
         self._pickMicrographsBatch(micList, workingDir, '%(GPU)s')
         # Move output files to extra folder
+        # FIXME: I think this can be problematic with parallel process running
+        # cryolo on different GPUs
         pwutils.moveTree(os.path.join(workingDir, "CBOX"), self._getExtraPath())
+
+    def _getMicCoordsFile(self, outputDir, mic):
+        # Here CBOX output files are moved to extra, so not taking into account
+        # outputDir here
+        cboxFile = convert.getMicFn(mic, "cbox")
+        return self._getExtraPath(cboxFile)
 
     def readCoordsFromMics(self, outputDir, micDoneList, outputCoords):
         """This method read coordinates from a given list of micrographs"""
@@ -122,7 +131,7 @@ class SphireProtCRYOLOPicking(ProtCryoloBase, ProtParticlePickingAuto):
             if self.boxSize.get():  # Box size can be provided by the user
                 boxSize = self.boxSize.get()
             else:  # If not crYOLO estimates it
-                boxSize = self.getEstimatedBoxSize(self._getTmpPath('micrographs_*/DISTR'))
+                boxSize = self.getEstimatedBoxSize(os.path.join(outputDir, 'DISTR'))
 
                 if self.boxSizeFactor.get() != 1:
                     boxSize = int(boxSize * self.boxSizeFactor.get())
@@ -132,19 +141,19 @@ class SphireProtCRYOLOPicking(ProtCryoloBase, ProtParticlePickingAuto):
         # Calculate if flip is needed
         # JMRT: Let's assume that all mics have same dims, so we avoid
         # to open the image file each time for checking this
-        yFlipHeight = convert.getFlipYHeight(micDoneList[0].getFileName())
+        if not hasattr(self, 'yFlipHeight'):
+            self.yFlipHeight = convert.getFlipYHeight(micDoneList[0].getFileName())
 
         # Create a reader to parse .cbox files
         # and a Coordinate object to add to output set
         reader = convert.CoordBoxReader(boxSize,
-                                        yFlipHeight=yFlipHeight,
+                                        yFlipHeight=self.yFlipHeight,
                                         boxSizeEstimated=self.boxSizeEstimated)
         coord = emobj.Coordinate()
         coord._cryoloScore = emobj.Float()
 
         for mic in micDoneList:
-            cboxFile = convert.getMicFn(mic, "cbox")
-            coordsFile = self._getExtraPath(cboxFile)
+            coordsFile = self._getMicCoordsFile(outputDir, mic)
             if os.path.exists(coordsFile) and os.path.getsize(coordsFile):
                 for x, y, z, score, _, _ in reader.iterCoords(coordsFile):
                     # Clean up objId to add as a new coordinate

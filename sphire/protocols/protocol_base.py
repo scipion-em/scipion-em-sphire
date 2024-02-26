@@ -158,7 +158,7 @@ class ProtCryoloBase(EMProtocol):
         inputSize = convert.roundInputSize(self.input_size.get())
         maxBoxPerImage = self.max_box_per_image.get()
         sampling = inputData.getSamplingRate()
-        nyquist = 2*sampling
+        nyquist = 2 * sampling
         if nyquist >= self.absCutOffFreq.get():
             absCutOfffreq = 0.5
         else:
