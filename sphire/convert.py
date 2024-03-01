@@ -220,6 +220,7 @@ def readSetOfCoordinates3D(tomogram, coord3DSet, coordsFile, boxSize,
         coord.setVolume(tomogram)
         coord.setPosition(x, y, z, origin)
         coord.setGroupId(groupId)
+        coord.setScore(score)
         coord3DSet.append(coord)
 
     coord3DSet.setBoxSize(boxSize if boxSize is not None else width)
