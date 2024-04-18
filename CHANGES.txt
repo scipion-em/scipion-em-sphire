@@ -1,3 +1,6 @@
+3.1.15:
+     - Differentiating between tomograms and micrographs in the picking help.
+     - Removed the threads and mpi parameters
 3.1.14:
     - fix bug in training protocol
     - converting frequency to Angstroms for filtering params
