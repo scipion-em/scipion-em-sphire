@@ -72,30 +72,26 @@ class SphireProtCRYOLOPickingTasks(SphireProtCRYOLOPicking):
 
     # --------------------------- STEPS functions -----------------------------
     def pickAllMicrogaphsStep(self):
-        self.error(f">>> {Pretty.now()}: ----------------- "
-                   f"Start processing movies----------- ")
+        self.info(f">>> {Pretty.now()}: ----------------- "
+                  f"Start processing movies----------- ")
         self._firstTimeOutput = True
-
         inputMics = self.getInputMicrographs()
         micsJson = self.getPath('micrographs.json')
         # We can retrieve all picked micrographs from the output set, because
         # 0 particles micrographs will be missing. We will store a json file
         # with information of processed movies, if does not exist, will load
         # mics from the output set
-        blacklist = []
-
         if os.path.exists(micsJson):
             with open(micsJson) as f:
-                micsPicked = json.load(f)['processed']
-                backlist = [mic for mic in inputMics if mic.getObjId() in micsPicked]
+                micsIds = json.load(f)['processed']
         elif hasattr(self, 'outputCoordinates'):
             # Check now which of these mics have related particles
 
             micAggr = self.outputCoordinates.aggregate(
                 ["COUNT"], "_micId", ["_micId"])
             micIds = {mic["_micId"] for mic in micAggr}
-            backlist = [mic for mic in inputMics if mic.getObjId() in micIds]
 
+        blacklist = [mic.clone() for mic in inputMics if mic.getObjId() in micIds]
         micsMonitor = SetMonitor(emobj.SetOfMicrographs,
                                  self.getInputMicrographs().getFileName(),
                                  blacklist=blacklist)
@@ -111,7 +107,8 @@ class SphireProtCRYOLOPickingTasks(SphireProtCRYOLOPicking):
         g = mc.addGenerator(batchMgr.generate)
         gpus = self.getGpuList()
         outputQueue = None
-        self.debug(f"GPUS: {gpus}, blacklist: {len(blacklist)}")
+        self.info(f">>> GPUS: {gpus}, processed micrographs: {self._processedMics}")
+        self._updateSummary(inputMics.getSize())
 
         for gpu in gpus:
             p = mc.addProcessor(g.outputQueue, self._getPickProcessor(gpu),
@@ -141,6 +138,13 @@ class SphireProtCRYOLOPickingTasks(SphireProtCRYOLOPicking):
         cboxFile = convert.getMicFn(mic, "cbox")
         return os.path.join(outputDir, 'CBOX', cboxFile)
 
+    def _updateSummary(self, total):
+        """ Update the summary variable based on total processed micrographs. """
+        per = round(self._processedMics / total * 100)
+        self.summaryVar.set(f"Processed: *{self._processedMics}* micrographs, "
+                            f"out of {total} ({per}%)")
+        self._store(self.summaryVar)
+
     def _updateOutputCoords(self, batch):
         outputName = 'outputCoordinates'
         outputCoords = getattr(self, outputName, None)
@@ -163,12 +167,7 @@ class SphireProtCRYOLOPickingTasks(SphireProtCRYOLOPicking):
         self.readCoordsFromMics(batch['path'], micList, outputCoords)
         self._updateOutputSet(outputName, outputCoords, emobj.Set.STREAM_OPEN)
         self._processedMics += len(micList)
-
-        total = self.micsMonitor.inputCount
-        per = round(self._processedMics / total * 100)
-        self.summaryVar.set(f"Processed: *{self._processedMics}* micrographs, "
-                            f"out of {total} ({per}%)")
-        self._store(self.summaryVar)
+        self._updateSummary(self.micsMonitor.inputCount)
 
         if firstTime:
             self._defineSourceRelation(self.getInputMicrographsPointer(),
@@ -176,7 +175,7 @@ class SphireProtCRYOLOPickingTasks(SphireProtCRYOLOPicking):
         return batch
 
     def _validate(self):
-        validateMsgs = [] # fixme: SphireProtCRYOLOPicking._validate(self)
+        validateMsgs = []  # fixme: SphireProtCRYOLOPicking._validate(self)
 
         if not validateMsgs:
             pass
