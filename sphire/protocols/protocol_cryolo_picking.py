@@ -84,8 +84,7 @@ class SphireProtCRYOLOPicking(ProtCryoloBase, ProtParticlePickingAuto):
         # Create folder with linked mics
         convert.convertMicrographs(micList, workingDir)
 
-        configJson = os.path.relpath(self._getExtraPath('config.json'),
-                                     workingDir)
+        configJson = os.path.abspath(self._getExtraPath('config.json'))
         args = " -c %s" % configJson
         args += " -w %s" % self.getInputModel()
         args += " -i ./ -o ./ "
@@ -131,7 +130,11 @@ class SphireProtCRYOLOPicking(ProtCryoloBase, ProtParticlePickingAuto):
             if self.boxSize.get():  # Box size can be provided by the user
                 boxSize = self.boxSize.get()
             else:  # If not crYOLO estimates it
-                boxSize = self.getEstimatedBoxSize(os.path.join(outputDir, 'DISTR'))
+                if outputDir:
+                    outputPath = os.path.join(outputDir, 'DISTR')
+                else:
+                    outputPath = self._getTmpPath('micrographs_*/DISTR')
+                boxSize = self.getEstimatedBoxSize(outputPath)
 
                 if self.boxSizeFactor.get() != 1:
                     boxSize = int(boxSize * self.boxSizeFactor.get())
