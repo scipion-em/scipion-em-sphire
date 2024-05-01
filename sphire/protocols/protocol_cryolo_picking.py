@@ -123,7 +123,9 @@ class SphireProtCRYOLOPicking(ProtCryoloBase, ProtParticlePickingAuto):
         return self._getExtraPath(cboxFile)
 
     def readCoordsFromMics(self, outputDir, micDoneList, outputCoords):
-        """This method read coordinates from a given list of micrographs"""
+        """This method read coordinates from a given list of micrographs.
+        Return a dict with micIds and number of coordinates read for each one.
+        """
         # Coordinates may have a boxSize (e.g. streaming case)
         boxSize = outputCoords.getBoxSize()
         if not boxSize:
@@ -155,8 +157,11 @@ class SphireProtCRYOLOPicking(ProtCryoloBase, ProtParticlePickingAuto):
         coord = emobj.Coordinate()
         coord._cryoloScore = emobj.Float()
 
+        processedMics = {}
+
         for mic in micDoneList:
             coordsFile = self._getMicCoordsFile(outputDir, mic)
+            count = 0
             if os.path.exists(coordsFile) and os.path.getsize(coordsFile):
                 for x, y, z, score, _, _ in reader.iterCoords(coordsFile):
                     # Clean up objId to add as a new coordinate
@@ -166,9 +171,13 @@ class SphireProtCRYOLOPicking(ProtCryoloBase, ProtParticlePickingAuto):
                     coord._cryoloScore.set(score)
                     # Add it to the set
                     outputCoords.append(coord)
+                    count += 1
+            processedMics[mic.getObjId()] = count
 
         # Register box size
         self.createBoxSizeOutput(outputCoords)
+
+        return processedMics
 
     def createBoxSizeOutput(self, coordSet):
         """ Output box size as an Integer. Other protocols can use it as

@@ -85,18 +85,19 @@ class SphireProtCRYOLOPickingTasks(SphireProtCRYOLOPicking):
             with open(micsJson) as f:
                 micsIds = json.load(f)['processed']
         elif hasattr(self, 'outputCoordinates'):
-            # Check now which of these mics have related particles
-
+            # Check now which of these mics have particles
             micAggr = self.outputCoordinates.aggregate(
                 ["COUNT"], "_micId", ["_micId"])
-            micIds = {mic["_micId"] for mic in micAggr}
+            micIds = {mic["_micId"]: mic['COUNT'] for mic in micAggr}
+        else:
+            micIds = {}
 
         blacklist = [mic.clone() for mic in inputMics if mic.getObjId() in micIds]
         micsMonitor = SetMonitor(emobj.SetOfMicrographs,
                                  self.getInputMicrographs().getFileName(),
                                  blacklist=blacklist)
 
-        self._processedMics = len(blacklist)
+        self._processedMics = micIds
         waitSecs = self.streamingSleepOnWait.get()
         self.micsMonitor = micsMonitor
         micsIter = micsMonitor.iterProtocolInput(self, 'micrographs', waitSecs=waitSecs)
@@ -107,7 +108,7 @@ class SphireProtCRYOLOPickingTasks(SphireProtCRYOLOPicking):
         g = mc.addGenerator(batchMgr.generate)
         gpus = self.getGpuList()
         outputQueue = None
-        self.info(f">>> GPUS: {gpus}, processed micrographs: {self._processedMics}")
+        self.info(f">>> GPUS: {gpus}, processed micrographs: {len(self._processedMics)}")
         self._updateSummary(inputMics.getSize())
 
         for gpu in gpus:
@@ -140,10 +141,16 @@ class SphireProtCRYOLOPickingTasks(SphireProtCRYOLOPicking):
 
     def _updateSummary(self, total):
         """ Update the summary variable based on total processed micrographs. """
-        per = round(self._processedMics / total * 100)
-        self.summaryVar.set(f"Processed: *{self._processedMics}* micrographs, "
-                            f"out of {total} ({per}%)")
+        done = len(self._processedMics)
+        per = done / total * 100
+        self.summaryVar.set(f"Processed: *{done}* micrographs, "
+                            f"out of {total} ({per:0.2f}%)")
         self._store(self.summaryVar)
+
+        # Write JSON file with processed micrographs
+        micsJson = self.getPath('micrographs.json')
+        with open(micsJson, 'w') as f:
+            json.dump({'processed': self._processedMics}, f)
 
     def _updateOutputCoords(self, batch):
         outputName = 'outputCoordinates'
@@ -164,9 +171,9 @@ class SphireProtCRYOLOPickingTasks(SphireProtCRYOLOPicking):
         self.info(f"BATCH: {batch['index']} Reading coords")
         self.info("Reading coordinates from mics: %s" %
                   ','.join([mic.strId() for mic in micList]))
-        self.readCoordsFromMics(batch['path'], micList, outputCoords)
+        processed = self.readCoordsFromMics(batch['path'], micList, outputCoords)
         self._updateOutputSet(outputName, outputCoords, emobj.Set.STREAM_OPEN)
-        self._processedMics += len(micList)
+        self._processedMics.update(processed)
         self._updateSummary(self.micsMonitor.inputCount)
 
         if firstTime:
