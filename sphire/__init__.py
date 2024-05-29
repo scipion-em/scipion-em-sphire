@@ -185,9 +185,8 @@ class Plugin(pwem.Plugin):
     @classmethod
     def runCryolo(cls, protocol, program, args, cwd=None, useCpu=False):
         """ Run crYOLO command from a given protocol. """
-        envAct = cls.getCryoloEnvActivation(useCpu)
-        condaAct = cls.getCondaActivationCmd() if envAct.startswith('conda activate') else ''
-        fullProgram = f'{condaAct} {envAct} && {program}'
+        fullProgram = '%s %s && %s' % (cls.getCondaActivationCmd(),
+                                       cls.getCryoloEnvActivation(useCpu), program)
         protocol.runJob(fullProgram, args, env=cls.getEnviron(), cwd=cwd,
                         numberOfMpi=1)
 
