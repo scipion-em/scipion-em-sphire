@@ -234,7 +234,7 @@ class ProtCryoloBase(EMProtocol):
                                     "install 'cryoloCPU' or use the GPU implementation.")
 
         else:
-            if self.numberOfThreads.get() < len(self.getGpuList()):
+            if self.getClassName() != "SphireProtCRYOLOTomoPicking" and self.numberOfThreads.get() < len(self.getGpuList()):
                 validateMsgs.append("Multiple GPUs can not be used by a single process. "
                                     "Make sure you specify more threads than GPUs.")
 

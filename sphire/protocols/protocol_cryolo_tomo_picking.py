@@ -142,8 +142,6 @@ class SphireProtCRYOLOTomoPicking(ProtCryoloBase, ProtTomoPicking):
                       condition='doFilament',
                       label='Do not merge filaments?')
 
-        # form.addParallelSection(threads=1, mpi=0)
-
         # Default box size --> 50
         form.getParam('boxSize').default = Integer(50)
         # Default lowpass --> 20
