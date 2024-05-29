@@ -54,7 +54,7 @@ class SphireProtCRYOLOTomoPicking(ProtCryoloBase, ProtTomoPicking):
     # --------------------------- DEFINE param functions ----------------------
     def _defineParams(self, form):
         ProtTomoPicking._defineParams(self, form)
-        ProtCryoloBase._defineParams(self, form)
+        ProtCryoloBase._defineParams(self, form, objects='tomograms')
 
         form.addSection(label="Tracing")
         form.addParam('searchRange', params.IntParam, default=-1,
@@ -141,8 +141,6 @@ class SphireProtCRYOLOTomoPicking(ProtCryoloBase, ProtTomoPicking):
         form.addParam('nomerging', params.BooleanParam, default=False,
                       condition='doFilament',
                       label='Do not merge filaments?')
-
-        form.addParallelSection(threads=1, mpi=1)
 
         # Default box size --> 50
         form.getParam('boxSize').default = Integer(50)
