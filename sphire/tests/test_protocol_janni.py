@@ -34,12 +34,6 @@ from pwem.protocols import ProtImportMicrographs
 from ..protocols import SphireProtJanniDenoising
 
 
-XmippProtPreprocessMicrographs = Domain.importFromPlugin(
-    'xmipp3.protocols',
-    'XmippProtPreprocessMicrographs',
-    doRaise=True)
-
-
 class TestJanni(BaseTest):
     @classmethod
     def setUpClass(cls):
@@ -63,6 +57,8 @@ class TestJanni(BaseTest):
 
     @classmethod
     def runMicPreprocessing(cls, key):
+        XmippProtPreprocessMicrographs = Domain.importFromPlugin(
+            'xmipp3.protocols', 'XmippProtPreprocessMicrographs', doRaise=True)
         cls.protPreprocess = cls.newProtocol(
             XmippProtPreprocessMicrographs,
             inputMicrographs=cls.protImport.outputMicrographs,

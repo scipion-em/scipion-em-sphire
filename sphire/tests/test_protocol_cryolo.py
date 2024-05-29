@@ -42,10 +42,6 @@ from ..constants import (INPUT_MODEL_OTHER, INPUT_MODEL_GENERAL_NS,
                          INPUT_MODEL_GENERAL)
 
 
-XmippProtPreprocessMicrographs = Domain.importFromPlugin(
-    'xmipp3.protocols', 'XmippProtPreprocessMicrographs', doRaise=True)
-
-
 class TestSphireConvert(BaseTest):
     @classmethod
     def setUpClass(cls):
@@ -245,6 +241,8 @@ class TestCryolo(BaseTest):
 
     @classmethod
     def runMicPreprocessing(cls):
+        XmippProtPreprocessMicrographs = Domain.importFromPlugin(
+            'xmipp3.protocols', 'XmippProtPreprocessMicrographs', doRaise=True)
         cls.protPreprocess = cls.newProtocol(
             XmippProtPreprocessMicrographs,
             inputMicrographs=cls.protImport.outputMicrographs,
