@@ -33,7 +33,7 @@ from pyworkflow.utils import runJob
 from .constants import *
 
 
-__version__ = '3.1.15'
+__version__ = '3.2'
 _logo = "sphire_logo.png"
 _references = ['Wagner2019']
 
@@ -116,10 +116,6 @@ class Plugin(pwem.Plugin):
         else:  # cuda 11
             installCmd.append(f"pip install nvidia-pyindex && pip install 'cryolo[c11]=={version}'")
 
-        # downgrade imageio, because numpy must be 1.18.5
-        # FIXME: remove this line once we drop cryolo 1.8.5 support
-        installCmd.append("&& pip install 'imageio<=2.15.0'")
-
         # Flag installation finished
         installCmd.append(f'&& touch {CRYOLO_INSTALLED}')
 
@@ -141,10 +137,10 @@ class Plugin(pwem.Plugin):
             kwargs['useCpu'] = True
             cls.addCryoloPackage(env, version, **kwargs)
 
-        _add(V1_8_5)
         _add(V1_9_3)
         _add(V1_9_6)
-        _add(V1_9_7, default=True)
+        _add(V1_9_7)
+        _add(V1_9_9, default=True)
 
         def _addModel(model, version, link, filename, default=False):
             env.addPackage(model, version=version,
