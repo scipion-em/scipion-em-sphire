@@ -158,7 +158,7 @@ class ProtCryoloBase(EMProtocol):
         inputSize = convert.roundInputSize(self.input_size.get())
         maxBoxPerImage = self.max_box_per_image.get()
         sampling = inputData.getSamplingRate()
-        nyquist = 2*sampling
+        nyquist = 2 * sampling
         if nyquist >= self.absCutOffFreq.get():
             absCutOfffreq = 0.5
         else:
@@ -173,13 +173,13 @@ class ProtCryoloBase(EMProtocol):
         if boxSize:
             model.update({"anchors": [boxSize, boxSize]})
         if self.lowPassFilter:
-            model.update({"filter": [absCutOfffreq, self._getTmpPath("filtered")]})
+            model.update({"filter": [absCutOfffreq, "filtered"]})
         elif self.inputModelFrom == INPUT_MODEL_GENERAL_DENOISED:
             model.update({"filter": [
                 Plugin.getModelFn(JANNI_GENMOD_VAR),
                 24,
                 3,
-                self._getTmpPath("filtered")
+                "filtered"
             ]})
 
         jsonDict = {"model": model}

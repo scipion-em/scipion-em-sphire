@@ -68,7 +68,7 @@ class SphireProtCRYOLOPicking(ProtCryoloBase, ProtParticlePickingAuto):
 
         self._defineStreamingParams(form)
         # Default batch size --> 16
-        form.getParam('streamingBatchSize').default = Integer(16)
+        form.getParam('streamingBatchSize').setDefault(16)
 
     # --------------------------- INSERT steps functions ----------------------
     def _insertInitialSteps(self):
@@ -76,6 +76,31 @@ class SphireProtCRYOLOPicking(ProtCryoloBase, ProtParticlePickingAuto):
         return stepId
 
     # --------------------------- STEPS functions -----------------------------
+    def _pickMicrographsBatch(self, micList, workingDir, gpuId, clean=True):
+        if clean:
+            pwutils.cleanPath(workingDir)
+            pwutils.makePath(workingDir)
+
+        # Create folder with linked mics
+        convert.convertMicrographs(micList, workingDir)
+
+        configJson = os.path.abspath(self._getExtraPath('config.json'))
+        args = " -c %s" % configJson
+        args += " -w %s" % self.getInputModel()
+        args += " -i ./ -o ./ "
+        args += " -t %0.3f" % self.conservPickVar
+        args += " -nc %d" % self.numCpus
+
+        if not self.usingCpu():
+            args += " -g %s " % gpuId
+
+        if self.lowPassFilter or self.inputModelFrom == INPUT_MODEL_GENERAL_DENOISED:
+            args += ' --cleanup'
+
+        Plugin.runCryolo(self, 'cryolo_predict.py', args,
+                         cwd=workingDir,
+                         useCpu=self.usingCpu())
+
     def _pickMicrograph(self, micrograph, *args):
         """This function picks from a given micrograph"""
         self._pickMicrographList([micrograph], args)
@@ -85,39 +110,33 @@ class SphireProtCRYOLOPicking(ProtCryoloBase, ProtParticlePickingAuto):
             return
 
         workingDir = self._getTmpPath(self.getMicsWorkingDir(micList))
-        pwutils.cleanPath(workingDir)
-        pwutils.makePath(workingDir)
-
-        # Create folder with linked mics
-        convert.convertMicrographs(micList, workingDir)
-
-        args = " -c %s" % self._getExtraPath('config.json')
-        args += " -w %s" % self.getInputModel()
-        args += " -i %s/" % workingDir
-        args += " -o %s/" % workingDir
-        args += " -t %0.3f" % self.conservPickVar
-        args += " -nc %d" % self.numCpus.get()
-
-        if not self.usingCpu():
-            args += " -g %(GPU)s"  # Add GPU that will be set by the executor
-
-        if self.lowPassFilter or self.inputModelFrom == INPUT_MODEL_GENERAL_DENOISED:
-            args += ' --cleanup'
-
-        Plugin.runCryolo(self, 'cryolo_predict.py', args, useCpu=self.usingCpu())
-
+        self._pickMicrographsBatch(micList, workingDir, '%(GPU)s')
         # Move output files to extra folder
+        # FIXME: I think this can be problematic with parallel process running
+        # cryolo on different GPUs
         pwutils.moveTree(os.path.join(workingDir, "CBOX"), self._getExtraPath())
 
+    def _getMicCoordsFile(self, outputDir, mic):
+        # Here CBOX output files are moved to extra, so not taking into account
+        # outputDir here
+        cboxFile = convert.getMicFn(mic, "cbox")
+        return self._getExtraPath(cboxFile)
+
     def readCoordsFromMics(self, outputDir, micDoneList, outputCoords):
-        """This method read coordinates from a given list of micrographs"""
+        """This method read coordinates from a given list of micrographs.
+        Return a dict with micIds and number of coordinates read for each one.
+        """
         # Coordinates may have a boxSize (e.g. streaming case)
         boxSize = outputCoords.getBoxSize()
         if not boxSize:
             if self.boxSize.get():  # Box size can be provided by the user
                 boxSize = self.boxSize.get()
             else:  # If not crYOLO estimates it
-                boxSize = self.getEstimatedBoxSize(self._getTmpPath('micrographs_*/DISTR'))
+                if outputDir:
+                    outputPath = os.path.join(outputDir, 'DISTR')
+                else:
+                    outputPath = self._getTmpPath('micrographs_*/DISTR')
+                boxSize = self.getEstimatedBoxSize(outputPath)
 
                 if self.boxSizeFactor.get() != 1:
                     boxSize = int(boxSize * self.boxSizeFactor.get())
@@ -127,19 +146,22 @@ class SphireProtCRYOLOPicking(ProtCryoloBase, ProtParticlePickingAuto):
         # Calculate if flip is needed
         # JMRT: Let's assume that all mics have same dims, so we avoid
         # to open the image file each time for checking this
-        yFlipHeight = convert.getFlipYHeight(micDoneList[0].getFileName())
+        if not hasattr(self, 'yFlipHeight'):
+            self.yFlipHeight = convert.getFlipYHeight(micDoneList[0].getFileName())
 
         # Create a reader to parse .cbox files
         # and a Coordinate object to add to output set
         reader = convert.CoordBoxReader(boxSize,
-                                        yFlipHeight=yFlipHeight,
+                                        yFlipHeight=self.yFlipHeight,
                                         boxSizeEstimated=self.boxSizeEstimated)
         coord = emobj.Coordinate()
         coord._cryoloScore = emobj.Float()
 
+        processedMics = {}
+
         for mic in micDoneList:
-            cboxFile = convert.getMicFn(mic, "cbox")
-            coordsFile = self._getExtraPath(cboxFile)
+            coordsFile = self._getMicCoordsFile(outputDir, mic)
+            count = 0
             if os.path.exists(coordsFile) and os.path.getsize(coordsFile):
                 for x, y, z, score, _, _ in reader.iterCoords(coordsFile):
                     # Clean up objId to add as a new coordinate
@@ -149,9 +171,13 @@ class SphireProtCRYOLOPicking(ProtCryoloBase, ProtParticlePickingAuto):
                     coord._cryoloScore.set(score)
                     # Add it to the set
                     outputCoords.append(coord)
+                    count += 1
+            processedMics[mic.getObjId()] = count
 
         # Register box size
         self.createBoxSizeOutput(outputCoords)
+
+        return processedMics
 
     def createBoxSizeOutput(self, coordSet):
         """ Output box size as an Integer. Other protocols can use it as
