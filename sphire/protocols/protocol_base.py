@@ -44,7 +44,7 @@ class ProtCryoloBase(EMProtocol):
     def __init__(self, **args):
         EMProtocol.__init__(self, **args)
 
-    def _defineParams(self, form):
+    def _defineParams(self, form, objects='micrographs'):
         if self._IS_TRAIN:
             form.addParam('doFineTune', params.BooleanParam, default=True,
                           label='Fine-tune previous model?',
@@ -103,9 +103,9 @@ class ProtCryoloBase(EMProtocol):
         form.addParam('lowPassFilter', params.BooleanParam,
                       default=False,
                       label="Low-pass filter",
-                      help="CrYOLO works on original micrographs but the "
+                      help="CrYOLO works on original %s but the "
                            "results will be probably improved by the application"
-                           " of a reasonable low-pass filter.")
+                           " of a reasonable low-pass filter." % objects)
         form.addParam('absCutOffFreq', params.FloatParam,
                       default=10.0,
                       condition='lowPassFilter',
@@ -234,7 +234,7 @@ class ProtCryoloBase(EMProtocol):
                                     "install 'cryoloCPU' or use the GPU implementation.")
 
         else:
-            if self.numberOfThreads.get() < len(self.getGpuList()):
+            if self.getClassName() != "SphireProtCRYOLOTomoPicking" and self.numberOfThreads.get() < len(self.getGpuList()):
                 validateMsgs.append("Multiple GPUs can not be used by a single process. "
                                     "Make sure you specify more threads than GPUs.")
 
