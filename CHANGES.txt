@@ -1,8 +1,9 @@
-3.1.15:
-    - Some refactoring in Cryolo picking, mainly to run the program from the batch folder, avoiding overwriting a folder that make it crash in parallel (2 or more GPUs)
-    - Added Cryolo with Tasks (using emtools Task, Pipeline and other helper classes). This version avoids writing the .txt done files, better continue and steps.sqlite.
-     - Differentiating between tomograms and micrographs in the picking help.
-     - Removed the threads and mpi parameters
+3.2:
+    - some refactoring in Cryolo picking, mainly to run the program from the batch folder, avoiding overwriting a folder that make it crash in parallel (2 or more GPUs)
+    - added Cryolo with Tasks (using emtools Task, Pipeline and other helper classes). This version avoids writing the .txt done files, better continue and steps.sqlite.
+    - differentiating between tomograms and micrographs in the picking help.
+    - removed the threads and mpi parameters from tomo picking
+    - add cryolo 1.9.9
 3.1.14:
     - fix bug in training protocol
     - converting frequency to Angstroms for filtering params
