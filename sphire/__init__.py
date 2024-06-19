@@ -33,7 +33,7 @@ from pyworkflow.utils import runJob
 from .constants import *
 
 
-__version__ = '3.2'
+__version__ = '3.2.1'
 _logo = "sphire_logo.png"
 _references = ['Wagner2019']
 

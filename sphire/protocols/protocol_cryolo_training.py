@@ -89,7 +89,7 @@ class SphireProtCRYOLOTraining(ProtCryoloBase, ProtParticlePicking):
     def _insertAllSteps(self):
         self._insertFunctionStep(self.convertInputStep)
         self._insertFunctionStep(self.createConfigStep,
-                                 self.inputMicrographs.get())
+                                 self.getInputMicrographs())
 
         if self.doFineTune:
             self._insertFunctionStep(self.cryoloTrainingStep,
@@ -105,7 +105,7 @@ class SphireProtCRYOLOTraining(ProtCryoloBase, ProtParticlePicking):
         It generates 2 folders: one for the box files and another for
         the mrc files.
         """
-        inputMics = self.inputMicrographs.get()
+        inputMics = self.getInputMicrographs()
         coordSet = self.inputCoordinates.get()
 
         paths = []
