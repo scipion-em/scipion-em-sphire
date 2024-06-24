@@ -60,7 +60,7 @@ class SphireProtCRYOLOTomoTraining(SphireProtCRYOLOTraining):
         It generates 2 folders: one for the cbox files and another for
         the mrc files.
         """
-        inputTomos = self.inputTomograms.get()
+        inputTomos = self.getInputMicrographs()
         coordSet = self.inputCoordinates3D.get()
 
         paths = []
@@ -71,3 +71,8 @@ class SphireProtCRYOLOTomoTraining(SphireProtCRYOLOTraining):
         tomoList = [tomo.clone() for tomo in inputTomos]
         convert.writeSetOfCoordinates3D(paths[0], coordSet, tomoList)
         convert.convertTomograms(tomoList, paths[1])
+
+    # -------------------------- UTILS functions ------------------------------
+    def getInputMicrographs(self):
+        """ Redefine from the base class. """
+        return self.inputTomograms.get()

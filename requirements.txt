@@ -1,2 +1,3 @@
 scipion-em
 emtable
+emtools>=0.0.11
