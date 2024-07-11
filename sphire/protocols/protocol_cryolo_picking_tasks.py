@@ -22,7 +22,8 @@
 import os
 import json
 
-from emtools.utils import Timer, Pipeline, Pretty,Process
+from emtools.utils import Timer, Pretty, Process
+from emtools.jobs import Pipeline
 from emtools.pwx import SetMonitor, BatchManager
 
 import pyworkflow.protocol.constants as cons

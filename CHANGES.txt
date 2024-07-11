@@ -1,3 +1,4 @@
+3.2.2: fix emtools dependency
 3.2.1: fix broken tomo training protocol
 3.2:
     - some refactoring in Cryolo picking, mainly to run the program from the batch folder, avoiding overwriting a folder that make it crash in parallel (2 or more GPUs)
