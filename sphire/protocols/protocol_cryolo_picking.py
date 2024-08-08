@@ -108,13 +108,18 @@ class SphireProtCRYOLOPicking(ProtCryoloBase, ProtParticlePickingAuto):
     def _pickMicrographList(self, micList, *args):
         if not micList:  # maybe in continue cases, need to properly check
             return
-
-        workingDir = self._getTmpPath(self.getMicsWorkingDir(micList))
-        self._pickMicrographsBatch(micList, workingDir, '%(GPU)s')
-        # Move output files to extra folder
-        # FIXME: I think this can be problematic with parallel process running
-        # cryolo on different GPUs
-        pwutils.moveTree(os.path.join(workingDir, "CBOX"), self._getExtraPath())
+        try:
+            workingDir = self._getTmpPath(self.getMicsWorkingDir(micList))
+            self._pickMicrographsBatch(micList, workingDir, '%(GPU)s')
+            # Move output files to extra folder
+            # FIXME: I think this can be problematic with parallel process running
+            # cryolo on different GPUs
+            cboxFn = os.path.join(workingDir, "CBOX")
+            pwutils.moveTree(cboxFn, self._getExtraPath())
+        except FileNotFoundError:
+            self.warning(f'File not found error:{cboxFn}. Skipping the following mics:{workingDir}')
+        except Exception as e:
+            self.warning(f"Cryolo has failed for {workingDir} --> {str(e)}. Skipping the following mics:{workingDir}")
 
     def _getMicCoordsFile(self, outputDir, mic):
         # Here CBOX output files are moved to extra, so not taking into account
@@ -136,8 +141,11 @@ class SphireProtCRYOLOPicking(ProtCryoloBase, ProtParticlePickingAuto):
                     outputPath = os.path.join(outputDir, 'DISTR')
                 else:
                     outputPath = self._getTmpPath('micrographs_*/DISTR')
-                boxSize = self.getEstimatedBoxSize(outputPath)
-
+                try:
+                    boxSize = self.getEstimatedBoxSize(outputPath)
+                except Exception as e:
+                    self.warning(f"ERROR: Cryolo has not a boxSize estimation yet --> {str(e)}\n")
+                    return
                 if self.boxSizeFactor.get() != 1:
                     boxSize = int(boxSize * self.boxSizeFactor.get())
 
