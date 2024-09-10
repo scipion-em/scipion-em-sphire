@@ -30,6 +30,7 @@ import pyworkflow.utils as pwutils
 from pyworkflow import BETA
 from pyworkflow.object import Integer, Float
 import pyworkflow.protocol.params as params
+from pyworkflow.protocol import ProtStreamingBase
 
 from tomo.objects import SetOfCoordinates3D
 from tomo.protocols import ProtTomoPicking
@@ -41,12 +42,13 @@ from ..constants import (INPUT_MODEL_GENERAL_DENOISED, STRAIGHTNESS_METHOD,
 from .protocol_base import ProtCryoloBase
 import sphire.convert as convert
 
+OUT_COORDINATES = 'output3DCoordinates'
 
 class SphireProtCRYOLOTomoPicking(ProtCryoloBase, ProtTomoPicking):
     """ Picks particles in a set of tomograms. """
     _label = 'cryolo tomo picking'
     _devStatus = BETA
-    _possibleOutputs = {'output3DCoordinates': SetOfCoordinates3D}
+    _possibleOutputs = {OUT_COORDINATES: SetOfCoordinates3D}
 
     def __init__(self, **kwargs):
         ProtTomoPicking.__init__(self, **kwargs)
@@ -149,10 +151,38 @@ class SphireProtCRYOLOTomoPicking(ProtCryoloBase, ProtTomoPicking):
         # Default lowpass --> 20
         form.getParam('absCutOffFreq').default = Float(20.0)
 
-    def _insertAllSteps(self):
-        self._insertFunctionStep(self.createConfigStep, self.inputTomograms.get())
-        self._insertFunctionStep(self.pickTomogramsStep)
-        self._insertFunctionStep(self.createOutputStep)
+    def stepsGeneratorStep(self) -> None:
+        """
+        This step should be implemented by any streaming protocol.
+        It should check its input and when ready conditions are met
+        call the self._insertFunctionStep method.
+        """
+        closeSetStepDeps = []
+        self.readingOutput()
+
+        inputTomos = self.inputTomograms.get()
+        while True:
+            listTomoInput = list(inputTomos.getIdSet())
+            if not inputTomos.isStreamOpen() and self.coordinatesRead == listTomoInput:
+                self.info('Input set closed, all items processed\n')
+                self._insertFunctionStep(self._closeOutputSet, prerequisites=closeSetStepDeps)
+                break
+            for tomo in inputTomos:
+                if tomo.getTsId() not in self.coordinatesRead:
+                    self.info(f"TS_ID input: {listTomoInput}\n"
+                              f"TS_ID reading... {ts.getObjId()}\n"
+                              f"TS_ID read: {self.TS_read}\n")
+                    self.coordinatesRead.append(tomo.getTsId())
+                    try:
+                        createConfig = self._insertFunctionStep(self.createConfigStep, tomo, prerequisites=[])
+                        runCryolo = self._insertFunctionStep(self.pickTomogramsStep, prerequisites=[createConfig])
+                        createOutput = self._insertFunctionStep(self.createOutputStep, prerequisites=[runCryolo])
+                        closeSetStepDeps.append(createOutput)
+
+                    except Exception as e:
+                        self.error(f'Error reading tomogram info: {e}')
+                        self.error(f'tomogram : {tomo.getTsId()}')
+                time.sleep(10)
 
     # -------------------------- STEPS functions ------------------------------
     def pickTomogramsStep(self):
@@ -234,3 +264,16 @@ class SphireProtCRYOLOTomoPicking(ProtCryoloBase, ProtTomoPicking):
         name = self.OUTPUT_PREFIX + suffix
         self._defineOutputs(**{name: setOfCoord3D})
         self._defineSourceRelation(setOfTomograms, setOfCoord3D)
+
+    def readingOutput(self) -> None:
+        try:
+            if hasattr(self, OUT_COORDINATES):
+                outcoords = getattr(self, OUT_COORDINATES)
+                for c in outcoords.iterItems():
+                    if not c.getTomoId() in self.coordinatesRead:
+                        self.coordinatesRead.append(outcoords.self.getSize())
+            self.info(f'Picked tomos : {self.coordinatesRead}')
+            self.outputSOTList_objID = self.coordinatesRead
+
+        except AttributeError:  # There is no outputSetOfCoordinates
+            pass
