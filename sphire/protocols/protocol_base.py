@@ -128,7 +128,7 @@ class ProtCryoloBase(EMProtocol):
                            "For example the default value would be 1024x1024.")
         form.addParam('boxSize', params.IntParam,
                       default=0,
-                      label='Box Size (optional)',
+                      label='Box Size ',
                       allowsPointers=True,
                       help='Box size in pixels. It should be the size of '
                            'the minimum particle enclosing square in pixel. '
