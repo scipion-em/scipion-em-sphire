@@ -26,6 +26,8 @@
 # **************************************************************************
 from pyworkflow.utils import weakImport
 
+from .viewer_napari_2d import NapariViewer2D
+
 with weakImport('tomo'):
     from .views_tkinter_tree import SphireGenericView
-    from .viewer_napari import NapariViewer
+    from .viewer_napari_3d import NapariViewer3D

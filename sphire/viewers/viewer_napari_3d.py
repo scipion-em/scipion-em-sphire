@@ -31,7 +31,7 @@ import tomo.objects
 import sphire.convert
 
 
-class NapariViewer(pwviewer.Viewer):
+class NapariViewer3D(pwviewer.Viewer):
     """ Wrapper to visualize 3D coordinates using napari boxmanager
     """
     _environments = [pwviewer.DESKTOP_TKINTER]
