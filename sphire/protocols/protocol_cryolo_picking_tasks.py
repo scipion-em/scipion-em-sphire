@@ -37,10 +37,10 @@ class SphireProtCRYOLOPickingTasks(SphireProtCRYOLOPicking):
     """ Picks particles in a set of micrographs with crYOLO.
     """
     _label = 'cryolo picking tasks'
+    stepsExecutionMode = cons.STEPS_SERIAL
 
     def __init__(self, **args):
         SphireProtCRYOLOPicking.__init__(self, **args)
-        self.stepsExecutionMode = cons.STEPS_SERIAL
         # Disable parallelization options just take into account GPUs
         self.numberOfMpi.set(0)
         self.numberOfThreads.set(0)
