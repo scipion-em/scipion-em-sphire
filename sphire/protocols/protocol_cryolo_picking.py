@@ -46,10 +46,7 @@ class SphireProtCRYOLOPicking(ProtCryoloBase, ProtParticlePickingAuto):
     """ Picks particles in a set of micrographs with crYOLO.
     """
     _label = 'cryolo picking'
-
-    def __init__(self, **args):
-        ProtParticlePickingAuto.__init__(self, **args)
-        self.stepsExecutionMode = cons.STEPS_PARALLEL
+    stepsExecutionMode = cons.STEPS_PARALLEL
 
     # --------------------------- DEFINE param functions ----------------------
     def _defineParams(self, form):
@@ -72,7 +69,7 @@ class SphireProtCRYOLOPicking(ProtCryoloBase, ProtParticlePickingAuto):
 
     # --------------------------- INSERT steps functions ----------------------
     def _insertInitialSteps(self):
-        stepId = self._insertFunctionStep(self.createConfigStep, self.inputMicrographs.get())
+        stepId = self._insertFunctionStep(self.createConfigStep, self.inputMicrographs.get(), needsGPU=False)
         return stepId
 
     # --------------------------- STEPS functions -----------------------------
