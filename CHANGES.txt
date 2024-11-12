@@ -1,3 +1,4 @@
+3.2.3: Tolerate failure for streaming spa picking
 3.2.2: fix emtools dependency
 3.2.1: fix broken tomo training protocol
 3.2:

@@ -111,7 +111,8 @@ class ProtCryoloBase(EMProtocol):
                       condition='lowPassFilter',
                       label="Cut-off resolution (A)",
                       help="Specifies the absolute cut-off resolution for the "
-                           "low-pass filter. Recommended value sampling/0.3")
+                           "low-pass filter. The recommended value is sampling/0.3. "
+                           "To automatically calculate the recommended value, input -1.")
         form.addParam('numCpus', params.IntParam, default=4,
                       label="Number of CPUs",
                       help="*Important!* This is different from number of threads "
@@ -127,7 +128,7 @@ class ProtCryoloBase(EMProtocol):
                            "For example the default value would be 1024x1024.")
         form.addParam('boxSize', params.IntParam,
                       default=0,
-                      label='Box Size (optional)',
+                      label='Box Size ',
                       allowsPointers=True,
                       help='Box size in pixels. It should be the size of '
                            'the minimum particle enclosing square in pixel. '
@@ -159,7 +160,9 @@ class ProtCryoloBase(EMProtocol):
         maxBoxPerImage = self.max_box_per_image.get()
         sampling = inputData.getSamplingRate()
         nyquist = 2 * sampling
-        if nyquist >= self.absCutOffFreq.get():
+        if self.absCutOffFreq.get() == -1:
+            absCutOfffreq = sampling / (sampling / 0.3)  # Recommended by cryolo
+        elif nyquist >= self.absCutOffFreq.get():
             absCutOfffreq = 0.5
         else:
             absCutOfffreq = sampling/self.absCutOffFreq.get()
