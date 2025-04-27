@@ -51,7 +51,7 @@ class SphireProtCRYOLONapariTomoPicker(ProtTomoPicking):
         EMProtocol.__init__(self, **args)
 
     def _insertAllSteps(self):
-        self._insertFunctionStep(self.prepareDataStep)
+        self._insertFunctionStep(self.prepareDataStep, needsGPU=False)
         self._insertFunctionStep(self.runCoordinatePickingStep,
                                  interactive=True)
 

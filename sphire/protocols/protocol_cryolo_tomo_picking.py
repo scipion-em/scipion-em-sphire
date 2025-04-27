@@ -148,9 +148,11 @@ class SphireProtCRYOLOTomoPicking(ProtCryoloBase, ProtTomoPicking):
         form.getParam('absCutOffFreq').default = Float(20.0)
 
     def _insertAllSteps(self):
-        self._insertFunctionStep(self.createConfigStep, self.inputTomograms.get())
-        self._insertFunctionStep(self.pickTomogramsStep)
-        self._insertFunctionStep(self.createOutputStep)
+        self._insertFunctionStep(self.createConfigStep,
+                                 self.inputTomograms.get(),
+                                 needsGPU=False)
+        self._insertFunctionStep(self.pickTomogramsStep, needsGPU=self.usesGpu())
+        self._insertFunctionStep(self.createOutputStep, needsGPU=False)
 
     # -------------------------- STEPS functions ------------------------------
     def pickTomogramsStep(self):
