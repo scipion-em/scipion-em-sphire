@@ -50,7 +50,7 @@ class SphireProtCryoloImport(ProtImport):
 
     # --------------------------- INSERT steps functions ----------------------
     def _insertAllSteps(self):
-        self._insertFunctionStep(self.importModelStep)
+        self._insertFunctionStep(self.importModelStep, needsGPU=False)
 
     # --------------------------- STEPS functions -----------------------------
     def importModelStep(self):

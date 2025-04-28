@@ -69,7 +69,9 @@ class SphireProtCRYOLOPicking(ProtCryoloBase, ProtParticlePickingAuto):
 
     # --------------------------- INSERT steps functions ----------------------
     def _insertInitialSteps(self):
-        stepId = self._insertFunctionStep(self.createConfigStep, self.inputMicrographs.get(), needsGPU=False)
+        stepId = self._insertFunctionStep(self.createConfigStep,
+                                          self.inputMicrographs.get(),
+                                          needsGPU=False)
         return stepId
 
     # --------------------------- STEPS functions -----------------------------

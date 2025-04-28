@@ -68,8 +68,10 @@ class SphireProtCRYOLOPickingTasks(SphireProtCRYOLOPicking):
 
     # --------------------------- INSERT steps functions ----------------------
     def _insertAllSteps(self):
-        self._insertFunctionStep(self.createConfigStep, self.getInputMicrographs())
-        self._insertFunctionStep(self.pickAllMicrogaphsStep)
+        self._insertFunctionStep(self.createConfigStep,
+                                 self.getInputMicrographs(),
+                                 needsGPU=False)
+        self._insertFunctionStep(self.pickAllMicrogaphsStep, needsGPU=True)
 
     # --------------------------- STEPS functions -----------------------------
     def pickAllMicrogaphsStep(self):

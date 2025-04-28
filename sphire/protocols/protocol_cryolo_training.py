@@ -87,17 +87,19 @@ class SphireProtCRYOLOTraining(ProtCryoloBase, ProtParticlePicking):
 
     # --------------------------- INSERT steps functions ----------------------
     def _insertAllSteps(self):
-        self._insertFunctionStep(self.convertInputStep)
+        self._insertFunctionStep(self.convertInputStep, needsGPU=False)
         self._insertFunctionStep(self.createConfigStep,
-                                 self.getInputMicrographs())
+                                 self.getInputMicrographs(),
+                                 needsGPU=False)
 
         if self.doFineTune:
             self._insertFunctionStep(self.cryoloTrainingStep,
-                                     ' --fine_tune -lft 2')
+                                     ' --fine_tune -lft 2',
+                                     needsGPU=True)
         else:
-            self._insertFunctionStep(self.cryoloTrainingStep)
+            self._insertFunctionStep(self.cryoloTrainingStep, needsGPU=True)
 
-        self._insertFunctionStep(self.createOutputStep)
+        self._insertFunctionStep(self.createOutputStep, needsGPU=False)
 
     # --------------------------- STEPS functions -----------------------------
     def convertInputStep(self):
