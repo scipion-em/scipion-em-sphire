@@ -1,3 +1,7 @@
+
+3.2.4:
+ - Users: hide protocol cryolo_tomo_trining until it is reviewed.
+ - Developers: add toml file and update the GitHub action to point to the centralized one.
 3.2.3: Tolerate failure for streaming spa picking
 3.2.2: fix emtools dependency
 3.2.1: fix broken tomo training protocol

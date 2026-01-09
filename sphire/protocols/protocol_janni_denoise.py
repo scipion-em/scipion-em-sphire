@@ -60,8 +60,8 @@ class SphireProtJanniDenoising(ProtMicrographs):
 
     # --------------------------- STEPS functions -----------------------------
     def _insertAllSteps(self):
-        self._insertFunctionStep(self.denoisingStep)
-        self._insertFunctionStep(self.createOutputStep)
+        self._insertFunctionStep(self.denoisingStep, needsGPU=True)
+        self._insertFunctionStep(self.createOutputStep, needsGPU=False)
 
     def denoisingStep(self):
         input_mics = self.inputMicrographs.get()
