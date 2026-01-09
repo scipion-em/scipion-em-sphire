@@ -36,5 +36,5 @@ from .protocol_cryolo_picking_tasks import SphireProtCRYOLOPickingTasks
 with weakImport('tomo'):
     from .protocol_cryolo_tomo_picking import SphireProtCRYOLOTomoPicking
     from .protocol_cryolo_napari_tomo_picking import SphireProtCRYOLONapariTomoPicker
-    from .protocol_cryolo_tomo_training import SphireProtCRYOLOTomoTraining
+    # from .protocol_cryolo_tomo_training import SphireProtCRYOLOTomoTraining
 
