@@ -43,7 +43,191 @@ import sphire.convert as convert
 
 
 class SphireProtCRYOLOTomoPicking(ProtCryoloBase, ProtTomoPicking):
-    """ Picks particles in a set of tomograms. """
+    """
+    Picks particles in a set of tomograms.
+
+    AI Generated:
+
+    CRYOLO Tomogram Picking (SphireProtCRYOLOTomoPicking) — User Manual
+        Overview
+
+        The CRYOLO Tomogram Picking protocol performs automated particle
+        detection within cryo-electron tomography datasets using deep
+        learning approaches adapted for three-dimensional data. Its main
+        objective is to identify candidate particle locations inside
+        tomograms and generate coordinate sets suitable for downstream
+        subtomogram averaging, classification, or structural analysis.
+
+        In cryo-electron tomography workflows, particle localization is
+        often one of the most time-consuming and technically demanding
+        steps. Biological specimens embedded in tomograms usually present
+        strong noise, missing wedge artifacts, crowded cellular
+        environments, and heterogeneous particle orientations. This
+        protocol addresses these challenges by combining trained neural
+        network models with automated tracing and filament-aware analysis,
+        allowing users to process large tomographic datasets efficiently
+        and reproducibly.
+
+        Inputs and General Workflow
+
+        The protocol requires a set of tomograms together with a trained
+        CRYOLO model capable of recognizing the target particles or
+        structures. The quality and biological relevance of the results
+        depend strongly on the suitability of the selected model. Models
+        trained on similar imaging conditions, specimen preparations, and
+        particle sizes generally provide the most reliable detections.
+
+        During execution, the protocol evaluates the tomographic volumes
+        and generates three-dimensional coordinate predictions for all
+        detected particles. These coordinates can subsequently be used in
+        subtomogram extraction workflows or integrated into broader
+        structural biology pipelines.
+
+        From a biological perspective, users should carefully verify that
+        the selected tomograms have sufficient contrast and appropriate
+        reconstruction quality before automated picking. Extremely noisy
+        or poorly reconstructed tomograms may produce unreliable
+        detections or increase the number of false positives.
+
+        Particle Detection Strategy
+
+        The protocol is designed to support both isolated particle
+        detection and filament tracing workflows. For globular particles
+        or relatively independent macromolecular complexes, the standard
+        picking mode identifies individual coordinates directly within the
+        tomographic volume. This mode is appropriate for many subtomogram
+        averaging studies involving ribosomes, viral particles, membrane
+        complexes, or cellular assemblies.
+
+        For filamentous systems, the protocol provides specialized tracing
+        functionality capable of connecting neighboring detections into
+        continuous filament trajectories. This is especially important in
+        studies involving cytoskeletal filaments, helical assemblies,
+        fibrils, or elongated macromolecular structures where biological
+        interpretation depends on preserving filament continuity.
+
+        The tracing system incorporates spatial continuity constraints and
+        directional analysis to reconstruct biologically meaningful
+        filament paths. Proper configuration of these parameters becomes
+        critical when analyzing highly curved, densely packed, or partially
+        fragmented filaments.
+
+        Tracing Parameters and Biological Interpretation
+
+        The search range controls how far the protocol looks for nearby
+        detections when attempting to connect particles into continuous
+        traces. Smaller values are typically suitable for densely sampled
+        filaments with predictable geometry, whereas larger values may be
+        necessary for sparse or irregular structures. Excessively large
+        search ranges, however, may incorrectly connect unrelated
+        particles.
+
+        The tracing memory parameter determines how tolerant the protocol
+        is to temporary interruptions in visibility. In biological
+        specimens where filaments become partially obscured by noise,
+        missing wedge artifacts, or neighboring densities, moderate memory
+        values can improve continuity. However, overly permissive settings
+        may merge unrelated structures.
+
+        The minimum trace length parameter acts as a biological quality
+        filter by excluding very short traces that are unlikely to
+        represent meaningful structures. This is particularly useful in
+        crowded cellular environments where random detections can otherwise
+        generate fragmented or biologically implausible traces.
+
+        Filament Detection and Directionality
+
+        When filament mode is enabled, the protocol attempts to organize
+        detections into coherent filament trajectories. Several parameters
+        influence how filament continuity and geometry are interpreted.
+
+        The box distance parameter defines the spacing between neighboring
+        filament coordinates. Smaller distances produce denser sampling and
+        may improve downstream helical analysis, although they also
+        increase computational and storage demands. Larger distances reduce
+        redundancy but may undersample highly curved filaments.
+
+        Straightness evaluation plays an important role in distinguishing
+        genuine filament continuity from abrupt geometric deviations.
+        Different straightness metrics allow the protocol to adapt to
+        either relatively rigid filaments or more flexible biological
+        assemblies. Highly curved cytoskeletal systems may require more
+        permissive thresholds, while rigid helical filaments often benefit
+        from stricter constraints.
+
+        Directional analysis methods help estimate filament orientation
+        during tracing. These approaches improve robustness in difficult
+        tomograms where neighboring filament segments may overlap or where
+        noise obscures local continuity. Proper directional estimation is
+        especially important for long cellular filaments or membrane-
+        associated assemblies.
+
+        Filtering and Preprocessing Considerations
+
+        The protocol supports optional preprocessing strategies designed to
+        improve particle visibility and detection stability. Low-pass
+        filtering can reduce high-frequency noise and improve performance
+        in particularly noisy tomograms. This is often beneficial in
+        cellular cryo-electron tomography datasets where signal-to-noise
+        ratios are extremely limited.
+
+        Users should nevertheless exercise biological caution when
+        applying aggressive filtering, since excessive smoothing may blur
+        fine structural features or reduce the detectability of small
+        particles. The optimal preprocessing strategy usually depends on
+        particle size, tomogram quality, and the intended downstream
+        analysis.
+
+        Outputs and Their Interpretation
+
+        The protocol produces a set of three-dimensional particle
+        coordinates associated with the original tomograms. These
+        coordinates represent candidate particle locations predicted by
+        the trained model and can be used directly for subtomogram
+        extraction or visualization.
+
+        In filament workflows, the output coordinates preserve the traced
+        filament organization and spacing, enabling subsequent structural
+        analysis of elongated assemblies. The resulting coordinate sets can
+        also serve as starting points for manual refinement or quality
+        control.
+
+        Biological users are encouraged to visually inspect the predicted
+        coordinates within tomographic viewers before proceeding to large-
+        scale averaging workflows. Even highly accurate neural network
+        models may generate false positives in crowded or heterogeneous
+        cellular environments.
+
+        Practical Recommendations
+
+        For most subtomogram averaging projects, it is advisable to begin
+        with conservative picking thresholds and visually inspect a subset
+        of tomograms before processing the entire dataset. This approach
+        helps optimize sensitivity while limiting false detections.
+
+        Filament tracing parameters should be adjusted according to the
+        geometry and flexibility of the biological system under study.
+        Rigid helical assemblies generally tolerate stricter straightness
+        constraints, whereas flexible cytoskeletal structures often require
+        more permissive settings.
+
+        When working with very noisy tomograms, moderate preprocessing and
+        carefully selected detection thresholds usually provide the best
+        balance between sensitivity and specificity. Manual inspection of
+        representative tomograms remains an essential part of biological
+        validation.
+
+        Final Perspective
+
+        Automated tomogram particle picking is a central enabling step in
+        modern cryo-electron tomography workflows. Reliable coordinate
+        detection dramatically accelerates structural analysis while
+        improving reproducibility across large datasets. Successful use of
+        this protocol depends not only on selecting an appropriate neural
+        network model, but also on carefully adapting tracing and filament
+        parameters to the biological properties of the specimen and the
+        quality of the tomographic reconstruction.
+    """
     _label = 'cryolo tomo picking'
     _devStatus = BETA
     _possibleOutputs = {'output3DCoordinates': SetOfCoordinates3D}
