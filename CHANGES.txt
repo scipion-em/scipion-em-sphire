@@ -1,3 +1,5 @@
+3.2.6: fix installation preventing the original installation method relied on NVIDIA’s legacy distribution servers
+       for nvidia-tensorflow (v1.15.5) to fail.
 3.2.5: deploy test.
 3.2.4:
  - Users: hide protocol cryolo_tomo_trining until it is reviewed.
