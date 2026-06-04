@@ -33,7 +33,7 @@ from pyworkflow.utils import runJob
 from .constants import *
 
 
-__version__ = '3.2.5'
+__version__ = '3.2.6'
 _logo = "sphire_logo.png"
 _references = ['Wagner2019']
 
@@ -114,7 +114,17 @@ class Plugin(pwem.Plugin):
         if cudaVersion.major == 10:
             installCmd.append(f"pip install 'cryolo[{suffix}]=={version}'")
         else:  # cuda 11
-            installCmd.append(f"pip install nvidia-pyindex && pip install 'cryolo[c11]=={version}'")
+            # The original installation method relied on NVIDIA’s legacy distribution servers for nvidia-tensorflow
+            # (v1.15.5). These servers have become unstable or deprecated, causing the installer to fail when
+            # attempting to fetch mandatory CUDA dependencies (e.g., nvidia-cuda-runtime-cu116). By essentially
+            # "breaking" the dependency chain, the previous installation process became unreliable.
+            installCmd.append('pip install astunparse==1.6.3 astor==0.8.1 gast==0.3.3 google-pasta keras-applications '
+                              'keras-preprocessing opt-einsum termcolor "wrapt>=1.11.1" "h5py<=2.10.0" && ')
+            installCmd.append('pip install --no-deps https://developer.nvidia.com/w/compute/redist/nvidia-tensorflow/'
+                              'nvidia_tensorflow-1.15.5%2Bnv22.02-3927706-cp38-cp38-linux_x86_64.whl && ')
+            installCmd.append('pip install cryolo && ')
+            installCmd.append('conda install -y -c conda-forge cudatoolkit=11.6 cudnn=8 nccl && ')
+            installCmd.append('pip install absl-py "tensorflow-estimator==1.15.1"')
 
         # Flag installation finished
         installCmd.append(f'&& touch {CRYOLO_INSTALLED}')
