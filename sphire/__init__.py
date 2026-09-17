@@ -123,6 +123,7 @@ class Plugin(pwem.Plugin):
             installCmd.append('pip install --no-deps https://developer.nvidia.com/w/compute/redist/nvidia-tensorflow/'
                               'nvidia_tensorflow-1.15.5%2Bnv22.02-3927706-cp38-cp38-linux_x86_64.whl && ')
             installCmd.append('pip install cryolo && ')
+            installCmd.append('pip install janni==0.3.1 && ')
             installCmd.append('conda install -y -c conda-forge cudatoolkit=11.6 cudnn=8 nccl && ')
             installCmd.append('pip install absl-py "tensorflow-estimator==1.15.1"')
 
