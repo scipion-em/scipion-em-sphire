@@ -73,6 +73,7 @@ class SphireProtJanniDenoising(ProtMicrographs):
 
         args = [
             f"denoise -g {self.gpuList.get()}",
+            f"-bs 2",
             f"{self._getTmpPath()}/",
             f"{self._getTmpPath()}/",
             f"{self.getInputModel()}"
