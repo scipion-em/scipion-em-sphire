@@ -22,6 +22,7 @@
 import os
 import json
 import time
+import tempfile
 from datetime import datetime
 from uuid import uuid4
 
@@ -152,9 +153,10 @@ class SphireProtCRYOLOPickingTasks(SphireProtCRYOLOPicking):
         lastCheck = None
 
         while True:
+            checkTime = datetime.now()
             if inputMics.hasChangedSince(lastCheck):
                 inputMics.loadAllProperties()
-                lastCheck = datetime.now()
+                lastCheck = checkTime
                 available = []
                 currentCount = 0
 
@@ -210,9 +212,10 @@ class SphireProtCRYOLOPickingTasks(SphireProtCRYOLOPicking):
             self.info("No output micrographs.")
 
         while True:
+            checkTime = datetime.now()
             if inputMics.hasChangedSince(lastCheck):
                 inputMics.loadAllProperties()
-                lastCheck = datetime.now()
+                lastCheck = checkTime
                 currentCount = 0
 
                 for mic in inputMics.iterItems():
@@ -243,8 +246,19 @@ class SphireProtCRYOLOPickingTasks(SphireProtCRYOLOPicking):
             self.info(f"Processing batch: {batch['index']}")
             t = Timer()
             self.info(f"BATCH: {batch['index']} Start picking...")
-            self._pickMicrographsBatch(batch['items'], batch['path'], gpu,
-                                       clean=False)
+            try:
+                self._pickMicrographsBatch(
+                    batch['items'],
+                    batch['path'],
+                    gpu,
+                    clean=False,
+                )
+            except Exception as e:
+                self.warning(
+                    f"Cryolo has failed for batch {batch['index']} "
+                    f"({batch['path']}) --> {str(e)}. "
+                    f"Skipping this batch."
+                )
             self.info(f"BATCH: {batch['index']} Done picking...{t.getToc()}")
             return batch
         return _processBatch
@@ -263,10 +277,27 @@ class SphireProtCRYOLOPickingTasks(SphireProtCRYOLOPicking):
                             f"out of {total} ({per:0.2f}%)")
         self._store(self.summaryVar)
 
-        # Write JSON file with processed micrographs
+        # Write the resume checkpoint atomically so an interrupted write
+        # cannot destroy the last valid micrographs.json.
         micsJson = self.getPath('micrographs.json')
-        with open(micsJson, 'w') as f:
-            json.dump({'processed': self._processedMics}, f)
+        fd, tmpJson = tempfile.mkstemp(
+            prefix='micrographs.',
+            suffix='.json.tmp',
+            dir=os.path.dirname(micsJson),
+            text=True,
+        )
+        try:
+            with os.fdopen(fd, 'w') as f:
+                json.dump({'processed': self._processedMics}, f)
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(tmpJson, micsJson)
+        except Exception:
+            try:
+                os.unlink(tmpJson)
+            except FileNotFoundError:
+                pass
+            raise
 
     def _updateOutputCoords(self, batch):
         outputName = 'outputCoordinates'
@@ -288,6 +319,8 @@ class SphireProtCRYOLOPickingTasks(SphireProtCRYOLOPicking):
         self.info("Reading coordinates from mics: %s" %
                   ','.join([mic.strId() for mic in micList]))
         processed = self.readCoordsFromMics(batch['path'], micList, outputCoords)
+        if processed is None:
+            processed = {mic.getObjId(): 0 for mic in micList}
         self._updateOutputSet(outputName, outputCoords, emobj.Set.STREAM_OPEN)
         self._processedMics.update(processed)
         self._updateSummary(self._inputMicsCount)

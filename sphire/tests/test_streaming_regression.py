@@ -301,5 +301,187 @@ class TestSphireStreamingRegression(unittest.TestCase):
             )
 
 
+    def testTasksSummaryKeepsPreviousCheckpointIfJsonWriteFails(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            protocol = _TasksHarness(tmp)
+            protocol._processedMics = {1: 4, 2: 0}
+            checkpoint = protocol.getPath("micrographs.json")
+
+            with open(checkpoint, "w") as handle:
+                json.dump({"processed": {"1": 4}}, handle)
+
+            def _failingDump(payload, handle):
+                handle.write('{"processed": ')
+                handle.flush()
+                raise RuntimeError("simulated crash while writing checkpoint")
+
+            with patch.object(tasks.json, "dump", _failingDump):
+                with self.assertRaises(RuntimeError):
+                    tasks.SphireProtCRYOLOPickingTasks._updateSummary(
+                        protocol,
+                        2,
+                    )
+
+            with open(checkpoint) as handle:
+                persisted = json.load(handle)
+
+            self.assertEqual(
+                {"processed": {"1": 4}},
+                persisted,
+                "A failed checkpoint rewrite must leave the previous valid "
+                "micrographs.json untouched for Resume.",
+            )
+
+
+    def testTasksPickProcessorToleratesFailedBatch(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            protocol = _TasksHarness(tmp)
+            warnings = []
+            protocol.warning = warnings.append
+
+            def _failPicking(*args, **kwargs):
+                raise RuntimeError("simulated crYOLO batch failure")
+
+            protocol._pickMicrographsBatch = _failPicking
+
+            batch = {
+                "index": 1,
+                "items": [_Mic(1)],
+                "path": tmp,
+            }
+
+            processor = tasks.SphireProtCRYOLOPickingTasks._getPickProcessor(
+                protocol,
+                "0",
+            )
+            result = processor(batch)
+
+            self.assertIs(
+                batch,
+                result,
+                "A failed crYOLO batch must be returned downstream so the "
+                "stream can checkpoint it and continue with later batches.",
+            )
+            self.assertTrue(
+                warnings,
+                "A tolerated crYOLO batch failure must still be reported.",
+            )
+
+
+    def testTasksOutputUpdateTreatsMissingCoordsAsZero(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            protocol = _TasksHarness(tmp)
+            protocol._processedMics = {}
+            protocol._inputMicsCount = 1
+
+            class _AppendableOutput(_OutputCoordinates):
+                def enableAppend(self):
+                    pass
+
+            class _BatchMic(_Mic):
+                def strId(self):
+                    return str(self.getObjId())
+
+            protocol.outputCoordinates = _AppendableOutput()
+            protocol.readCoordsFromMics = lambda *args, **kwargs: None
+
+            def _updateOutputSet(name, output, streamMode):
+                output.setStreamState(streamMode)
+                setattr(protocol, name, output)
+
+            protocol._updateOutputSet = _updateOutputSet
+
+            batch = {
+                "index": 1,
+                "items": [_BatchMic(1)],
+                "path": tmp,
+            }
+
+            tasks.SphireProtCRYOLOPickingTasks._updateOutputCoords(
+                protocol,
+                batch,
+            )
+
+            self.assertEqual(
+                {1: 0},
+                protocol._processedMics,
+                "If a tolerated failed batch produces no readable "
+                "coordinates, its micrographs must still be checkpointed "
+                "with zero coordinates so Resume does not retry them.",
+            )
+            self.assertEqual(
+                emobj.Set.STREAM_OPEN,
+                protocol.outputCoordinates.state,
+            )
+
+
+    def testTasksStreamingDoesNotMissChangeDuringRefresh(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            class _Clock:
+                current = 0
+
+                @classmethod
+                def now(cls):
+                    return cls.current
+
+            class _RacyStreamingMics(_StreamingMics):
+                def __init__(self):
+                    self.items = [_Mic(1)]
+                    self.snapshot = []
+                    self.reloads = 0
+                    self.changeTime = 5
+                    self.closed = False
+
+                def hasChangedSince(self, lastCheck):
+                    if lastCheck is None:
+                        return True
+                    if self.changeTime > lastCheck:
+                        return True
+                    raise AssertionError(
+                        "The polling checkpoint advanced past an unseen "
+                        "Set change."
+                    )
+
+                def loadAllProperties(self):
+                    self.reloads += 1
+                    self.snapshot = list(self.items)
+
+                    if self.reloads == 1:
+                        # Simulate a new item committed after this refresh took
+                        # its snapshot but before the poll checkpoint is saved.
+                        self.items.append(_Mic(2))
+                        _Clock.current = 10
+                    else:
+                        self.closed = True
+
+                def iterItems(self):
+                    return iter(self.snapshot)
+
+                def isStreamClosed(self):
+                    return self.closed
+
+                def getSize(self):
+                    return len(self.items)
+
+            protocol = _TasksHarness(tmp)
+            inputMics = _RacyStreamingMics()
+
+            with patch.object(tasks, "datetime", _Clock):
+                yielded = list(
+                    protocol._iterInputMicrographs(
+                        inputMics,
+                        {},
+                        waitSecs=0,
+                    )
+                )
+
+            self.assertEqual(
+                [1, 2],
+                [mic.getObjId() for mic in yielded],
+                "A Set change that lands during a refresh must be detected "
+                "on the next poll instead of being skipped forever.",
+            )
+
+
 if __name__ == "__main__":
     unittest.main()
