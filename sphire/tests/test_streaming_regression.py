@@ -483,5 +483,71 @@ class TestSphireStreamingRegression(unittest.TestCase):
             )
 
 
+    def testTasksResumeRecoversFromCorruptCheckpoint(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            protocol = _TasksHarness(tmp)
+            protocol.mics.items = [_Mic(1), _Mic(2), _Mic(3)]
+            warnings = []
+            protocol.warning = warnings.append
+
+            class _PersistedCoordinates(_OutputCoordinates):
+                def aggregate(self, *args, **kwargs):
+                    return [{"_micId": 2, "COUNT": 15}]
+
+            protocol.outputCoordinates = _PersistedCoordinates()
+
+            with open(protocol.getPath("micrographs.json"), "w") as handle:
+                handle.write('{"processed": ')
+
+            with patch.object(tasks, "BatchManager", _BatchManager),                  patch.object(tasks, "Pipeline", _Pipeline):
+                tasks.SphireProtCRYOLOPickingTasks.pickAllMicrogaphsStep(
+                    protocol
+                )
+
+            self.assertEqual(
+                [1, 3],
+                _BatchManager.seenIds,
+                "Resume must recover persisted coordinate-producing "
+                "micrographs even when the legacy JSON checkpoint is corrupt.",
+            )
+            self.assertTrue(
+                warnings,
+                "Recovering from a corrupt checkpoint must emit a warning.",
+            )
+
+
+    def testTasksPropagatesOutputPersistenceFailure(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            micFile = os.path.join(tmp, "mic_1.mrc")
+            with open(micFile, "w") as handle:
+                handle.write("test")
+
+            class _FileMic(_Mic):
+                def getFileName(self):
+                    return micFile
+
+                def clone(self):
+                    return _FileMic(self.objId)
+
+            protocol = _TasksHarness(tmp)
+            protocol.mics.items = [_FileMic(1)]
+            protocol.streamingBatchSize = _Value(0)
+            protocol.getGpuList = lambda: ["0"]
+            protocol._getPickProcessor = lambda gpu: (lambda batch: batch)
+
+            def _failOutputUpdate(batch):
+                raise RuntimeError("simulated output persistence failure")
+
+            protocol._updateOutputCoords = _failOutputUpdate
+
+            with self.assertRaisesRegex(
+                RuntimeError,
+                "simulated output persistence failure",
+            ):
+                tasks.SphireProtCRYOLOPickingTasks.pickAllMicrogaphsStep(
+                    protocol
+                )
+
+
 if __name__ == "__main__":
     unittest.main()

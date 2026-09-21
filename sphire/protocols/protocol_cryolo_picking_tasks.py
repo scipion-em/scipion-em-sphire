@@ -87,12 +87,19 @@ class SphireProtCRYOLOPickingTasks(SphireProtCRYOLOPicking):
 
         micIds = {}
         if os.path.exists(micsJson):
-            with open(micsJson) as f:
-                storedProcessed = json.load(f).get('processed', {})
-            micIds.update({
-                int(micId): count
-                for micId, count in storedProcessed.items()
-            })
+            try:
+                with open(micsJson) as f:
+                    storedProcessed = json.load(f).get('processed', {})
+            except (OSError, json.JSONDecodeError) as e:
+                self.warning(
+                    f"Could not read streaming checkpoint {micsJson}: {e}. "
+                    f"Recovering from persisted output coordinates."
+                )
+            else:
+                micIds.update({
+                    int(micId): count
+                    for micId, count in storedProcessed.items()
+                })
 
         if hasattr(self, 'outputCoordinates'):
             micAggr = self.outputCoordinates.aggregate(
@@ -129,8 +136,22 @@ class SphireProtCRYOLOPickingTasks(SphireProtCRYOLOPicking):
                                 outputQueue=outputQueue)
             outputQueue = p.outputQueue
 
-        mc.addProcessor(outputQueue, self._updateOutputCoords)
+        outputErrors = []
+
+        def _updateOutput(batch):
+            if outputErrors:
+                return batch
+            try:
+                return self._updateOutputCoords(batch)
+            except Exception as e:
+                outputErrors.append(e)
+                return batch
+
+        mc.addProcessor(outputQueue, _updateOutput)
         mc.run()
+
+        if outputErrors:
+            raise outputErrors[0]
 
         outputName = 'outputCoordinates'
         outputCoords = getattr(self, outputName, None)
