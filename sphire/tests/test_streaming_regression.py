@@ -548,6 +548,57 @@ class TestSphireStreamingRegression(unittest.TestCase):
                     protocol
                 )
 
+    def testTasksFailedPickingBatchIsNotCheckpointedAsProcessed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            protocol = _TasksHarness(tmp)
+            protocol._processedMics = {}
+            protocol._inputMicsCount = 1
+            protocol.warning = lambda *args, **kwargs: None
+
+            def _failPicking(*args, **kwargs):
+                raise RuntimeError("simulated crYOLO batch failure")
+
+            protocol._pickMicrographsBatch = _failPicking
+
+            def _mustNotReadFailedBatch(*args, **kwargs):
+                raise AssertionError(
+                    "A failed picking batch must not be read as a "
+                    "successful zero-coordinate result."
+                )
+
+            protocol.readCoordsFromMics = _mustNotReadFailedBatch
+
+            batch = {
+                "index": 1,
+                "items": [_Mic(1)],
+                "path": tmp,
+            }
+
+            processor = tasks.SphireProtCRYOLOPickingTasks._getPickProcessor(
+                protocol,
+                "0",
+            )
+            failedBatch = processor(batch)
+
+            tasks.SphireProtCRYOLOPickingTasks._updateOutputCoords(
+                protocol,
+                failedBatch,
+            )
+
+            self.assertTrue(
+                failedBatch.get("failed", False),
+                "A crYOLO execution failure must remain attached to the "
+                "batch while later batches continue through the pipeline.",
+            )
+            self.assertEqual(
+                {},
+                protocol._processedMics,
+                "A failed crYOLO batch must not be checkpointed as processed; "
+                "Resume must be able to retry those micrographs.",
+            )
+
+
+
 
 if __name__ == "__main__":
     unittest.main()

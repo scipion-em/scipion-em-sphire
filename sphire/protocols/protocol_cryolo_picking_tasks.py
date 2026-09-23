@@ -275,6 +275,7 @@ class SphireProtCRYOLOPickingTasks(SphireProtCRYOLOPicking):
                     clean=False,
                 )
             except Exception as e:
+                batch['failed'] = True
                 self.warning(
                     f"Cryolo has failed for batch {batch['index']} "
                     f"({batch['path']}) --> {str(e)}. "
@@ -321,6 +322,9 @@ class SphireProtCRYOLOPickingTasks(SphireProtCRYOLOPicking):
             raise
 
     def _updateOutputCoords(self, batch):
+        if batch.get('failed', False):
+            return batch
+
         outputName = 'outputCoordinates'
         outputCoords = getattr(self, outputName, None)
 
