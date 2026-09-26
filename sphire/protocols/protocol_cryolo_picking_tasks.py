@@ -21,10 +21,14 @@
 
 import os
 import json
+import time
+import tempfile
+from datetime import datetime
+from uuid import uuid4
 
 from emtools.utils import Timer, Pretty, Process
 from emtools.jobs import Pipeline
-from emtools.pwx import SetMonitor, BatchManager
+from emtools.pwx import BatchManager
 
 import pyworkflow.protocol.constants as cons
 import pwem.objects as emobj
@@ -80,35 +84,48 @@ class SphireProtCRYOLOPickingTasks(SphireProtCRYOLOPicking):
         self._firstTimeOutput = True
         inputMics = self.getInputMicrographs()
         micsJson = self.getPath('micrographs.json')
-        # We can retrieve all picked micrographs from the output set, because
-        # 0 particles micrographs will be missing. We will store a json file
-        # with information of processed movies, if does not exist, will load
-        # mics from the output set
+
+        micIds = {}
         if os.path.exists(micsJson):
-            with open(micsJson) as f:
-                micsIds = json.load(f)['processed']
-        elif hasattr(self, 'outputCoordinates'):
-            # Check now which of these mics have particles
+            try:
+                with open(micsJson) as f:
+                    storedProcessed = json.load(f).get('processed', {})
+            except (OSError, json.JSONDecodeError) as e:
+                self.warning(
+                    f"Could not read streaming checkpoint {micsJson}: {e}. "
+                    f"Recovering from persisted output coordinates."
+                )
+            else:
+                micIds.update({
+                    int(micId): count
+                    for micId, count in storedProcessed.items()
+                })
+
+        if hasattr(self, 'outputCoordinates'):
             micAggr = self.outputCoordinates.aggregate(
                 ["COUNT"], "_micId", ["_micId"])
-            micIds = {mic["_micId"]: mic['COUNT'] for mic in micAggr}
-        else:
-            micIds = {}
-
-        blacklist = [mic.clone() for mic in inputMics if mic.getObjId() in micIds]
-        micsMonitor = SetMonitor(emobj.SetOfMicrographs,
-                                 self.getInputMicrographs().getFileName(),
-                                 blacklist=blacklist)
+            micIds.update({
+                int(mic["_micId"]): mic['COUNT']
+                for mic in micAggr
+                if mic["_micId"] is not None
+            })
 
         self._processedMics = micIds
         waitSecs = self.streamingSleepOnWait.get()
-        self.micsMonitor = micsMonitor
-        micsIter = micsMonitor.iterProtocolInput(self, 'micrographs', waitSecs=waitSecs)
-        batchMgr = BatchManager(self.streamingBatchSize.get(), micsIter,
-                                self._getTmpPath())
+        batchSize = self.streamingBatchSize.get()
+        self._inputMicsCount = inputMics.getSize()
+
+        if batchSize == 0:
+            batchGenerator = lambda: self._iterAvailableInputBatches(
+                inputMics, micIds, waitSecs=waitSecs)
+        else:
+            micsIter = self._iterInputMicrographs(
+                inputMics, micIds, waitSecs=waitSecs)
+            batchMgr = BatchManager(batchSize, micsIter, self._getTmpPath())
+            batchGenerator = batchMgr.generate
 
         mc = Pipeline()
-        g = mc.addGenerator(batchMgr.generate)
+        g = mc.addGenerator(batchGenerator)
         gpus = self.getGpuList()
         outputQueue = None
         self.info(f">>> GPUS: {gpus}, processed micrographs: {len(self._processedMics)}")
@@ -119,19 +136,162 @@ class SphireProtCRYOLOPickingTasks(SphireProtCRYOLOPicking):
                                 outputQueue=outputQueue)
             outputQueue = p.outputQueue
 
-        mc.addProcessor(outputQueue, self._updateOutputCoords)
+        outputErrors = []
+        failedBatches = []
+
+        def _updateOutput(batch):
+            if batch.get('failed', False):
+                failedBatches.append(batch)
+                return batch
+
+            if outputErrors:
+                return batch
+
+            try:
+                return self._updateOutputCoords(batch)
+            except Exception as e:
+                outputErrors.append(e)
+                return batch
+
+        mc.addProcessor(outputQueue, _updateOutput)
         mc.run()
-        # Mark the output as closed
-        self.outputCoordinates.setStreamState(emobj.Set.STREAM_CLOSED)
-        self._store(self.outputCoordinates)
+
+        if outputErrors:
+            raise outputErrors[0]
+
+        if failedBatches:
+            raise RuntimeError(
+                "crYOLO failed for one or more streaming batches."
+            )
+
+        outputName = 'outputCoordinates'
+        outputCoords = getattr(self, outputName, None)
+
+        if outputCoords is None:
+            micSetPtr = self.getInputMicrographsPointer()
+            outputCoords = self._createSetOfCoordinates(micSetPtr)
+            self._updateOutputSet(
+                outputName, outputCoords, emobj.Set.STREAM_CLOSED)
+            self._defineSourceRelation(micSetPtr, outputCoords)
+        else:
+            outputCoords.setStreamState(emobj.Set.STREAM_CLOSED)
+            self._store(outputCoords)
+
+    def _iterAvailableInputBatches(self, inputMics, processedIds,
+                                   waitSecs=60):
+        """Yield one batch with all new items available in each Set refresh."""
+        seenIds = {int(micId) for micId in processedIds}
+        batchIndex = 0
+        lastCheck = None
+
+        while True:
+            checkTime = datetime.now()
+            if inputMics.hasChangedSince(lastCheck):
+                inputMics.loadAllProperties()
+                lastCheck = checkTime
+                available = []
+                currentCount = 0
+
+                for mic in inputMics.iterItems():
+                    currentCount += 1
+                    micId = mic.getObjId()
+                    if micId in seenIds:
+                        continue
+
+                    if micId is not None:
+                        seenIds.add(micId)
+                    available.append(mic.clone())
+
+                self._inputMicsCount = currentCount
+
+                if available:
+                    batchIndex += 1
+                    batchId = str(uuid4())
+                    batchPath = os.path.join(self._getTmpPath(), batchId)
+
+                    Process.system(f"rm -rf '{batchPath}'")
+                    Process.system(f"mkdir '{batchPath}'")
+
+                    for mic in available:
+                        micFn = mic.getFileName()
+                        os.symlink(
+                            os.path.abspath(micFn),
+                            os.path.join(batchPath, os.path.basename(micFn)),
+                        )
+
+                    yield {
+                        'items': available,
+                        'id': batchId,
+                        'path': batchPath,
+                        'index': batchIndex,
+                    }
+
+                if inputMics.isStreamClosed():
+                    break
+
+            if waitSecs:
+                time.sleep(waitSecs)
+
+    def _iterInputMicrographs(self, inputMics, processedIds,
+                              waitSecs=60):
+        """Yield new micrographs using only the generic Scipion Set API."""
+        seenIds = {int(micId) for micId in processedIds}
+        lastCheck = None
+
+        if seenIds:
+            self.info(f"Existing output: {len(seenIds)} micrographs")
+        else:
+            self.info("No output micrographs.")
+
+        while True:
+            checkTime = datetime.now()
+            if inputMics.hasChangedSince(lastCheck):
+                inputMics.loadAllProperties()
+                lastCheck = checkTime
+                currentCount = 0
+
+                for mic in inputMics.iterItems():
+                    currentCount += 1
+                    micId = mic.getObjId()
+                    if micId in seenIds:
+                        continue
+
+                    if micId is not None:
+                        seenIds.add(micId)
+                    yield mic.clone()
+
+                self._inputMicsCount = currentCount
+
+                if inputMics.isStreamClosed():
+                    break
+
+            if waitSecs:
+                time.sleep(waitSecs)
+
+        self.info(
+            f"No more micrographs, stream closed. "
+            f"Total: {self._inputMicsCount}"
+        )
 
     def _getPickProcessor(self, gpu):
         def _processBatch(batch):
             self.info(f"Processing batch: {batch['index']}")
             t = Timer()
             self.info(f"BATCH: {batch['index']} Start picking...")
-            self._pickMicrographsBatch(batch['items'], batch['path'], gpu,
-                                       clean=False)
+            try:
+                self._pickMicrographsBatch(
+                    batch['items'],
+                    batch['path'],
+                    gpu,
+                    clean=False,
+                )
+            except Exception as e:
+                batch['failed'] = True
+                self.warning(
+                    f"Cryolo has failed for batch {batch['index']} "
+                    f"({batch['path']}) --> {str(e)}. "
+                    f"Skipping this batch."
+                )
             self.info(f"BATCH: {batch['index']} Done picking...{t.getToc()}")
             return batch
         return _processBatch
@@ -145,17 +305,37 @@ class SphireProtCRYOLOPickingTasks(SphireProtCRYOLOPicking):
     def _updateSummary(self, total):
         """ Update the summary variable based on total processed micrographs. """
         done = len(self._processedMics)
-        per = done / total * 100
+        per = done / total * 100 if total else 0.0
         self.summaryVar.set(f"Processed: *{done}* micrographs, "
                             f"out of {total} ({per:0.2f}%)")
         self._store(self.summaryVar)
 
-        # Write JSON file with processed micrographs
+        # Write the resume checkpoint atomically so an interrupted write
+        # cannot destroy the last valid micrographs.json.
         micsJson = self.getPath('micrographs.json')
-        with open(micsJson, 'w') as f:
-            json.dump({'processed': self._processedMics}, f)
+        fd, tmpJson = tempfile.mkstemp(
+            prefix='micrographs.',
+            suffix='.json.tmp',
+            dir=os.path.dirname(micsJson),
+            text=True,
+        )
+        try:
+            with os.fdopen(fd, 'w') as f:
+                json.dump({'processed': self._processedMics}, f)
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(tmpJson, micsJson)
+        except Exception:
+            try:
+                os.unlink(tmpJson)
+            except FileNotFoundError:
+                pass
+            raise
 
     def _updateOutputCoords(self, batch):
+        if batch.get('failed', False):
+            return batch
+
         outputName = 'outputCoordinates'
         outputCoords = getattr(self, outputName, None)
 
@@ -175,9 +355,13 @@ class SphireProtCRYOLOPickingTasks(SphireProtCRYOLOPicking):
         self.info("Reading coordinates from mics: %s" %
                   ','.join([mic.strId() for mic in micList]))
         processed = self.readCoordsFromMics(batch['path'], micList, outputCoords)
+        if processed is None:
+            raise RuntimeError(
+                "Could not read coordinates for streaming batch."
+            )
         self._updateOutputSet(outputName, outputCoords, emobj.Set.STREAM_OPEN)
         self._processedMics.update(processed)
-        self._updateSummary(self.micsMonitor.inputCount)
+        self._updateSummary(self._inputMicsCount)
 
         if firstTime:
             self._defineSourceRelation(self.getInputMicrographsPointer(),
