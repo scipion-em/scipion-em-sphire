@@ -137,10 +137,16 @@ class SphireProtCRYOLOPickingTasks(SphireProtCRYOLOPicking):
             outputQueue = p.outputQueue
 
         outputErrors = []
+        failedBatches = []
 
         def _updateOutput(batch):
+            if batch.get('failed', False):
+                failedBatches.append(batch)
+                return batch
+
             if outputErrors:
                 return batch
+
             try:
                 return self._updateOutputCoords(batch)
             except Exception as e:
@@ -152,6 +158,11 @@ class SphireProtCRYOLOPickingTasks(SphireProtCRYOLOPicking):
 
         if outputErrors:
             raise outputErrors[0]
+
+        if failedBatches:
+            raise RuntimeError(
+                "crYOLO failed for one or more streaming batches."
+            )
 
         outputName = 'outputCoordinates'
         outputCoords = getattr(self, outputName, None)
@@ -345,7 +356,9 @@ class SphireProtCRYOLOPickingTasks(SphireProtCRYOLOPicking):
                   ','.join([mic.strId() for mic in micList]))
         processed = self.readCoordsFromMics(batch['path'], micList, outputCoords)
         if processed is None:
-            processed = {mic.getObjId(): 0 for mic in micList}
+            raise RuntimeError(
+                "Could not read coordinates for streaming batch."
+            )
         self._updateOutputSet(outputName, outputCoords, emobj.Set.STREAM_OPEN)
         self._processedMics.update(processed)
         self._updateSummary(self._inputMicsCount)

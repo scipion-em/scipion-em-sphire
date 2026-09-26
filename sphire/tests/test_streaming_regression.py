@@ -368,7 +368,7 @@ class TestSphireStreamingRegression(unittest.TestCase):
             )
 
 
-    def testTasksOutputUpdateTreatsMissingCoordsAsZero(self):
+    def testTasksOutputUpdateDoesNotCheckpointUnreadableCoords(self):
         with tempfile.TemporaryDirectory() as tmp:
             protocol = _TasksHarness(tmp)
             protocol._processedMics = {}
@@ -397,21 +397,20 @@ class TestSphireStreamingRegression(unittest.TestCase):
                 "path": tmp,
             }
 
-            tasks.SphireProtCRYOLOPickingTasks._updateOutputCoords(
-                protocol,
-                batch,
-            )
+            with self.assertRaisesRegex(
+                RuntimeError,
+                "coordinates",
+            ):
+                tasks.SphireProtCRYOLOPickingTasks._updateOutputCoords(
+                    protocol,
+                    batch,
+                )
 
             self.assertEqual(
-                {1: 0},
+                {},
                 protocol._processedMics,
-                "If a tolerated failed batch produces no readable "
-                "coordinates, its micrographs must still be checkpointed "
-                "with zero coordinates so Resume does not retry them.",
-            )
-            self.assertEqual(
-                emobj.Set.STREAM_OPEN,
-                protocol.outputCoordinates.state,
+                "Unreadable coordinates must not be checkpointed as a "
+                "successful zero-coordinate result.",
             )
 
 
@@ -599,6 +598,73 @@ class TestSphireStreamingRegression(unittest.TestCase):
 
 
 
+
+
+class TestSphireStreamingFailedBatchCompletionRegression(unittest.TestCase):
+    def testTasksFailedPickingBatchFailsProtocolAfterPipelineDrains(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            class _PipelineWithFailedBatch:
+                def __init__(self):
+                    self.processors = []
+
+                def addGenerator(self, generator):
+                    return _Node()
+
+                def addProcessor(self, inputQueue, processor, outputQueue=None):
+                    self.processors.append(processor)
+                    return _Node()
+
+                def run(self):
+                    batch = {
+                        "index": 1,
+                        "items": [_Mic(1)],
+                        "path": tmp,
+                    }
+                    for processor in self.processors:
+                        batch = processor(batch)
+
+            protocol = _TasksHarness(tmp)
+            protocol.mics.items = [_Mic(1)]
+            protocol.getGpuList = lambda: ["0"]
+            protocol.warning = lambda *args, **kwargs: None
+
+            def _failPicking(*args, **kwargs):
+                raise RuntimeError("simulated crYOLO batch failure")
+
+            protocol._pickMicrographsBatch = _failPicking
+            protocol._getPickProcessor = lambda gpu: (
+                tasks.SphireProtCRYOLOPickingTasks._getPickProcessor(
+                    protocol,
+                    gpu,
+                )
+            )
+            protocol._updateOutputCoords = lambda batch: (
+                tasks.SphireProtCRYOLOPickingTasks._updateOutputCoords(
+                    protocol,
+                    batch,
+                )
+            )
+
+            with patch.object(tasks, "BatchManager", _BatchManager), \
+                    patch.object(tasks, "Pipeline", _PipelineWithFailedBatch):
+                with self.assertRaisesRegex(
+                    RuntimeError,
+                    "crYOLO.*batch",
+                ):
+                    tasks.SphireProtCRYOLOPickingTasks.pickAllMicrogaphsStep(
+                        protocol
+                    )
+
+            self.assertEqual(
+                {},
+                protocol._processedMics,
+                "A failed batch must remain absent from the resume checkpoint.",
+            )
+            self.assertNotEqual(
+                emobj.Set.STREAM_CLOSED,
+                protocol.outputCoordinates.state,
+                "The output stream must not be closed after a failed batch.",
+            )
 
 if __name__ == "__main__":
     unittest.main()
