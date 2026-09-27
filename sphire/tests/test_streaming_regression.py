@@ -13,6 +13,7 @@ from unittest.mock import patch
 import pwem.objects as emobj
 
 from sphire.protocols import protocol_cryolo_picking_tasks as tasks
+from sphire.protocols.protocol_cryolo_picking import SphireProtCRYOLOPicking
 
 
 class _Value:
@@ -668,3 +669,335 @@ class TestSphireStreamingFailedBatchCompletionRegression(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+class _ClassicMic(_Mic):
+    def __init__(self, objId, fileName):
+        super().__init__(objId)
+        self.fileName = fileName
+
+    def getMicName(self):
+        return "mic_%03d" % self.objId
+
+    def getFileName(self):
+        return self.fileName
+
+    def strId(self):
+        return str(self.objId)
+
+
+class _ClassicPickingFailureHarness(SphireProtCRYOLOPicking):
+    def __init__(self, tmpDir):
+        self.tmpDir = tmpDir
+        mic = _ClassicMic(1, os.path.join(tmpDir, "mic_1.mrc"))
+        self.micDict = {mic.getMicName(): mic}
+        self.warnings = []
+
+    def isContinued(self):
+        return False
+
+    def _getMicDone(self, mic):
+        return os.path.join(
+            self.tmpDir,
+            "DONE",
+            "mic_%06d.TXT" % mic.getObjId(),
+        )
+
+    def _getTmpPath(self, *parts):
+        return os.path.join(self.tmpDir, *parts)
+
+    def _getExtraPath(self, *parts):
+        return os.path.join(self.tmpDir, "extra", *parts)
+
+    def _pickMicrographsBatch(self, *args, **kwargs):
+        raise RuntimeError("simulated crYOLO picking failure")
+
+    def warning(self, message):
+        self.warnings.append(message)
+
+    def info(self, *args, **kwargs):
+        pass
+
+
+class TestSphireClassicStreamingFailureResumeRegression(unittest.TestCase):
+    def testClassicPickingFailureDoesNotCreateDoneMarker(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            protocol = _ClassicPickingFailureHarness(tmp)
+            mic = protocol.micDict["mic_001"]
+            doneFile = protocol._getMicDone(mic)
+
+            with self.assertRaisesRegex(
+                RuntimeError,
+                "simulated crYOLO picking failure",
+            ):
+                protocol.pickMicrographListStep(["mic_001"])
+
+            self.assertFalse(
+                os.path.exists(doneFile),
+                "A failed crYOLO batch must not be marked DONE; Continue "
+                "must be able to retry it.",
+            )
+            self.assertTrue(
+                protocol.warnings,
+                "The picking failure should still be reported as a warning.",
+            )
+
+class _ClassicNoStorageMicSet:
+    def getFileName(self):
+        raise AssertionError(
+            "Classic crYOLO streaming must not depend on a storage filename."
+        )
+
+
+class _ClassicLogicalInputHarness(SphireProtCRYOLOPicking):
+    def __init__(self):
+        self._mics = _ClassicNoStorageMicSet()
+        self.micDict = {}
+        self.streamClosed = False
+        self.loadCalls = 0
+
+    def getInputMicrographs(self):
+        return self._mics
+
+    def _loadInputList(self):
+        self.loadCalls += 1
+        return {}, False
+
+    def _getFirstJoinStep(self):
+        return None
+
+    def debug(self, *args, **kwargs):
+        pass
+
+    def updateSteps(self):
+        raise AssertionError("No new micrographs should have been scheduled.")
+
+
+class TestSphireClassicBackendIndependentInputCheck(unittest.TestCase):
+    def testClassicCheckNewInputDoesNotDependOnStorageMtime(self):
+        protocol = _ClassicLogicalInputHarness()
+
+        protocol._checkNewInput()
+
+        self.assertEqual(
+            1,
+            protocol.loadCalls,
+            "Classic crYOLO streaming must refresh the logical Set directly "
+            "instead of gating discovery on SQLite/file modification times.",
+        )
+
+class _ClassicLogicalMic:
+    def __init__(self, objId, name):
+        self._objId = objId
+        self._name = name
+
+    def getObjId(self):
+        return self._objId
+
+    def getMicName(self):
+        return self._name
+
+    def clone(self):
+        return _ClassicLogicalMic(self._objId, self._name)
+
+
+class _ClassicLogicalMicSet:
+    def __init__(self, items, closed=False):
+        self._items = list(items)
+        self._closed = closed
+        self.loadCalls = 0
+
+    def getFileName(self):
+        raise AssertionError(
+            "Classic crYOLO streaming Sets must not be reopened from "
+            "storage filenames."
+        )
+
+    def loadAllProperties(self):
+        self.loadCalls += 1
+
+    def iterItems(self):
+        return iter(self._items)
+
+    def isStreamClosed(self):
+        return self._closed
+
+
+class _ClassicLogicalLoadHarness(SphireProtCRYOLOPicking):
+    def __init__(self):
+        self.micDict = {}
+        self._mics = _ClassicLogicalMicSet(
+            [_ClassicLogicalMic(7, "mic_007")],
+            closed=True,
+        )
+
+    def getInputMicrographs(self):
+        return self._mics
+
+    def debug(self, *args, **kwargs):
+        pass
+
+
+class TestSphireClassicLogicalSetLoading(unittest.TestCase):
+    def testClassicLoadInputListUsesLogicalSet(self):
+        protocol = _ClassicLogicalLoadHarness()
+
+        newMics, closed = protocol._loadInputList()
+
+        self.assertEqual(["mic_007"], list(newMics.keys()))
+        self.assertEqual(1, protocol._mics.loadCalls)
+        self.assertTrue(closed)
+
+class _ClassicNoBoxOutput:
+    def getBoxSize(self):
+        return 0
+
+
+class _ClassicUnreadableCoordsHarness(SphireProtCRYOLOPicking):
+    def __init__(self):
+        self.boxSize = _Value(0)
+        self.warnings = []
+
+    def getEstimatedBoxSize(self, outputPath):
+        raise RuntimeError("box size is not available yet")
+
+    def _getTmpPath(self, *parts):
+        return os.path.join("/tmp", *parts)
+
+    def warning(self, message):
+        self.warnings.append(message)
+
+
+class TestSphireClassicUnreadableCoordinatesRegression(unittest.TestCase):
+    def testClassicUnreadableCoordinatesRaiseInsteadOfCompleting(self):
+        protocol = _ClassicUnreadableCoordsHarness()
+        outputCoords = _ClassicNoBoxOutput()
+
+        with self.assertRaisesRegex(
+            RuntimeError,
+            "box size|coordinates",
+        ):
+            protocol.readCoordsFromMics(
+                None,
+                [_Mic(1)],
+                outputCoords,
+            )
+
+        self.assertTrue(
+            protocol.warnings,
+            "The coordinate-read failure should still be reported.",
+        )
+
+class TestSphireTasksCheckpointPersistenceReconciliation(unittest.TestCase):
+    def testTasksDoesNotTrustUnpersistedPositiveCheckpointCount(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            protocol = _TasksHarness(tmp)
+            protocol.mics.items = [_Mic(1), _Mic(2)]
+
+            class _NoPersistedCoordinates(_OutputCoordinates):
+                def aggregate(self, *args, **kwargs):
+                    return []
+
+            protocol.outputCoordinates = _NoPersistedCoordinates()
+
+            with open(protocol.getPath("micrographs.json"), "w") as handle:
+                json.dump({"processed": {"1": 15}}, handle)
+
+            with patch.object(tasks, "BatchManager", _BatchManager),                     patch.object(tasks, "Pipeline", _Pipeline):
+                tasks.SphireProtCRYOLOPickingTasks.pickAllMicrogaphsStep(
+                    protocol
+                )
+
+            self.assertEqual(
+                [1, 2],
+                _BatchManager.seenIds,
+                "A positive coordinate count from the JSON checkpoint must "
+                "not hide a micrograph whose coordinates are absent from the "
+                "persisted output Set. Resume must retry it.",
+            )
+
+    def testTasksKeepsZeroCoordinateCheckpointWithoutPersistedRows(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            protocol = _TasksHarness(tmp)
+            protocol.mics.items = [_Mic(1), _Mic(2)]
+
+            class _NoPersistedCoordinates(_OutputCoordinates):
+                def aggregate(self, *args, **kwargs):
+                    return []
+
+            protocol.outputCoordinates = _NoPersistedCoordinates()
+
+            with open(protocol.getPath("micrographs.json"), "w") as handle:
+                json.dump({"processed": {"1": 0}}, handle)
+
+            with patch.object(tasks, "BatchManager", _BatchManager),                     patch.object(tasks, "Pipeline", _Pipeline):
+                tasks.SphireProtCRYOLOPickingTasks.pickAllMicrogaphsStep(
+                    protocol
+                )
+
+            self.assertEqual(
+                [2],
+                _BatchManager.seenIds,
+                "A zero-coordinate micrograph has no persisted coordinate "
+                "rows, so its valid zero-count checkpoint must still be "
+                "honoured on Resume.",
+            )
+
+class _ClassicFixedBoxOutput:
+    def getBoxSize(self):
+        return 50
+
+    def append(self, coord):
+        raise AssertionError(
+            "These tests should not append coordinates."
+        )
+
+
+class _ClassicCboxPresenceHarness(SphireProtCRYOLOPicking):
+    def __init__(self, coordsFile):
+        self.coordsFile = coordsFile
+        self.boxSize = _Value(50)
+        self.yFlipHeight = 100
+
+    def _getMicCoordsFile(self, outputDir, mic):
+        return self.coordsFile
+
+    def createBoxSizeOutput(self, coordSet):
+        pass
+
+
+class TestSphireClassicCboxPresenceRegression(unittest.TestCase):
+    def testClassicMissingCboxIsNotTreatedAsZeroCoordinates(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            protocol = _ClassicCboxPresenceHarness(
+                os.path.join(tmp, "missing.cbox")
+            )
+
+            with self.assertRaisesRegex(
+                RuntimeError,
+                "cbox|coordinate|output",
+            ):
+                protocol.readCoordsFromMics(
+                    tmp,
+                    [_Mic(1)],
+                    _ClassicFixedBoxOutput(),
+                )
+
+    def testClassicEmptyCboxRemainsValidZeroCoordinateResult(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            emptyCbox = os.path.join(tmp, "empty.cbox")
+            open(emptyCbox, "w").close()
+
+            protocol = _ClassicCboxPresenceHarness(emptyCbox)
+
+            processed = protocol.readCoordsFromMics(
+                tmp,
+                [_Mic(1)],
+                _ClassicFixedBoxOutput(),
+            )
+
+            self.assertEqual(
+                {1: 0},
+                processed,
+                "An existing empty cbox is a valid zero-coordinate result "
+                "and must remain checkpointable.",
+            )

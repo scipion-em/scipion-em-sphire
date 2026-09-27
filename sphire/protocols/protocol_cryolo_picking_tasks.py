@@ -96,9 +96,14 @@ class SphireProtCRYOLOPickingTasks(SphireProtCRYOLOPicking):
                     f"Recovering from persisted output coordinates."
                 )
             else:
+                # JSON is only authoritative for successfully
+                # processed micrographs with zero coordinates,
+                # since those cannot be reconstructed from the
+                # coordinate rows in the persisted output Set.
                 micIds.update({
                     int(micId): count
                     for micId, count in storedProcessed.items()
+                    if count == 0
                 })
 
         if hasattr(self, 'outputCoordinates'):
