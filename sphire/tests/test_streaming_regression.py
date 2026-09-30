@@ -957,6 +957,10 @@ class _ClassicCboxPresenceHarness(SphireProtCRYOLOPicking):
         self.coordsFile = coordsFile
         self.boxSize = _Value(50)
         self.yFlipHeight = 100
+        self.errors = []
+
+    def error(self, message, redirectStandard=True):
+        self.errors.append(message)
 
     def _getMicCoordsFile(self, outputDir, mic):
         return self.coordsFile
@@ -1001,3 +1005,77 @@ class TestSphireClassicCboxPresenceRegression(unittest.TestCase):
                 "An existing empty cbox is a valid zero-coordinate result "
                 "and must remain checkpointable.",
             )
+
+
+class _ClassicCboxPerMicHarness(SphireProtCRYOLOPicking):
+    def __init__(self, coordsFileByMicId):
+        self._coordsFileByMicId = coordsFileByMicId
+        self.boxSize = _Value(50)
+        self.yFlipHeight = 100
+        self.errors = []
+
+    def error(self, message, redirectStandard=True):
+        self.errors.append(message)
+
+    def _getMicCoordsFile(self, outputDir, mic):
+        return self._coordsFileByMicId[mic.getObjId()]
+
+    def createBoxSizeOutput(self, coordSet):
+        pass
+
+
+class TestSphireClassicCboxPartialFailureRegression(unittest.TestCase):
+    # Regression tests: a missing cbox for one micrograph used to raise
+    # immediately and abort the whole readCoordsFromMics loop, silently
+    # dropping the coordinates of every OTHER (good) micrograph still
+    # pending in the same batch - both the classic pwem caller and the
+    # tasks pipeline persist/checkpoint based on what this method leaves
+    # behind, so an aborted loop meant good mics lost their coordinates
+    # too, not just the broken one.
+
+    def testOneMissingCboxAmongGoodMicsIsSkippedNotFatal(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            goodCbox1 = os.path.join(tmp, "good1.cbox")
+            open(goodCbox1, "w").close()
+            goodCbox2 = os.path.join(tmp, "good2.cbox")
+            open(goodCbox2, "w").close()
+            missingCbox = os.path.join(tmp, "missing.cbox")
+
+            protocol = _ClassicCboxPerMicHarness({
+                1: goodCbox1,
+                2: missingCbox,
+                3: goodCbox2,
+            })
+
+            processed = protocol.readCoordsFromMics(
+                tmp,
+                [_Mic(1), _Mic(2), _Mic(3)],
+                _ClassicFixedBoxOutput(),
+            )
+
+            self.assertEqual(
+                {1: 0, 3: 0},
+                processed,
+                "The good micrographs (1 and 3) must still be read and "
+                "checkpointed even though micrograph 2 was unreadable.",
+            )
+            self.assertEqual(
+                1,
+                len(protocol.errors),
+                "The missing cbox must still be logged, not silently "
+                "ignored.",
+            )
+
+    def testAllMicrographsFailingInBatchStillRaises(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            protocol = _ClassicCboxPerMicHarness({
+                1: os.path.join(tmp, "missing1.cbox"),
+                2: os.path.join(tmp, "missing2.cbox"),
+            })
+
+            with self.assertRaisesRegex(RuntimeError, "coordinate"):
+                protocol.readCoordsFromMics(
+                    tmp,
+                    [_Mic(1), _Mic(2)],
+                    _ClassicFixedBoxOutput(),
+                )

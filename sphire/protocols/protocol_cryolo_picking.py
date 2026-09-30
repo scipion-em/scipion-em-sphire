@@ -206,14 +206,25 @@ class SphireProtCRYOLOPicking(ProtCryoloBase, ProtParticlePickingAuto):
         coord._cryoloScore = emobj.Float()
 
         processedMics = {}
+        failedMicIds = []
 
         for mic in micDoneList:
+            # A missing cbox is a genuine crYOLO failure signal for that
+            # micrograph, not a legitimate zero-coordinate result - it
+            # must not be silently swallowed. But letting it abort the
+            # whole loop would also drop every other (good) micrograph
+            # still pending in this batch, since the caller checkpoints
+            # (classic) or persists (tasks) whatever this method leaves
+            # behind. Isolate it per-micrograph instead and only raise
+            # once, below, if the entire batch turned out unreadable.
             coordsFile = self._getMicCoordsFile(outputDir, mic)
             if not os.path.exists(coordsFile):
-                raise RuntimeError(
+                self.error(
                     f"Missing crYOLO coordinate output for micrograph "
                     f"{mic.getObjId()}: {coordsFile}"
                 )
+                failedMicIds.append(mic.getObjId())
+                continue
 
             count = 0
             if os.path.getsize(coordsFile):
@@ -230,6 +241,16 @@ class SphireProtCRYOLOPicking(ProtCryoloBase, ProtParticlePickingAuto):
 
         # Register box size
         self.createBoxSizeOutput(outputCoords)
+
+        if failedMicIds and not processedMics:
+            # Every micrograph in this batch was unreadable - treat it as
+            # a systemic failure (e.g. crYOLO/model/GPU issue) and surface
+            # it loudly, instead of silently completing an all-failed
+            # batch as if it had produced zero coordinates.
+            raise RuntimeError(
+                "Missing crYOLO coordinate output for micrograph(s): %s"
+                % ", ".join(str(micId) for micId in failedMicIds)
+            )
 
         return processedMics
 
