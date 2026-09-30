@@ -67,6 +67,33 @@ class SphireProtCRYOLOPicking(ProtCryoloBase, ProtParticlePickingAuto):
         # Default batch size --> 16
         form.getParam('streamingBatchSize').setDefault(16)
 
+    def _loadSet(self, inputSet, SetClass, getKeyFunc):
+        # crYOLO streaming input discovery must use logical Sets
+        # instead of reopening compatibility SQLite files.
+        refresh = getattr(inputSet, 'loadAllProperties', None)
+        if callable(refresh):
+            refresh()
+
+        newItemDict = {}
+        for item in inputSet.iterItems():
+            itemKey = getKeyFunc(item)
+            if itemKey not in self.micDict:
+                newItemDict[itemKey] = item.clone()
+
+        return newItemDict, inputSet.isStreamClosed()
+
+    def _checkNewInput(self):
+        # Refresh logical input state directly. Do not gate
+        # discovery on storage filenames or filesystem mtimes.
+        micDict, self.streamClosed = self._loadInputList()
+        outputStep = self._getFirstJoinStep()
+
+        if micDict:
+            deps = self._insertNewMicsSteps(micDict.values())
+            if outputStep is not None:
+                outputStep.addPrerequisites(*deps)
+            self.updateSteps()
+
     # --------------------------- INSERT steps functions ----------------------
     def _insertInitialSteps(self):
         stepId = self._insertFunctionStep(self.createConfigStep,
@@ -116,9 +143,17 @@ class SphireProtCRYOLOPicking(ProtCryoloBase, ProtParticlePickingAuto):
             cboxFn = os.path.join(workingDir, "CBOX")
             pwutils.moveTree(cboxFn, self._getExtraPath())
         except FileNotFoundError:
-            self.warning(f'File not found error:{cboxFn}. Skipping the following mics:{workingDir}')
+            self.warning(
+                f'File not found error:{cboxFn}. '
+                f'Failed mics:{workingDir}'
+            )
+            raise
         except Exception as e:
-            self.warning(f"Cryolo has failed for {workingDir} --> {str(e)}. Skipping the following mics:{workingDir}")
+            self.warning(
+                f"Cryolo has failed for {workingDir} --> {str(e)}. "
+                f"Failed mics:{workingDir}"
+            )
+            raise
 
     def _getMicCoordsFile(self, outputDir, mic):
         # Here CBOX output files are moved to extra, so not taking into account
@@ -143,8 +178,14 @@ class SphireProtCRYOLOPicking(ProtCryoloBase, ProtParticlePickingAuto):
                 try:
                     boxSize = self.getEstimatedBoxSize(outputPath)
                 except Exception as e:
-                    self.warning(f"ERROR: Cryolo has not a boxSize estimation yet --> {str(e)}\n")
-                    return
+                    self.warning(
+                        f"ERROR: Cryolo has not a boxSize estimation yet "
+                        f"--> {str(e)}\n"
+                    )
+                    raise RuntimeError(
+                        "Could not determine box size while reading "
+                        "crYOLO coordinates."
+                    ) from e
                 if self.boxSizeFactor.get() != 1:
                     boxSize = int(boxSize * self.boxSizeFactor.get())
 
@@ -165,11 +206,28 @@ class SphireProtCRYOLOPicking(ProtCryoloBase, ProtParticlePickingAuto):
         coord._cryoloScore = emobj.Float()
 
         processedMics = {}
+        failedMicIds = []
 
         for mic in micDoneList:
+            # A missing cbox is a genuine crYOLO failure signal for that
+            # micrograph, not a legitimate zero-coordinate result - it
+            # must not be silently swallowed. But letting it abort the
+            # whole loop would also drop every other (good) micrograph
+            # still pending in this batch, since the caller checkpoints
+            # (classic) or persists (tasks) whatever this method leaves
+            # behind. Isolate it per-micrograph instead and only raise
+            # once, below, if the entire batch turned out unreadable.
             coordsFile = self._getMicCoordsFile(outputDir, mic)
+            if not os.path.exists(coordsFile):
+                self.error(
+                    f"Missing crYOLO coordinate output for micrograph "
+                    f"{mic.getObjId()}: {coordsFile}"
+                )
+                failedMicIds.append(mic.getObjId())
+                continue
+
             count = 0
-            if os.path.exists(coordsFile) and os.path.getsize(coordsFile):
+            if os.path.getsize(coordsFile):
                 for x, y, z, score, _, _ in reader.iterCoords(coordsFile):
                     # Clean up objId to add as a new coordinate
                     coord.setObjId(None)
@@ -183,6 +241,16 @@ class SphireProtCRYOLOPicking(ProtCryoloBase, ProtParticlePickingAuto):
 
         # Register box size
         self.createBoxSizeOutput(outputCoords)
+
+        if failedMicIds and not processedMics:
+            # Every micrograph in this batch was unreadable - treat it as
+            # a systemic failure (e.g. crYOLO/model/GPU issue) and surface
+            # it loudly, instead of silently completing an all-failed
+            # batch as if it had produced zero coordinates.
+            raise RuntimeError(
+                "Missing crYOLO coordinate output for micrograph(s): %s"
+                % ", ".join(str(micId) for micId in failedMicIds)
+            )
 
         return processedMics
 
