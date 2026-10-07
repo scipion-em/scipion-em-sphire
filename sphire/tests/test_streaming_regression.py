@@ -1059,3 +1059,44 @@ class TestSphireStreamingPollCost(unittest.TestCase):
             list(protocol._pollNewMicrographs(mics, {}, waitSecs=0))
 
             self.assertEqual(1, mics.reloads)
+
+
+class _ClassicInsertStepsHarness(SphireProtCRYOLOPicking):
+    """Records the step graph _insertAllSteps builds."""
+
+    def __init__(self):
+        self.inserted = []
+        self.inputMicrographs = _Value(object())
+
+    def _insertFunctionStep(self, func, *args, **kwargs):
+        stepId = len(self.inserted) + 1
+        name = func if isinstance(func, str) else func.__name__
+        self.inserted.append((name, kwargs.get('prerequisites'), stepId))
+        return stepId
+
+
+class TestSphireClassicGeneratorPrerequisites(unittest.TestCase):
+    def testConfigStepRunsBeforeTheGeneratorStarts(self):
+        # Every picking step takes the config step as a prerequisite. If
+        # the generator inserted it itself, those steps would wait on a
+        # step the executor never planned, and the protocol would poll
+        # forever without picking anything.
+        protocol = _ClassicInsertStepsHarness()
+
+        SphireProtCRYOLOPicking._insertAllSteps(protocol)
+
+        names = [entry[0] for entry in protocol.inserted]
+        self.assertEqual(['createConfigStep', 'resumableStepGeneratorStep'],
+                         names)
+
+        configId = protocol.inserted[0][2]
+        self.assertEqual([configId], protocol.inserted[1][1])
+
+    def testGeneratorDoesNotInsertInitialStepsItself(self):
+        protocol = _ClassicInsertStepsHarness()
+
+        self.assertEqual(
+            [],
+            SphireProtCRYOLOPicking._insertInitialSteps(protocol),
+        )
+        self.assertEqual([], protocol.inserted)

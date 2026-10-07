@@ -138,9 +138,22 @@ class SphireProtCRYOLOPicking(SphireStreamingBase, ProtCryoloBase,
 
     # --------------------------- INSERT steps functions ----------------------
     def _insertAllSteps(self):
-        """Insert only the resumable streaming generator."""
+        """Insert the config step and then the resumable generator.
+
+        createConfigStep has to be scheduled here, not from inside the
+        generator: every picking step takes it as a prerequisite, and a
+        step inserted by a running step cannot be one the executor has
+        already planned around - the picking steps would wait on it
+        forever and the generator would poll with nothing to publish.
+        """
+        configStepId = self._insertFunctionStep(self.createConfigStep,
+                                                self.inputMicrographs.get(),
+                                                needsGPU=False)
+
         self._insertFunctionStep(self.resumableStepGeneratorStep,
-                                 str(datetime.now()), needsGPU=False)
+                                 str(datetime.now()),
+                                 prerequisites=[configStepId],
+                                 needsGPU=False)
 
     def resumableStepGeneratorStep(self, timestamp):
         """Run the generator as a unique step on every resume."""
@@ -177,10 +190,8 @@ class SphireProtCRYOLOPicking(SphireStreamingBase, ProtCryoloBase,
             self.updateSteps()
 
     def _insertInitialSteps(self):
-        stepId = self._insertFunctionStep(self.createConfigStep,
-                                          self.inputMicrographs.get(),
-                                          needsGPU=False)
-        return [stepId]
+        """The config step already ran before the generator started."""
+        return []
 
     # ----------------------- completion tracking -----------------------------
     def _insertNewMicsSteps(self, inputMics):
