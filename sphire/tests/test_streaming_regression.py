@@ -1062,7 +1062,13 @@ class TestSphireStreamingPollCost(unittest.TestCase):
 
 
 class _ClassicInsertStepsHarness(SphireProtCRYOLOPicking):
-    """Records the step graph _insertAllSteps builds."""
+    """Records the step graph _insertAllSteps builds.
+
+    It reproduces pyworkflow's own default: a step inserted without
+    explicit prerequisites gets the previous one as its prerequisite.
+    That default is what made the generator deadlock, so the harness must
+    not paper over it.
+    """
 
     def __init__(self):
         self.inserted = []
@@ -1071,7 +1077,13 @@ class _ClassicInsertStepsHarness(SphireProtCRYOLOPicking):
     def _insertFunctionStep(self, func, *args, **kwargs):
         stepId = len(self.inserted) + 1
         name = func if isinstance(func, str) else func.__name__
-        self.inserted.append((name, kwargs.get('prerequisites'), stepId))
+        prerequisites = kwargs.get('prerequisites')
+
+        if prerequisites is None:
+            # pyworkflow's __insertStep default.
+            prerequisites = [stepId - 1] if stepId > 1 else []
+
+        self.inserted.append((name, list(prerequisites), stepId))
         return stepId
 
 
@@ -1091,6 +1103,29 @@ class TestSphireClassicGeneratorPrerequisites(unittest.TestCase):
 
         configId = protocol.inserted[0][2]
         self.assertEqual([configId], protocol.inserted[1][1])
+
+    def testNothingTheGeneratorSchedulesWaitsOnTheGeneratorItself(self):
+        # The deadlock that hung a real run: createConfigStep was inserted
+        # from inside the generator, so pyworkflow gave it the previous
+        # step - the generator - as its prerequisite. The picking steps
+        # then waited on it, it waited on the generator, and the generator
+        # waited on the picking steps.
+        protocol = _ClassicInsertStepsHarness()
+
+        SphireProtCRYOLOPicking._insertAllSteps(protocol)
+
+        generatorId = next(stepId for name, _, stepId in protocol.inserted
+                           if name == 'resumableStepGeneratorStep')
+
+        protocol.inserted = []
+        SphireProtCRYOLOPicking._insertInitialSteps(protocol)
+
+        self.assertEqual(
+            [],
+            [entry for entry in protocol.inserted
+             if generatorId in entry[1]],
+            "The generator must schedule nothing that waits on itself.",
+        )
 
     def testGeneratorDoesNotInsertInitialStepsItself(self):
         protocol = _ClassicInsertStepsHarness()
