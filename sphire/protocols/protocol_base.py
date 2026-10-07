@@ -37,7 +37,190 @@ import sphire.convert as convert
 
 
 class ProtCryoloBase(EMProtocol):
-    """ Base class for crYOLO picking protocols. """
+    """
+    Base framework for crYOLO-based particle picking and training workflows in
+    cryo-electron microscopy. The protocol provides the common configuration,
+    validation, and execution environment required for automated particle
+    detection using deep learning models trained with crYOLO.
+
+    AI Generated:
+
+    crYOLO Base Protocol (ProtCryoloBase) — User Manual
+        Overview
+
+        The crYOLO Base protocol defines the shared infrastructure used by
+        automated particle picking and model training workflows based on the
+        crYOLO deep learning framework. Its main purpose is to standardize how
+        cryo-EM datasets interact with neural network models, filtering
+        strategies, GPU or CPU execution, and particle box estimation so that
+        downstream picking or training protocols operate consistently and
+        reproducibly.
+
+        In practical cryo-EM workflows, automated particle selection is one of
+        the most important preprocessing steps because it determines which image
+        regions are extracted for later classification and reconstruction. The
+        quality of particle picking strongly influences the final biological
+        interpretation, especially for heterogeneous or low-contrast datasets.
+        This protocol provides the common biological and computational settings
+        needed to adapt crYOLO to different imaging conditions and specimen
+        types.
+
+        General Purpose and Biological Context
+
+        The protocol supports workflows based on pretrained neural network
+        models as well as workflows where users refine or retrain models using
+        their own experimental data. General pretrained models are suitable for
+        many standard cryo-EM datasets and allow rapid exploratory analysis
+        without requiring manual annotation. This approach is especially useful
+        during early data screening, microscope setup optimization, or rapid
+        facility processing.
+
+        Fine-tuned or custom-trained models become more important when working
+        with unusual particles, highly contaminated samples, preferred
+        orientations, filamentous assemblies, membrane proteins, or negative
+        stain data. In these situations, adapting the model to the biological
+        characteristics of the dataset can significantly improve particle
+        detection accuracy and reduce false positives.
+
+        Input Models and Picking Strategies
+
+        The protocol supports several model selection strategies. Users may rely
+        on general cryo-EM models, denoised models, negative stain models, or
+        externally trained models imported from previous workflows. The choice
+        of model should reflect the imaging conditions and the expected particle
+        appearance.
+
+        General cryo-EM models are typically the best starting point for
+        conventional single-particle cryo-EM datasets acquired under standard
+        vitrified conditions. Denoised models are particularly useful for noisy
+        datasets with weak particle contrast, although they may increase
+        computational cost and should be interpreted carefully to avoid
+        introducing denoising-related artifacts into particle selection.
+
+        Negative stain models are optimized for datasets with staining contrast
+        rather than vitreous ice contrast. Using an inappropriate model type may
+        lead to biologically misleading particle coordinates, excessive
+        contamination detection, or systematic particle omission.
+
+        Confidence Threshold and Particle Selection
+
+        One of the most biologically important parameters is the confidence
+        threshold controlling particle acceptance. Lower thresholds increase the
+        number of detected particles and may help recover rare orientations or
+        weak particles, but they also increase contamination and false positive
+        detections. Higher thresholds produce cleaner coordinate sets but may
+        discard valid particles, especially in low signal-to-noise datasets.
+
+        In exploratory analyses it is often reasonable to begin with moderate
+        thresholds and visually inspect the resulting coordinates. For
+        high-quality datasets, more conservative thresholds may reduce
+        downstream classification burden. For difficult biological specimens,
+        slightly lower thresholds combined with later classification is often
+        preferable to overly aggressive filtering.
+
+        Low-Pass Filtering and Denoising
+
+        The protocol optionally supports low-pass filtering before particle
+        detection. Biologically, this can improve particle visibility by
+        suppressing high-frequency noise that does not contribute meaningfully
+        to particle localization. Filtering is particularly useful for very
+        noisy micrographs, thick ice conditions, or low-dose acquisitions.
+
+        However, excessive filtering may blur structural features and reduce the
+        distinction between particles and contaminants. The selected cutoff
+        should therefore remain compatible with the particle size and expected
+        structural detail. In many practical situations, moderate filtering
+        improves detection robustness without significantly altering biological
+        interpretation.
+
+        Denoised picking workflows are also supported through specialized
+        pretrained models. These workflows are often advantageous for extremely
+        noisy datasets but may require substantially longer processing times on
+        CPU-based systems.
+
+        Box Size and Particle Dimensions
+
+        The protocol allows either manual specification or automatic estimation
+        of particle box size. Biologically, the box size should encompass the
+        full particle while avoiding excessive surrounding solvent. If the box
+        is too small, peripheral structural regions may be truncated. If it is
+        too large, background noise and neighboring particles may negatively
+        affect downstream processing.
+
+        Automatic estimation is particularly useful during early exploratory
+        analysis or when processing unfamiliar specimens. Nevertheless, users
+        should visually validate the estimated dimensions because highly
+        elongated, flexible, or irregular particles may require manual
+        adjustment.
+
+        Computational Resources and GPU Usage
+
+        The protocol is designed to support both GPU and CPU execution. GPU
+        acceleration is strongly recommended for routine cryo-EM processing
+        because deep learning inference and training are computationally
+        demanding. Multi-GPU execution can substantially accelerate large-scale
+        facility workflows or high-throughput screening projects.
+
+        CPU execution remains useful for testing environments, remote systems,
+        or lightweight exploratory analyses, although processing times may
+        become significantly longer for large datasets or denoised workflows.
+        Users should ensure that hardware resources are consistent with the
+        expected dataset size and computational demands.
+
+        Training and Fine-Tuning Workflows
+
+        In training-oriented workflows, the protocol provides infrastructure for
+        fine-tuning existing neural networks using user-provided annotations.
+        Fine-tuning is generally preferable to training entirely from scratch
+        because pretrained models already contain robust feature representations
+        learned from diverse cryo-EM datasets.
+
+        Biologically, fine-tuning is especially valuable when experimental
+        particles differ substantially from standard training datasets. Examples
+        include flexible macromolecular complexes, membrane proteins in
+        detergent micelles, highly asymmetric assemblies, or filamentous
+        particles. Carefully curated annotations are essential because training
+        quality directly influences the biological validity of downstream
+        particle coordinates.
+
+        Validation and Reliability
+
+        The protocol includes validation procedures designed to detect missing
+        models, incompatible execution modes, unavailable environments, or
+        unsupported processing combinations. These safeguards help reduce
+        processing failures and improve reproducibility across computational
+        systems.
+
+        From a biological perspective, validation is important because incorrect
+        configuration may silently produce incomplete or misleading particle
+        sets. Users should therefore review warnings carefully before large
+        production runs, particularly when migrating projects between systems or
+        modifying execution environments.
+
+        Practical Recommendations
+
+        For most standard cryo-EM datasets, beginning with a general pretrained
+        model and moderate confidence threshold is a reliable strategy. Visual
+        inspection of picked coordinates remains essential because no automated
+        picker performs optimally under all imaging conditions.
+
+        For noisy datasets, moderate low-pass filtering or denoised picking may
+        improve detection quality. For unusual biological specimens, fine-tuned
+        custom models generally provide the most reliable results. When
+        preparing publication-quality datasets, users should verify particle
+        distributions, contamination levels, and box size consistency before
+        continuing to extraction and classification.
+
+        Final Perspective
+
+        Automated particle picking is not merely a technical preprocessing step
+        but a biologically critical operation that shapes all downstream cryo-EM
+        analysis. Careful model selection, appropriate filtering strategies,
+        realistic confidence thresholds, and thoughtful validation are essential
+        for producing particle coordinates that accurately represent the
+        underlying biological specimen and support reliable structural
+        interpretation.
+    """
     _label = None
     _IS_TRAIN = False
 
