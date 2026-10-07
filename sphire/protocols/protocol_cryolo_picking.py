@@ -28,6 +28,9 @@
 # **************************************************************************
 
 import os
+import time
+from collections import OrderedDict
+from datetime import datetime
 
 import pyworkflow.utils as pwutils
 from pyworkflow.object import Integer
@@ -39,10 +42,15 @@ import pwem.objects as emobj
 from .. import Plugin
 from ..constants import INPUT_MODEL_GENERAL_DENOISED
 from .protocol_base import ProtCryoloBase
+from .protocol_streaming_base import SphireStreamingBase
 import sphire.convert as convert
 
+# Module level: these helpers are called unbound on light test harnesses.
+PICKING_STEP_NAMES = ('pickMicrographStepOwn', 'pickMicrographListStepOwn')
 
-class SphireProtCRYOLOPicking(ProtCryoloBase, ProtParticlePickingAuto):
+
+class SphireProtCRYOLOPicking(SphireStreamingBase, ProtCryoloBase,
+                              ProtParticlePickingAuto):
     """ Picks particles in a set of micrographs with crYOLO.
     """
     _label = 'cryolo picking'
@@ -61,45 +69,254 @@ class SphireProtCRYOLOPicking(ProtCryoloBase, ProtParticlePickingAuto):
                            "registered with the SetOfCoordinates. It is usually "
                            "very tight.")
 
-        form.addParallelSection(threads=1, mpi=1)
+        form.addParallelSection(threads=3, mpi=1)
 
         self._defineStreamingParams(form)
         # Default batch size --> 16
         form.getParam('streamingBatchSize').setDefault(16)
 
     def _loadSet(self, inputSet, SetClass, getKeyFunc):
-        # crYOLO streaming input discovery must use logical Sets
-        # instead of reopening compatibility SQLite files.
-        refresh = getattr(inputSet, 'loadAllProperties', None)
-        if callable(refresh):
-            refresh()
+        """Discover the micrographs added since the last poll.
 
-        newItemDict = {}
-        for item in inputSet.iterItems():
-            itemKey = getKeyFunc(item)
-            if itemKey not in self.micDict:
-                newItemDict[itemKey] = item.clone()
+        Only ids above the watermark are queried and only those items are
+        hydrated, so a poll costs what just arrived instead of everything
+        the stream has produced. Micrographs no batch has taken yet stay
+        in _pendingMics and are offered again next time, since the
+        watermark will never look back at them.
+        """
+        newItems, producerClosed, terminalConsistent = (
+            self._discoverNewInputItems(inputSet, '_lastInputId',
+                                        self._knownMicIds))
 
-        return newItemDict, inputSet.isStreamClosed()
+        gapIds = getattr(self, '_resumeGapIds', None)
+
+        if gapIds:
+            newItems = (self._loadLogicalSetItemsByIds(inputSet, gapIds)
+                        + newItems)
+            self._resumeGapIds = set()
+
+        scheduledMicNames = self._getScheduledPickingMicNames()
+
+        for item in newItems:
+            itemId = item.getObjId()
+
+            if itemId in self._knownMicIds:
+                continue
+
+            self._knownMicIds.add(itemId)
+            micKey = getKeyFunc(item)
+
+            if micKey in self.micDict:
+                continue
+
+            if micKey in scheduledMicNames:
+                # Already has a step from an earlier run: it only needs
+                # publishing, so it must not be scheduled a second time.
+                self.micDict[micKey] = item
+                continue
+
+            self._pendingMics[micKey] = item
+
+        return OrderedDict(self._pendingMics), producerClosed and terminalConsistent
 
     def _checkNewInput(self):
         # Refresh logical input state directly. Do not gate
         # discovery on storage filenames or filesystem mtimes.
         micDict, self.streamClosed = self._loadInputList()
-        outputStep = self._getFirstJoinStep()
+        newMics = list(micDict.values())
 
-        if micDict:
-            deps = self._insertNewMicsSteps(micDict.values())
-            if outputStep is not None:
-                outputStep.addPrerequisites(*deps)
+        if newMics:
+            self._insertNewMicsSteps(newMics)
+
+            # pwem only takes whole batches; whatever it left out has to be
+            # offered again, because discovery will not find it twice.
+            for mic in newMics:
+                if mic.getMicName() in self.micDict:
+                    self._pendingMics.pop(mic.getMicName(), None)
+
             self.updateSteps()
 
     # --------------------------- INSERT steps functions ----------------------
+    def _insertAllSteps(self):
+        """Insert only the resumable streaming generator."""
+        self._insertFunctionStep(self.resumableStepGeneratorStep,
+                                 str(datetime.now()), needsGPU=False)
+
+    def resumableStepGeneratorStep(self, timestamp):
+        """Run the generator as a unique step on every resume."""
+        self.stepsGeneratorStep()
+
+    def stepsGeneratorStep(self):
+        """Discover, pick and publish micrographs incrementally."""
+        self.micDict = OrderedDict()
+        self._pendingMics = OrderedDict()
+        self._knownMicIds = set()
+        self.streamClosed = False
+        self.finished = False
+        self.initialIds = self._insertInitialSteps()
+
+        self._restoreProcessedMicsFromPersistentState()
+
+        while not self.finished:
+            self._checkNewInput()
+            self._checkNewOutput()
+
+            if self.finished:
+                break
+
+            sleepOnWait = self._getStreamingSleepOnWait()
+
+            if sleepOnWait > 0:
+                self._streamingSleepOnWait()
+            else:
+                time.sleep(1)
+
+    def _stepsCheck(self):
+        """Persist steps created by the generator without legacy polling."""
+        if getattr(self, '_newSteps', False):
+            self.updateSteps()
+
     def _insertInitialSteps(self):
         stepId = self._insertFunctionStep(self.createConfigStep,
                                           self.inputMicrographs.get(),
                                           needsGPU=False)
-        return stepId
+        return [stepId]
+
+    # ----------------------- completion tracking -----------------------------
+    def _insertNewMicsSteps(self, inputMics):
+        """Schedule picking through hooks this protocol fully owns.
+
+        pwem's own step functions decide completion with DONE marker files;
+        the local ones leave that to the persisted step graph instead.
+        """
+        return self._insertNewMics(inputMics,
+                                   lambda mic: mic.getMicName(),
+                                   self._insertPickMicrographStepOwn,
+                                   self._insertPickMicrographListStepOwn,
+                                   *self._getPickArgs())
+
+    def _insertPickMicrographStepOwn(self, mic, prerequisites, *args):
+        return self._insertFunctionStep('pickMicrographStepOwn',
+                                        mic.getMicName(), *args,
+                                        prerequisites=prerequisites)
+
+    def _insertPickMicrographListStepOwn(self, micList, prerequisites, *args):
+        micNameList = [mic.getMicName() for mic in micList]
+        return self._insertFunctionStep('pickMicrographListStepOwn',
+                                        micNameList, *args,
+                                        prerequisites=prerequisites)
+
+    def pickMicrographStepOwn(self, micName, *args):
+        """Pick one micrograph, with no DONE sidecar to write."""
+        self.pickMicrographListStepOwn([micName], *args)
+
+    def pickMicrographListStepOwn(self, micNameList, *args):
+        """Pick a batch, leaving completion to the persisted step status."""
+        micList = [self.micDict[micName] for micName in micNameList
+                   if micName in self.micDict]
+
+        if not micList:
+            return
+
+        self.info("Picking micrographs: %s"
+                  % [mic.getObjId() for mic in micList])
+        self._pickMicrographList(micList, *args)
+
+    def _getScheduledPickingMicNames(self):
+        """Micrograph names represented by persisted picking steps."""
+        return self._collectStepArgKeys(PICKING_STEP_NAMES,
+                                        onlyFinished=False, keyType=str)
+
+    def _getFinishedPickingMicNames(self):
+        """Micrograph names represented by finished picking steps."""
+        return self._collectStepArgKeys(PICKING_STEP_NAMES, keyType=str)
+
+    def _getPublishedPickingMicIds(self):
+        """Micrograph ids already represented in the output coordinates.
+
+        This is an id query on the output, not a walk over it, and it only
+        runs once per execution.
+        """
+        micIds = self._getOutputUniqueValues(
+            getattr(self, 'outputCoordinates', None), '_micId')
+
+        return set() if micIds is None else micIds
+
+    def _restoreProcessedMicsFromPersistentState(self):
+        """Place the watermark past what a previous run already picked.
+
+        Coordinates carry the id of their micrograph, so the output Set
+        says which micrographs were picked, and the step graph covers the
+        ones that produced no coordinate at all. Anything below the
+        watermark that was never handled comes back as a gap.
+        """
+        self._lastInputId = getattr(self, '_lastInputId', 0)
+
+        pickedMicIds = self._getPublishedPickingMicIds()
+
+        if not pickedMicIds:
+            return
+
+        watermark, gapIds = self._resumeWatermarkWithGaps(
+            self.getInputMicrographs(), pickedMicIds)
+
+        self._lastInputId = max(self._lastInputId, watermark)
+        self._knownMicIds.update(pickedMicIds)
+        self._resumeGapIds = gapIds
+
+    def _checkNewOutput(self):
+        """Publish finished picking steps without DONE sidecars."""
+        if getattr(self, 'finished', False):
+            return
+
+        finishedNames = self._getFinishedPickingMicNames()
+
+        # micDict holds what has been scheduled and not published yet, so
+        # only that has to be looked at - never every micrograph seen.
+        newDone = [mic for micName, mic in self.micDict.items()
+                   if micName in finishedNames]
+
+        allDone = (len(newDone) == len(self.micDict)
+                   and not self._pendingMics)
+
+        self.finished = self.streamClosed and allDone
+        streamMode = (emobj.Set.STREAM_CLOSED if self.finished
+                      else emobj.Set.STREAM_OPEN)
+
+        if newDone:
+            self._updateOutputCoordSet(newDone, streamMode)
+
+            for mic in newDone:
+                self.micDict.pop(mic.getMicName(), None)
+        elif not self.finished:
+            if allDone:
+                self._streamingSleepOnWait()
+
+            return
+
+        if self.finished:
+            self._updateStreamState(streamMode)
+
+    # -------------------------- INFO functions -------------------------------
+    def _validateStreamingThreads(self):
+        """The generator holds one thread for the whole run.
+
+        One more is reserved by the step executor, so fewer than three
+        leaves nothing to actually pick with.
+        """
+        inputMics = self.getInputMicrographs()
+
+        if (inputMics is not None and inputMics.isStreamOpen()
+                and self.numberOfThreads.get() < 3):
+            return ['crYOLO streaming picking requires at least 3 threads.']
+
+        return []
+
+    def _validate(self):
+        errors = ProtCryoloBase._validate(self)
+        errors.extend(self._validateStreamingThreads())
+
+        return errors
 
     # --------------------------- STEPS functions -----------------------------
     def _pickMicrographsBatch(self, micList, workingDir, gpuId, clean=True):

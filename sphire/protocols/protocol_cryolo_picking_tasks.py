@@ -20,10 +20,7 @@
 # **************************************************************************
 
 import os
-import json
 import time
-import tempfile
-from datetime import datetime
 from uuid import uuid4
 
 from emtools.utils import Timer, Pretty, Process
@@ -31,6 +28,7 @@ from emtools.jobs import Pipeline
 from emtools.pwx import BatchManager
 
 import pyworkflow.protocol.constants as cons
+import pyworkflow.utils as pwutils
 import pwem.objects as emobj
 
 import sphire.convert as convert
@@ -83,49 +81,18 @@ class SphireProtCRYOLOPickingTasks(SphireProtCRYOLOPicking):
                   f"Start processing movies----------- ")
         self._firstTimeOutput = True
         inputMics = self.getInputMicrographs()
-        micsJson = self.getPath('micrographs.json')
 
-        micIds = {}
-        if os.path.exists(micsJson):
-            try:
-                with open(micsJson) as f:
-                    storedProcessed = json.load(f).get('processed', {})
-            except (OSError, json.JSONDecodeError) as e:
-                self.warning(
-                    f"Could not read streaming checkpoint {micsJson}: {e}. "
-                    f"Recovering from persisted output coordinates."
-                )
-            else:
-                # JSON is only authoritative for successfully
-                # processed micrographs with zero coordinates,
-                # since those cannot be reconstructed from the
-                # coordinate rows in the persisted output Set.
-                micIds.update({
-                    int(micId): count
-                    for micId, count in storedProcessed.items()
-                    if count == 0
-                })
-
-        if hasattr(self, 'outputCoordinates'):
-            micAggr = self.outputCoordinates.aggregate(
-                ["COUNT"], "_micId", ["_micId"])
-            micIds.update({
-                int(mic["_micId"]): mic['COUNT']
-                for mic in micAggr
-                if mic["_micId"] is not None
-            })
-
-        self._processedMics = micIds
+        self._processedMics = self._restoreProcessedMics(inputMics)
         waitSecs = self.streamingSleepOnWait.get()
         batchSize = self.streamingBatchSize.get()
         self._inputMicsCount = inputMics.getSize()
 
         if batchSize == 0:
             batchGenerator = lambda: self._iterAvailableInputBatches(
-                inputMics, micIds, waitSecs=waitSecs)
+                inputMics, self._processedMics, waitSecs=waitSecs)
         else:
             micsIter = self._iterInputMicrographs(
-                inputMics, micIds, waitSecs=waitSecs)
+                inputMics, self._processedMics, waitSecs=waitSecs)
             batchMgr = BatchManager(batchSize, micsIter, self._getTmpPath())
             batchGenerator = batchMgr.generate
 
@@ -182,96 +149,166 @@ class SphireProtCRYOLOPickingTasks(SphireProtCRYOLOPicking):
             outputCoords.setStreamState(emobj.Set.STREAM_CLOSED)
             self._store(outputCoords)
 
-    def _iterAvailableInputBatches(self, inputMics, processedIds,
-                                   waitSecs=60):
-        """Yield one batch with all new items available in each Set refresh."""
-        seenIds = {int(micId) for micId in processedIds}
-        batchIndex = 0
-        lastCheck = None
+    def _getPersistedMicCoordsFile(self, mic):
+        """Where a micrograph's crYOLO output is kept once read.
+
+        The batch directory lives under tmp and is cleaned, so the .cbox
+        is moved next to the other outputs to survive a Continue.
+        """
+        return self._getExtraPath(convert.getMicFn(mic, "cbox"))
+
+    def _persistBatchCoordsFiles(self, batch):
+        """Keep each micrograph's .cbox after its coordinates were read.
+
+        This runs on the single output thread, never on the parallel GPU
+        processors, so moving files here cannot race.
+        """
+        for mic in batch['items']:
+            source = self._getMicCoordsFile(batch['path'], mic)
+
+            if not os.path.exists(source):
+                continue
+
+            try:
+                pwutils.moveFile(source, self._getPersistedMicCoordsFile(mic))
+            except Exception as e:
+                self.warning(f"Could not keep crYOLO output for micrograph "
+                             f"{mic.getObjId()}: {e}")
+
+    def _restoreProcessedMics(self, inputMics):
+        """Work out what a previous run already picked, with no checkpoint.
+
+        The output coordinates answer this for every micrograph that
+        produced at least one coordinate, as an aggregate query rather
+        than a walk. A micrograph picked with zero coordinates leaves no
+        row behind, so its own .cbox file - crYOLO's real output for it,
+        not a marker this protocol invented - is what says it was done.
+        Only the ids the output does not account for are checked that way.
+        """
+        processed = {}
+
+        if hasattr(self, 'outputCoordinates'):
+            micAggr = self.outputCoordinates.aggregate(
+                ["COUNT"], "_micId", ["_micId"])
+            processed.update({
+                int(mic["_micId"]): mic['COUNT']
+                for mic in micAggr
+                if mic["_micId"] is not None
+            })
+
+        cboxNames = self._listPersistedCoordsFiles()
+
+        if not cboxNames:
+            return processed
+
+        # Zero-coordinate micrographs can only be recognised by name, so
+        # this walks the input once per execution - never per poll - and
+        # only compares names already in memory.
+        for mic in inputMics.iterItems():
+            if mic.getObjId() in processed:
+                continue
+
+            if convert.getMicFn(mic, "cbox") in cboxNames:
+                processed[mic.getObjId()] = 0
+
+        return processed
+
+    def _listPersistedCoordsFiles(self):
+        """Names of the .cbox files kept from previous runs."""
+        try:
+            return {name for name in os.listdir(self._getExtraPath())
+                    if name.endswith('.cbox')}
+        except OSError:
+            return set()
+
+    def _pollNewMicrographs(self, inputMics, processedIds, waitSecs=60):
+        """Yield each poll's newly arrived micrographs, until the stream ends.
+
+        Discovery is by id watermark, so a poll queries and hydrates what
+        just arrived rather than walking everything the stream has already
+        produced. It also means no filesystem mtime decides whether the
+        input changed - the Set itself answers that.
+        """
+        processedIds = {int(micId) for micId in processedIds}
+        watermark, gapIds = self._resumeWatermarkWithGaps(inputMics,
+                                                          processedIds)
+        self._lastInputId = watermark
+        knownIds = set(processedIds)
 
         while True:
-            checkTime = datetime.now()
-            if inputMics.hasChangedSince(lastCheck):
-                inputMics.loadAllProperties()
-                lastCheck = checkTime
-                available = []
-                currentCount = 0
+            newMics, producerClosed, terminalConsistent = (
+                self._discoverNewInputItems(inputMics, '_lastInputId',
+                                            knownIds))
 
-                for mic in inputMics.iterItems():
-                    currentCount += 1
-                    micId = mic.getObjId()
-                    if micId in seenIds:
-                        continue
+            if gapIds:
+                newMics = (self._loadLogicalSetItemsByIds(inputMics, gapIds)
+                           + newMics)
+                gapIds = set()
 
-                    if micId is not None:
-                        seenIds.add(micId)
-                    available.append(mic.clone())
+            available = []
 
-                self._inputMicsCount = currentCount
+            for mic in newMics:
+                micId = mic.getObjId()
 
-                if available:
-                    batchIndex += 1
-                    batchId = str(uuid4())
-                    batchPath = os.path.join(self._getTmpPath(), batchId)
+                if micId in knownIds:
+                    continue
 
-                    Process.system(f"rm -rf '{batchPath}'")
-                    Process.system(f"mkdir '{batchPath}'")
+                if micId is not None:
+                    knownIds.add(micId)
 
-                    for mic in available:
-                        micFn = mic.getFileName()
-                        os.symlink(
-                            os.path.abspath(micFn),
-                            os.path.join(batchPath, os.path.basename(micFn)),
-                        )
+                available.append(mic)
 
-                    yield {
-                        'items': available,
-                        'id': batchId,
-                        'path': batchPath,
-                        'index': batchIndex,
-                    }
+            self._inputMicsCount = inputMics.getSize()
 
-                if inputMics.isStreamClosed():
-                    break
+            if available:
+                yield available
+
+            if producerClosed and terminalConsistent:
+                break
 
             if waitSecs:
                 time.sleep(waitSecs)
+
+    def _iterAvailableInputBatches(self, inputMics, processedIds,
+                                   waitSecs=60):
+        """Yield one batch with all new items available in each Set refresh."""
+        batchIndex = 0
+
+        for available in self._pollNewMicrographs(inputMics, processedIds,
+                                                  waitSecs=waitSecs):
+            batchIndex += 1
+            batchId = str(uuid4())
+            batchPath = os.path.join(self._getTmpPath(), batchId)
+
+            Process.system(f"rm -rf '{batchPath}'")
+            Process.system(f"mkdir '{batchPath}'")
+
+            for mic in available:
+                micFn = mic.getFileName()
+                os.symlink(
+                    os.path.abspath(micFn),
+                    os.path.join(batchPath, os.path.basename(micFn)),
+                )
+
+            yield {
+                'items': available,
+                'id': batchId,
+                'path': batchPath,
+                'index': batchIndex,
+            }
 
     def _iterInputMicrographs(self, inputMics, processedIds,
                               waitSecs=60):
         """Yield new micrographs using only the generic Scipion Set API."""
-        seenIds = {int(micId) for micId in processedIds}
-        lastCheck = None
-
-        if seenIds:
-            self.info(f"Existing output: {len(seenIds)} micrographs")
+        if processedIds:
+            self.info(f"Existing output: {len(processedIds)} micrographs")
         else:
             self.info("No output micrographs.")
 
-        while True:
-            checkTime = datetime.now()
-            if inputMics.hasChangedSince(lastCheck):
-                inputMics.loadAllProperties()
-                lastCheck = checkTime
-                currentCount = 0
-
-                for mic in inputMics.iterItems():
-                    currentCount += 1
-                    micId = mic.getObjId()
-                    if micId in seenIds:
-                        continue
-
-                    if micId is not None:
-                        seenIds.add(micId)
-                    yield mic.clone()
-
-                self._inputMicsCount = currentCount
-
-                if inputMics.isStreamClosed():
-                    break
-
-            if waitSecs:
-                time.sleep(waitSecs)
+        for available in self._pollNewMicrographs(inputMics, processedIds,
+                                                  waitSecs=waitSecs):
+            for mic in available:
+                yield mic
 
         self.info(
             f"No more micrographs, stream closed. "
@@ -315,28 +352,6 @@ class SphireProtCRYOLOPickingTasks(SphireProtCRYOLOPicking):
                             f"out of {total} ({per:0.2f}%)")
         self._store(self.summaryVar)
 
-        # Write the resume checkpoint atomically so an interrupted write
-        # cannot destroy the last valid micrographs.json.
-        micsJson = self.getPath('micrographs.json')
-        fd, tmpJson = tempfile.mkstemp(
-            prefix='micrographs.',
-            suffix='.json.tmp',
-            dir=os.path.dirname(micsJson),
-            text=True,
-        )
-        try:
-            with os.fdopen(fd, 'w') as f:
-                json.dump({'processed': self._processedMics}, f)
-                f.flush()
-                os.fsync(f.fileno())
-            os.replace(tmpJson, micsJson)
-        except Exception:
-            try:
-                os.unlink(tmpJson)
-            except FileNotFoundError:
-                pass
-            raise
-
     def _updateOutputCoords(self, batch):
         if batch.get('failed', False):
             return batch
@@ -364,6 +379,7 @@ class SphireProtCRYOLOPickingTasks(SphireProtCRYOLOPicking):
             raise RuntimeError(
                 "Could not read coordinates for streaming batch."
             )
+        self._persistBatchCoordsFiles(batch)
         self._updateOutputSet(outputName, outputCoords, emobj.Set.STREAM_OPEN)
         self._processedMics.update(processed)
         self._updateSummary(self._inputMicsCount)

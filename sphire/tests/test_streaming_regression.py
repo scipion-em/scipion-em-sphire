@@ -8,12 +8,16 @@ import json
 import os
 import tempfile
 import unittest
+from collections import OrderedDict
 from unittest.mock import patch
 
 import pwem.objects as emobj
 
 from sphire.protocols import protocol_cryolo_picking_tasks as tasks
 from sphire.protocols.protocol_cryolo_picking import SphireProtCRYOLOPicking
+from sphire.protocols.protocol_streaming_base import SphireStreamingBase
+
+from .logical_set_fakes import LogicalSetFake
 
 
 class _Value:
@@ -39,38 +43,47 @@ class _Mic:
     def getObjId(self):
         return self.objId
 
+    def getFileName(self):
+        return "mic_%03d.mrc" % self.objId
+
     def clone(self):
         return _Mic(self.objId)
 
 
-class _StreamingMics:
-    def __init__(self):
-        self.reloads = 0
-        self.items = [_Mic(7)]
+class _StreamingMics(LogicalSetFake):
+    """Input Set fake that refuses to be polled forever.
 
-    def getFileName(self):
-        raise AssertionError(
-            "Streaming must not depend on a persistence filename as the "
-            "logical source of truth."
-        )
+    A protocol that never notices the producer closing should fail these
+    tests, not hang them.
+    """
+
+    MAX_POLLS = 10
+
+    def __init__(self):
+        super().__init__([_Mic(7)], streamClosed=True)
+        self.closedChecks = 0
+
+    def isStreamClosed(self):
+        self.closedChecks += 1
+
+        if self.closedChecks > self.MAX_POLLS:
+            raise AssertionError(
+                "Polled %d times without ever seeing the stream close."
+                % self.closedChecks
+            )
+
+        return super().isStreamClosed()
+
+    @property
+    def items(self):
+        return self._items
+
+    @items.setter
+    def items(self, value):
+        self._items = list(value)
 
     def hasChangedSince(self, lastCheck):
         return True
-
-    def loadAllProperties(self):
-        self.reloads += 1
-
-    def iterItems(self):
-        return iter(self.items)
-
-    def isStreamClosed(self):
-        return True
-
-    def getSize(self):
-        return len(self.items)
-
-    def __iter__(self):
-        return self.iterItems()
 
 
 class _OutputCoordinates:
@@ -109,7 +122,7 @@ class _Pipeline:
         pass
 
 
-class _TasksHarness:
+class _TasksHarness(SphireStreamingBase):
     def __init__(self, tmpDir):
         self.tmpDir = tmpDir
         self.mics = _StreamingMics()
@@ -142,6 +155,27 @@ class _TasksHarness:
     def _updateOutputCoords(self, batch):
         return batch
 
+    def _restoreProcessedMics(self, inputMics):
+        return tasks.SphireProtCRYOLOPickingTasks._restoreProcessedMics(
+            self, inputMics)
+
+    def _getPersistedMicCoordsFile(self, mic):
+        return tasks.SphireProtCRYOLOPickingTasks._getPersistedMicCoordsFile(
+            self, mic)
+
+    def _listPersistedCoordsFiles(self):
+        return tasks.SphireProtCRYOLOPickingTasks._listPersistedCoordsFiles(
+            self)
+
+    def _pollNewMicrographs(self, *args, **kwargs):
+        return tasks.SphireProtCRYOLOPickingTasks._pollNewMicrographs(
+            self, *args, **kwargs)
+
+    def _getExtraPath(self, *parts):
+        extra = os.path.join(self.tmpDir, 'extra')
+        os.makedirs(extra, exist_ok=True)
+        return os.path.join(extra, *parts)
+
     def _iterInputMicrographs(self, *args, **kwargs):
         method = getattr(
             tasks.SphireProtCRYOLOPickingTasks,
@@ -173,27 +207,6 @@ class TestSphireStreamingRegression(unittest.TestCase):
                 emobj.Set.STREAM_CLOSED,
                 protocol.outputCoordinates.state,
             )
-
-    def testTasksResumeReconcilesStaleJsonWithPersistedCoordinates(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            protocol = _TasksHarness(tmp)
-            protocol.mics.items = [_Mic(1), _Mic(2), _Mic(3)]
-
-            class _PersistedCoordinates(_OutputCoordinates):
-                def aggregate(self, *args, **kwargs):
-                    return [{"_micId": 2, "COUNT": 15}]
-
-            protocol.outputCoordinates = _PersistedCoordinates()
-
-            with open(protocol.getPath("micrographs.json"), "w") as handle:
-                json.dump({"processed": {"1": 0}}, handle)
-
-            with patch.object(tasks, "BatchManager", _BatchManager),                  patch.object(tasks, "Pipeline", _Pipeline):
-                tasks.SphireProtCRYOLOPickingTasks.pickAllMicrogaphsStep(
-                    protocol
-                )
-
-            self.assertEqual([3], _BatchManager.seenIds)
 
     def testTasksSummaryHandlesEmptyOpenStream(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -254,6 +267,7 @@ class TestSphireStreamingRegression(unittest.TestCase):
 
             class _PollingStreamingMics(_StreamingMics):
                 def __init__(self):
+                    super().__init__()
                     self.reloads = 0
                     self.items = [
                         _FileMic(1, micFiles[0]),
@@ -268,6 +282,14 @@ class TestSphireStreamingRegression(unittest.TestCase):
                         self.closed = True
 
                 def isStreamClosed(self):
+                    self.closedChecks += 1
+
+                    if self.closedChecks > self.MAX_POLLS:
+                        raise AssertionError(
+                            "Polled %d times without ever seeing the "
+                            "stream close." % self.closedChecks
+                        )
+
                     return self.closed
 
             class _CollectingPipeline:
@@ -299,38 +321,6 @@ class TestSphireStreamingRegression(unittest.TestCase):
             self.assertEqual(
                 [[1, 2], [3]],
                 _CollectingPipeline.batches,
-            )
-
-
-    def testTasksSummaryKeepsPreviousCheckpointIfJsonWriteFails(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            protocol = _TasksHarness(tmp)
-            protocol._processedMics = {1: 4, 2: 0}
-            checkpoint = protocol.getPath("micrographs.json")
-
-            with open(checkpoint, "w") as handle:
-                json.dump({"processed": {"1": 4}}, handle)
-
-            def _failingDump(payload, handle):
-                handle.write('{"processed": ')
-                handle.flush()
-                raise RuntimeError("simulated crash while writing checkpoint")
-
-            with patch.object(tasks.json, "dump", _failingDump):
-                with self.assertRaises(RuntimeError):
-                    tasks.SphireProtCRYOLOPickingTasks._updateSummary(
-                        protocol,
-                        2,
-                    )
-
-            with open(checkpoint) as handle:
-                persisted = json.load(handle)
-
-            self.assertEqual(
-                {"processed": {"1": 4}},
-                persisted,
-                "A failed checkpoint rewrite must leave the previous valid "
-                "micrographs.json untouched for Resume.",
             )
 
 
@@ -416,103 +406,48 @@ class TestSphireStreamingRegression(unittest.TestCase):
 
 
     def testTasksStreamingDoesNotMissChangeDuringRefresh(self):
+        # An item committed after a poll read the ids but before the next
+        # one starts must still be picked up. Discovery is by id, so the
+        # watermark simply has not reached it yet - there is no time-based
+        # checkpoint that could step over it.
         with tempfile.TemporaryDirectory() as tmp:
-            class _Clock:
-                current = 0
-
-                @classmethod
-                def now(cls):
-                    return cls.current
-
             class _RacyStreamingMics(_StreamingMics):
                 def __init__(self):
+                    super().__init__()
                     self.items = [_Mic(1)]
-                    self.snapshot = []
-                    self.reloads = 0
-                    self.changeTime = 5
                     self.closed = False
 
-                def hasChangedSince(self, lastCheck):
-                    if lastCheck is None:
-                        return True
-                    if self.changeTime > lastCheck:
-                        return True
-                    raise AssertionError(
-                        "The polling checkpoint advanced past an unseen "
-                        "Set change."
-                    )
-
                 def loadAllProperties(self):
-                    self.reloads += 1
-                    self.snapshot = list(self.items)
+                    super().loadAllProperties()
 
                     if self.reloads == 1:
-                        # Simulate a new item committed after this refresh took
-                        # its snapshot but before the poll checkpoint is saved.
-                        self.items.append(_Mic(2))
-                        _Clock.current = 10
+                        # Lands after this refresh took its snapshot.
+                        self._items.append(_Mic(2))
                     else:
                         self.closed = True
 
-                def iterItems(self):
-                    return iter(self.snapshot)
-
                 def isStreamClosed(self):
-                    return self.closed
+                    self.closedChecks += 1
 
-                def getSize(self):
-                    return len(self.items)
+                    if self.closedChecks > self.MAX_POLLS:
+                        raise AssertionError(
+                            "Polled %d times without ever seeing the "
+                            "stream close." % self.closedChecks
+                        )
+
+                    return self.closed
 
             protocol = _TasksHarness(tmp)
             inputMics = _RacyStreamingMics()
 
-            with patch.object(tasks, "datetime", _Clock):
-                yielded = list(
-                    protocol._iterInputMicrographs(
-                        inputMics,
-                        {},
-                        waitSecs=0,
-                    )
-                )
+            yielded = list(
+                protocol._iterInputMicrographs(inputMics, {}, waitSecs=0))
 
             self.assertEqual(
                 [1, 2],
                 [mic.getObjId() for mic in yielded],
                 "A Set change that lands during a refresh must be detected "
                 "on the next poll instead of being skipped forever.",
-            )
-
-
-    def testTasksResumeRecoversFromCorruptCheckpoint(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            protocol = _TasksHarness(tmp)
-            protocol.mics.items = [_Mic(1), _Mic(2), _Mic(3)]
-            warnings = []
-            protocol.warning = warnings.append
-
-            class _PersistedCoordinates(_OutputCoordinates):
-                def aggregate(self, *args, **kwargs):
-                    return [{"_micId": 2, "COUNT": 15}]
-
-            protocol.outputCoordinates = _PersistedCoordinates()
-
-            with open(protocol.getPath("micrographs.json"), "w") as handle:
-                handle.write('{"processed": ')
-
-            with patch.object(tasks, "BatchManager", _BatchManager),                  patch.object(tasks, "Pipeline", _Pipeline):
-                tasks.SphireProtCRYOLOPickingTasks.pickAllMicrogaphsStep(
-                    protocol
-                )
-
-            self.assertEqual(
-                [1, 3],
-                _BatchManager.seenIds,
-                "Resume must recover persisted coordinate-producing "
-                "micrographs even when the legacy JSON checkpoint is corrupt.",
-            )
-            self.assertTrue(
-                warnings,
-                "Recovering from a corrupt checkpoint must emit a warning.",
             )
 
 
@@ -800,31 +735,18 @@ class _ClassicLogicalMic:
         return _ClassicLogicalMic(self._objId, self._name)
 
 
-class _ClassicLogicalMicSet:
+class _ClassicLogicalMicSet(LogicalSetFake):
     def __init__(self, items, closed=False):
-        self._items = list(items)
-        self._closed = closed
-        self.loadCalls = 0
-
-    def getFileName(self):
-        raise AssertionError(
-            "Classic crYOLO streaming Sets must not be reopened from "
-            "storage filenames."
-        )
-
-    def loadAllProperties(self):
-        self.loadCalls += 1
-
-    def iterItems(self):
-        return iter(self._items)
-
-    def isStreamClosed(self):
-        return self._closed
+        super().__init__(items, streamClosed=closed)
 
 
 class _ClassicLogicalLoadHarness(SphireProtCRYOLOPicking):
     def __init__(self):
-        self.micDict = {}
+        self.micDict = OrderedDict()
+        self._pendingMics = OrderedDict()
+        self._knownMicIds = set()
+        self._lastInputId = 0
+        self._steps = []
         self._mics = _ClassicLogicalMicSet(
             [_ClassicLogicalMic(7, "mic_007")],
             closed=True,
@@ -887,60 +809,79 @@ class TestSphireClassicUnreadableCoordinatesRegression(unittest.TestCase):
             "The coordinate-read failure should still be reported.",
         )
 
-class TestSphireTasksCheckpointPersistenceReconciliation(unittest.TestCase):
-    def testTasksDoesNotTrustUnpersistedPositiveCheckpointCount(self):
+class TestSphireTasksResumeWithoutCheckpointFile(unittest.TestCase):
+    """Resume state comes from the output Set and crYOLO's own .cbox files.
+
+    A micrograph that produced coordinates is in the output Set. One that
+    produced none leaves no row there, so what says it was already picked
+    is its own .cbox - crYOLO's real output for it, not a marker file this
+    protocol invented.
+    """
+
+    @staticmethod
+    def _protocolWithoutPersistedCoordinates(tmp):
+        protocol = _TasksHarness(tmp)
+        protocol.mics.items = [_Mic(1), _Mic(2)]
+
+        class _NoPersistedCoordinates(_OutputCoordinates):
+            def aggregate(self, *args, **kwargs):
+                return []
+
+        protocol.outputCoordinates = _NoPersistedCoordinates()
+
+        return protocol
+
+    def testTasksRetriesMicrographWithNeitherCoordinatesNorCboxFile(self):
         with tempfile.TemporaryDirectory() as tmp:
-            protocol = _TasksHarness(tmp)
-            protocol.mics.items = [_Mic(1), _Mic(2)]
+            protocol = self._protocolWithoutPersistedCoordinates(tmp)
 
-            class _NoPersistedCoordinates(_OutputCoordinates):
-                def aggregate(self, *args, **kwargs):
-                    return []
-
-            protocol.outputCoordinates = _NoPersistedCoordinates()
-
-            with open(protocol.getPath("micrographs.json"), "w") as handle:
-                json.dump({"processed": {"1": 15}}, handle)
-
-            with patch.object(tasks, "BatchManager", _BatchManager),                     patch.object(tasks, "Pipeline", _Pipeline):
+            with patch.object(tasks, "BatchManager", _BatchManager), \
+                    patch.object(tasks, "Pipeline", _Pipeline):
                 tasks.SphireProtCRYOLOPickingTasks.pickAllMicrogaphsStep(
-                    protocol
-                )
+                    protocol)
 
             self.assertEqual(
                 [1, 2],
                 _BatchManager.seenIds,
-                "A positive coordinate count from the JSON checkpoint must "
-                "not hide a micrograph whose coordinates are absent from the "
-                "persisted output Set. Resume must retry it.",
+                "A micrograph with no coordinates in the output Set and no "
+                "crYOLO output of its own was never really picked, so "
+                "Resume must retry it.",
             )
 
-    def testTasksKeepsZeroCoordinateCheckpointWithoutPersistedRows(self):
+    def testTasksDoesNotRepickMicrographWhoseCboxHasNoCoordinates(self):
         with tempfile.TemporaryDirectory() as tmp:
-            protocol = _TasksHarness(tmp)
-            protocol.mics.items = [_Mic(1), _Mic(2)]
+            protocol = self._protocolWithoutPersistedCoordinates(tmp)
 
-            class _NoPersistedCoordinates(_OutputCoordinates):
-                def aggregate(self, *args, **kwargs):
-                    return []
+            # crYOLO ran for mic 1 and found nothing: the .cbox exists and
+            # is empty, which the output Set cannot represent.
+            cboxFn = protocol._getPersistedMicCoordsFile(_Mic(1))
+            open(cboxFn, "w").close()
 
-            protocol.outputCoordinates = _NoPersistedCoordinates()
-
-            with open(protocol.getPath("micrographs.json"), "w") as handle:
-                json.dump({"processed": {"1": 0}}, handle)
-
-            with patch.object(tasks, "BatchManager", _BatchManager),                     patch.object(tasks, "Pipeline", _Pipeline):
+            with patch.object(tasks, "BatchManager", _BatchManager), \
+                    patch.object(tasks, "Pipeline", _Pipeline):
                 tasks.SphireProtCRYOLOPickingTasks.pickAllMicrogaphsStep(
-                    protocol
-                )
+                    protocol)
 
             self.assertEqual(
                 [2],
                 _BatchManager.seenIds,
-                "A zero-coordinate micrograph has no persisted coordinate "
-                "rows, so its valid zero-count checkpoint must still be "
-                "honoured on Resume.",
+                "A micrograph picked with zero coordinates must not be "
+                "picked again on Resume.",
             )
+
+    def testTasksWritesNoCheckpointFile(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            protocol = _TasksHarness(tmp)
+            protocol._processedMics = {1: 4, 2: 0}
+            protocol._inputMicsCount = 2
+
+            tasks.SphireProtCRYOLOPickingTasks._updateSummary(protocol, 2)
+
+            self.assertFalse(
+                os.path.exists(protocol.getPath("micrographs.json")),
+                "Resume state must not be kept in a side file.",
+            )
+
 
 class _ClassicFixedBoxOutput:
     def getBoxSize(self):
@@ -1079,3 +1020,84 @@ class TestSphireClassicCboxPartialFailureRegression(unittest.TestCase):
                     [_Mic(1), _Mic(2)],
                     _ClassicFixedBoxOutput(),
                 )
+
+
+class _StaleCloseMics(LogicalSetFake):
+    """A Set whose closed flag only becomes visible after a reload.
+
+    It also refuses to be polled forever, so a protocol that never sees
+    the producer close fails the test instead of hanging it.
+    """
+
+    MAX_POLLS = 10
+
+    def __init__(self, items):
+        super().__init__(items, streamClosed=False)
+        self.closedAfterReloads = 2
+        self.closedChecks = 0
+
+    def loadAllProperties(self):
+        super().loadAllProperties()
+
+        if self.reloads >= self.closedAfterReloads:
+            self._streamClosed = True
+
+    def isStreamClosed(self):
+        self.closedChecks += 1
+
+        if self.closedChecks > self.MAX_POLLS:
+            raise AssertionError(
+                "The producer closed but the protocol never noticed: it "
+                "must reload the Set's properties before asking."
+            )
+
+        return super().isStreamClosed()
+
+
+class TestSphireStreamingPollCost(unittest.TestCase):
+    """A poll must cost what just arrived, not everything seen so far."""
+
+    @staticmethod
+    def _mics(firstId, count):
+        return [_Mic(micId) for micId in range(firstId, firstId + count)]
+
+    def _harness(self, tmp, mics):
+        protocol = _TasksHarness(tmp)
+        protocol.mics = _StreamingMics()
+        protocol.mics.items = mics
+        return protocol
+
+    def testPollOnlyHydratesMicrographsThatJustArrived(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            protocol = self._harness(tmp, self._mics(1, 500))
+            mics = protocol.mics
+
+            batches = list(protocol._pollNewMicrographs(mics, {}, waitSecs=0))
+
+            self.assertEqual(500, sum(len(b) for b in batches))
+            self.assertEqual(500, mics.hydratedItems)
+            self.assertEqual(0, mics.fullScans)
+
+    def testStreamClosingIsSeenEvenWhenNothingNewArrives(self):
+        # isStreamClosed() reads a Set property, so a poll that skipped the
+        # reload would never notice the producer closing and would spin
+        # forever.
+        with tempfile.TemporaryDirectory() as tmp:
+            protocol = _TasksHarness(tmp)
+            protocol.mics = _StaleCloseMics(self._mics(1, 2))
+
+            batches = list(protocol._pollNewMicrographs(
+                protocol.mics, {}, waitSecs=0))
+
+            self.assertEqual([[1, 2]],
+                             [[m.getObjId() for m in b] for b in batches])
+            self.assertGreaterEqual(protocol.mics.reloads, 2)
+
+    def testPollRefreshesTheSetExactlyOncePerIteration(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            protocol = self._harness(tmp, self._mics(1, 3))
+            mics = protocol.mics
+
+            list(protocol._pollNewMicrographs(mics, {}, waitSecs=0))
+
+            self.assertEqual(1, mics.reloads)
