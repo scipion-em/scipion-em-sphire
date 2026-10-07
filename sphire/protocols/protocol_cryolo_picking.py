@@ -171,6 +171,12 @@ class SphireProtCRYOLOPicking(SphireStreamingBase, ProtCryoloBase,
         self._restoreProcessedMicsFromPersistentState()
 
         while not self.finished:
+            # A failed step makes the executor stop and then join every
+            # thread, this generator included: keep polling and the run
+            # hangs for good with nothing left to do.
+            if self._streamingMustStop():
+                break
+
             self._checkNewInput()
             self._checkNewOutput()
 
@@ -335,8 +341,11 @@ class SphireProtCRYOLOPicking(SphireStreamingBase, ProtCryoloBase,
             pwutils.cleanPath(workingDir)
             pwutils.makePath(workingDir)
 
-        # Create folder with linked mics
-        convert.convertMicrographs(micList, workingDir)
+        # Create folder with linked mics. The names are scoped by id:
+        # two micrographs whose files share a basename would otherwise
+        # become a single link, and crYOLO would only ever see one.
+        convert.convertMicrographs(micList, workingDir,
+                                   nameFunc=convert.getScopedMicFn)
 
         configJson = os.path.abspath(self._getExtraPath('config.json'))
         args = " -c %s" % configJson
@@ -384,10 +393,11 @@ class SphireProtCRYOLOPicking(SphireStreamingBase, ProtCryoloBase,
             raise
 
     def _getMicCoordsFile(self, outputDir, mic):
-        # Here CBOX output files are moved to extra, so not taking into account
-        # outputDir here
-        cboxFile = convert.getMicFn(mic, "cbox")
-        return self._getExtraPath(cboxFile)
+        # Here CBOX output files are moved to extra, so not taking into
+        # account outputDir here. Scoped by id for the same reason the
+        # links are, with the unscoped name still honoured so a project
+        # picked before this change keeps its coordinates on Continue.
+        return self._itemScopedPath(mic, convert.getMicFn(mic, "cbox"))
 
     def readCoordsFromMics(self, outputDir, micDoneList, outputCoords):
         """This method read coordinates from a given list of micrographs.

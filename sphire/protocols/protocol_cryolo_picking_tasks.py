@@ -25,7 +25,6 @@ from uuid import uuid4
 
 from emtools.utils import Timer, Pretty, Process
 from emtools.jobs import Pipeline
-from emtools.pwx import BatchManager
 
 import pyworkflow.protocol.constants as cons
 import pyworkflow.utils as pwutils
@@ -48,6 +47,9 @@ class SphireProtCRYOLOPickingTasks(SphireProtCRYOLOPicking):
         self.numberOfThreads.set(0)
         self.allowMpi = False
         self.allowThreads = False
+        # Read by the input generator to know when to stop feeding the
+        # GPU; it exists from construction so no caller can miss it.
+        self._outputErrors = []
 
     # We are not using the steps mechanism for parallelism from Scipion
     def _stepsCheck(self):
@@ -87,14 +89,9 @@ class SphireProtCRYOLOPickingTasks(SphireProtCRYOLOPicking):
         batchSize = self.streamingBatchSize.get()
         self._inputMicsCount = inputMics.getSize()
 
-        if batchSize == 0:
-            batchGenerator = lambda: self._iterAvailableInputBatches(
-                inputMics, self._processedMics, waitSecs=waitSecs)
-        else:
-            micsIter = self._iterInputMicrographs(
-                inputMics, self._processedMics, waitSecs=waitSecs)
-            batchMgr = BatchManager(batchSize, micsIter, self._getTmpPath())
-            batchGenerator = batchMgr.generate
+        batchGenerator = lambda: self._iterInputBatches(
+            inputMics, self._processedMics, batchSize=batchSize,
+            waitSecs=waitSecs)
 
         mc = Pipeline()
         g = mc.addGenerator(batchGenerator)
@@ -108,7 +105,10 @@ class SphireProtCRYOLOPickingTasks(SphireProtCRYOLOPicking):
                                 outputQueue=outputQueue)
             outputQueue = p.outputQueue
 
-        outputErrors = []
+        # Kept on the protocol so the input generator can see it: it has
+        # to stop feeding the GPU once the output is lost.
+        self._outputErrors = []
+        outputErrors = self._outputErrors
         failedBatches = []
 
         def _updateOutput(batch):
@@ -155,7 +155,7 @@ class SphireProtCRYOLOPickingTasks(SphireProtCRYOLOPicking):
         The batch directory lives under tmp and is cleaned, so the .cbox
         is moved next to the other outputs to survive a Continue.
         """
-        return self._getExtraPath(convert.getMicFn(mic, "cbox"))
+        return self._itemScopedPath(mic, convert.getMicFn(mic, "cbox"))
 
     def _persistBatchCoordsFiles(self, batch):
         """Keep each micrograph's .cbox after its coordinates were read.
@@ -208,7 +208,9 @@ class SphireProtCRYOLOPickingTasks(SphireProtCRYOLOPicking):
             if mic.getObjId() in processed:
                 continue
 
-            if convert.getMicFn(mic, "cbox") in cboxNames:
+            persisted = self._getPersistedMicCoordsFile(mic)
+
+            if os.path.basename(persisted) in cboxNames:
                 processed[mic.getObjId()] = 0
 
         return processed
@@ -236,6 +238,14 @@ class SphireProtCRYOLOPickingTasks(SphireProtCRYOLOPicking):
         knownIds = set(processedIds)
 
         while True:
+            # Picking is GPU work and this generator is what feeds it.
+            # Once the output can no longer be written, or the run has
+            # been aborted, every further batch is picked and thrown
+            # away - and the error would only surface when the producer
+            # finally closes, hours later on a long acquisition.
+            if self._streamingMustStop() or getattr(self, '_outputErrors', None):
+                break
+
             newMics, producerClosed, terminalConsistent = (
                 self._discoverNewInputItems(inputMics, '_lastInputId',
                                             knownIds))
@@ -269,51 +279,65 @@ class SphireProtCRYOLOPickingTasks(SphireProtCRYOLOPicking):
             if waitSecs:
                 time.sleep(waitSecs)
 
-    def _iterAvailableInputBatches(self, inputMics, processedIds,
-                                   waitSecs=60):
-        """Yield one batch with all new items available in each Set refresh."""
+    def _createBatch(self, items, batchIndex):
+        """Build the folder of links crYOLO is pointed at.
+
+        The links are named by id: two micrographs whose files share a
+        basename cannot both be linked under it, and the second symlink
+        would take down the thread that feeds every GPU.
+        """
+        batchId = str(uuid4())
+        batchPath = os.path.join(self._getTmpPath(), batchId)
+
+        Process.system(f"rm -rf '{batchPath}'")
+        Process.system(f"mkdir '{batchPath}'")
+
+        for mic in items:
+            os.symlink(
+                os.path.abspath(mic.getFileName()),
+                os.path.join(batchPath, convert.getScopedMicFn(
+                    mic, pwutils.getExt(mic.getFileName()).lstrip('.'))),
+            )
+
+        return {
+            'items': items,
+            'id': batchId,
+            'path': batchPath,
+            'index': batchIndex,
+        }
+
+    def _iterInputBatches(self, inputMics, processedIds, batchSize=0,
+                          waitSecs=60):
+        """Yield batches of newly arrived micrographs.
+
+        ``batchSize`` 0 means one batch per Set refresh, with whatever
+        turned up in it; any other value cuts fixed-size batches and
+        still picks the trailing partial one when the stream ends.
+
+        This replaces emtools' BatchManager, which named its links after
+        the micrograph basename alone and so could not take two
+        micrographs whose files differ only in their directory.
+        """
         batchIndex = 0
+        pending = []
 
         for available in self._pollNewMicrographs(inputMics, processedIds,
                                                   waitSecs=waitSecs):
+            if not batchSize:
+                batchIndex += 1
+                yield self._createBatch(available, batchIndex)
+                continue
+
+            pending.extend(available)
+
+            while len(pending) >= batchSize:
+                batchIndex += 1
+                yield self._createBatch(pending[:batchSize], batchIndex)
+                pending = pending[batchSize:]
+
+        if pending:
             batchIndex += 1
-            batchId = str(uuid4())
-            batchPath = os.path.join(self._getTmpPath(), batchId)
-
-            Process.system(f"rm -rf '{batchPath}'")
-            Process.system(f"mkdir '{batchPath}'")
-
-            for mic in available:
-                micFn = mic.getFileName()
-                os.symlink(
-                    os.path.abspath(micFn),
-                    os.path.join(batchPath, os.path.basename(micFn)),
-                )
-
-            yield {
-                'items': available,
-                'id': batchId,
-                'path': batchPath,
-                'index': batchIndex,
-            }
-
-    def _iterInputMicrographs(self, inputMics, processedIds,
-                              waitSecs=60):
-        """Yield new micrographs using only the generic Scipion Set API."""
-        if processedIds:
-            self.info(f"Existing output: {len(processedIds)} micrographs")
-        else:
-            self.info("No output micrographs.")
-
-        for available in self._pollNewMicrographs(inputMics, processedIds,
-                                                  waitSecs=waitSecs):
-            for mic in available:
-                yield mic
-
-        self.info(
-            f"No more micrographs, stream closed. "
-            f"Total: {self._inputMicsCount}"
-        )
+            yield self._createBatch(pending, batchIndex)
 
     def _getPickProcessor(self, gpu):
         def _processBatch(batch):
@@ -339,10 +363,13 @@ class SphireProtCRYOLOPickingTasks(SphireProtCRYOLOPicking):
         return _processBatch
 
     def _getMicCoordsFile(self, outputDir, mic):
-        # Here CBOX output files are moved to extra, so not taking into account
-        # outputDir here
-        cboxFile = convert.getMicFn(mic, "cbox")
-        return os.path.join(outputDir, 'CBOX', cboxFile)
+        # Here CBOX output files are moved to extra, so not taking into
+        # account outputDir here. Scoped by id: two micrographs whose
+        # files share a basename would otherwise read their coordinates
+        # from one and the same file.
+        return self._itemScopedPath(
+            mic, convert.getMicFn(mic, "cbox"),
+            pathFunc=lambda name: os.path.join(outputDir, 'CBOX', name))
 
     def _updateSummary(self, total):
         """ Update the summary variable based on total processed micrographs. """

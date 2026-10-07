@@ -81,14 +81,28 @@ class _OutputCoordinates:
         self.state = state
 
 
-class _BatchManager:
+class _RecordingBatcher:
+    """Stands in for the protocol's own batching.
+
+    It records which micrographs were handed to it, which is what these
+    tests are about - the links a real batch would create are covered
+    separately in test_cryolo_artifact_paths.
+    """
     seenIds = []
 
-    def __init__(self, batchSize, micsIter, workingPath):
-        type(self).seenIds = [mic.getObjId() for mic in micsIter]
+    @classmethod
+    def install(cls, harness):
+        cls.seenIds = []
 
-    def generate(self):
-        return iter(())
+        def _iterInputBatches(inputMics, processedIds, batchSize=0,
+                              waitSecs=60):
+            for available in harness._pollNewMicrographs(
+                    inputMics, processedIds, waitSecs=waitSecs):
+                cls.seenIds.extend(mic.getObjId() for mic in available)
+
+            return iter(())
+
+        harness._iterInputBatches = _iterInputBatches
 
 
 class _Node:
@@ -97,6 +111,9 @@ class _Node:
 
 class _Pipeline:
     def addGenerator(self, generator):
+        # A real Pipeline drives the generator; the protocol batches its
+        # own input now, so nothing else would pull on it.
+        list(generator())
         return _Node()
 
     def addProcessor(self, inputQueue, processor, outputQueue=None):
@@ -147,6 +164,11 @@ class _TasksHarness(SphireStreamingBase):
         return tasks.SphireProtCRYOLOPickingTasks._getPersistedMicCoordsFile(
             self, mic)
 
+    # The real helper is what decides a micrograph's .cbox name, legacy
+    # fallback included, so the harness borrows it rather than guessing.
+    _getPersistedMicCoordsFile = (
+        tasks.SphireProtCRYOLOPickingTasks._getPersistedMicCoordsFile)
+
     def _listPersistedCoordsFiles(self):
         return tasks.SphireProtCRYOLOPickingTasks._listPersistedCoordsFiles(
             self)
@@ -160,32 +182,22 @@ class _TasksHarness(SphireStreamingBase):
         os.makedirs(extra, exist_ok=True)
         return os.path.join(extra, *parts)
 
-    def _iterInputMicrographs(self, *args, **kwargs):
-        method = getattr(
-            tasks.SphireProtCRYOLOPickingTasks,
-            "_iterInputMicrographs",
-        )
-        return method(self, *args, **kwargs)
-
-    def _iterAvailableInputBatches(self, *args, **kwargs):
-        method = getattr(
-            tasks.SphireProtCRYOLOPickingTasks,
-            "_iterAvailableInputBatches",
-        )
-        return method(self, *args, **kwargs)
+    _createBatch = tasks.SphireProtCRYOLOPickingTasks._createBatch
+    _iterInputBatches = tasks.SphireProtCRYOLOPickingTasks._iterInputBatches
 
 
 class TestSphireStreamingRegression(unittest.TestCase):
     def testTasksStreamingUsesLogicalSetApi(self):
         with tempfile.TemporaryDirectory() as tmp:
             protocol = _TasksHarness(tmp)
+            _RecordingBatcher.install(protocol)
 
-            with patch.object(tasks, "BatchManager", _BatchManager),                  patch.object(tasks, "Pipeline", _Pipeline):
+            with patch.object(tasks, "Pipeline", _Pipeline):
                 tasks.SphireProtCRYOLOPickingTasks.pickAllMicrogaphsStep(
                     protocol
                 )
 
-            self.assertEqual([7], _BatchManager.seenIds)
+            self.assertEqual([7], _RecordingBatcher.seenIds)
             self.assertGreaterEqual(protocol.mics.reloads, 1)
             self.assertEqual(
                 emobj.Set.STREAM_CLOSED,
@@ -218,7 +230,7 @@ class TestSphireStreamingRegression(unittest.TestCase):
 
             protocol._updateOutputSet = _updateOutputSet
 
-            with patch.object(tasks, "BatchManager", _BatchManager),                  patch.object(tasks, "Pipeline", _Pipeline):
+            with patch.object(tasks, "Pipeline", _Pipeline):
                 tasks.SphireProtCRYOLOPickingTasks.pickAllMicrogaphsStep(
                     protocol
                 )
@@ -410,8 +422,12 @@ class TestSphireStreamingRegression(unittest.TestCase):
             protocol = _TasksHarness(tmp)
             inputMics = _RacyStreamingMics()
 
-            yielded = list(
-                protocol._iterInputMicrographs(inputMics, {}, waitSecs=0))
+            # Discovery itself is what has to see it; the batching on top
+            # only groups whatever discovery reports.
+            yielded = [mic
+                       for available in protocol._pollNewMicrographs(
+                           inputMics, {}, waitSecs=0)
+                       for mic in available]
 
             self.assertEqual(
                 [1, 2],
@@ -551,8 +567,7 @@ class TestSphireStreamingFailedBatchCompletionRegression(unittest.TestCase):
                 )
             )
 
-            with patch.object(tasks, "BatchManager", _BatchManager), \
-                    patch.object(tasks, "Pipeline", _PipelineWithFailedBatch):
+            with                     patch.object(tasks, "Pipeline", _PipelineWithFailedBatch):
                 with self.assertRaisesRegex(
                     RuntimeError,
                     "crYOLO.*batch",
@@ -804,15 +819,15 @@ class TestSphireTasksResumeWithoutCheckpointFile(unittest.TestCase):
     def testTasksRetriesMicrographWithNeitherCoordinatesNorCboxFile(self):
         with tempfile.TemporaryDirectory() as tmp:
             protocol = self._protocolWithoutPersistedCoordinates(tmp)
+            _RecordingBatcher.install(protocol)
 
-            with patch.object(tasks, "BatchManager", _BatchManager), \
-                    patch.object(tasks, "Pipeline", _Pipeline):
+            with                     patch.object(tasks, "Pipeline", _Pipeline):
                 tasks.SphireProtCRYOLOPickingTasks.pickAllMicrogaphsStep(
                     protocol)
 
             self.assertEqual(
                 [1, 2],
-                _BatchManager.seenIds,
+                _RecordingBatcher.seenIds,
                 "A micrograph with no coordinates in the output Set and no "
                 "crYOLO output of its own was never really picked, so "
                 "Resume must retry it.",
@@ -826,15 +841,15 @@ class TestSphireTasksResumeWithoutCheckpointFile(unittest.TestCase):
             # is empty, which the output Set cannot represent.
             cboxFn = protocol._getPersistedMicCoordsFile(_Mic(1))
             open(cboxFn, "w").close()
+            _RecordingBatcher.install(protocol)
 
-            with patch.object(tasks, "BatchManager", _BatchManager), \
-                    patch.object(tasks, "Pipeline", _Pipeline):
+            with                     patch.object(tasks, "Pipeline", _Pipeline):
                 tasks.SphireProtCRYOLOPickingTasks.pickAllMicrogaphsStep(
                     protocol)
 
             self.assertEqual(
                 [2],
-                _BatchManager.seenIds,
+                _RecordingBatcher.seenIds,
                 "A micrograph picked with zero coordinates must not be "
                 "picked again on Resume.",
             )
