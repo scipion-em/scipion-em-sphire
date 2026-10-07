@@ -51,28 +51,12 @@ class _Mic:
 
 
 class _StreamingMics(LogicalSetFake):
-    """Input Set fake that refuses to be polled forever.
-
-    A protocol that never notices the producer closing should fail these
-    tests, not hang them.
-    """
-
+    # Each poll of this one spawns subprocesses to build a batch folder,
+    # so keep the ceiling low enough that a failing test stays fast.
     MAX_POLLS = 10
 
     def __init__(self):
         super().__init__([_Mic(7)], streamClosed=True)
-        self.closedChecks = 0
-
-    def isStreamClosed(self):
-        self.closedChecks += 1
-
-        if self.closedChecks > self.MAX_POLLS:
-            raise AssertionError(
-                "Polled %d times without ever seeing the stream close."
-                % self.closedChecks
-            )
-
-        return super().isStreamClosed()
 
     @property
     def items(self):
@@ -282,15 +266,8 @@ class TestSphireStreamingRegression(unittest.TestCase):
                         self.closed = True
 
                 def isStreamClosed(self):
-                    self.closedChecks += 1
-
-                    if self.closedChecks > self.MAX_POLLS:
-                        raise AssertionError(
-                            "Polled %d times without ever seeing the "
-                            "stream close." % self.closedChecks
-                        )
-
-                    return self.closed
+                    self._streamClosed = self.closed
+                    return super().isStreamClosed()
 
             class _CollectingPipeline:
                 batches = []
@@ -427,15 +404,8 @@ class TestSphireStreamingRegression(unittest.TestCase):
                         self.closed = True
 
                 def isStreamClosed(self):
-                    self.closedChecks += 1
-
-                    if self.closedChecks > self.MAX_POLLS:
-                        raise AssertionError(
-                            "Polled %d times without ever seeing the "
-                            "stream close." % self.closedChecks
-                        )
-
-                    return self.closed
+                    self._streamClosed = self.closed
+                    return super().isStreamClosed()
 
             protocol = _TasksHarness(tmp)
             inputMics = _RacyStreamingMics()
@@ -1034,24 +1004,12 @@ class _StaleCloseMics(LogicalSetFake):
     def __init__(self, items):
         super().__init__(items, streamClosed=False)
         self.closedAfterReloads = 2
-        self.closedChecks = 0
 
     def loadAllProperties(self):
         super().loadAllProperties()
 
         if self.reloads >= self.closedAfterReloads:
             self._streamClosed = True
-
-    def isStreamClosed(self):
-        self.closedChecks += 1
-
-        if self.closedChecks > self.MAX_POLLS:
-            raise AssertionError(
-                "The producer closed but the protocol never noticed: it "
-                "must reload the Set's properties before asking."
-            )
-
-        return super().isStreamClosed()
 
 
 class TestSphireStreamingPollCost(unittest.TestCase):
