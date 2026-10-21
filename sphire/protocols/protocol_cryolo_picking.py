@@ -28,6 +28,7 @@
 # **************************************************************************
 
 import os
+import threading
 import time
 from collections import OrderedDict
 from datetime import datetime
@@ -47,6 +48,11 @@ import sphire.convert as convert
 
 # Module level: these helpers are called unbound on light test harnesses.
 PICKING_STEP_NAMES = ('pickMicrographStepOwn', 'pickMicrographListStepOwn')
+# The micrographs whose picking failed, as a durable list in extra/: a
+# micrograph with no coordinates is otherwise indistinguishable from one
+# without particles, and Continue picks the listed ones again.
+FAILED_PICKING_LIST = 'FAILED_all.TXT'
+_failedListLock = threading.Lock()
 
 
 class SphireProtCRYOLOPicking(SphireStreamingBase, ProtCryoloBase,
@@ -96,6 +102,7 @@ class SphireProtCRYOLOPicking(SphireStreamingBase, ProtCryoloBase,
             self._resumeGapIds = set()
 
         scheduledMicNames = self._getScheduledPickingMicNames()
+        failedMicIds = self._failedPickingMicIds()
 
         for item in newItems:
             itemId = item.getObjId()
@@ -109,7 +116,11 @@ class SphireProtCRYOLOPicking(SphireStreamingBase, ProtCryoloBase,
             if micKey in self.micDict:
                 continue
 
-            if micKey in scheduledMicNames:
+            if micKey in scheduledMicNames and itemId in failedMicIds:
+                # Its earlier picking failed: it is picked again, and only
+                # the step of this run says when that is done.
+                self.__dict__.setdefault('_retriedMicNames', set()).add(micKey)
+            elif micKey in scheduledMicNames:
                 # Already has a step from an earlier run: it only needs
                 # publishing, so it must not be scheduled a second time.
                 self.micDict[micKey] = item
@@ -245,8 +256,26 @@ class SphireProtCRYOLOPicking(SphireStreamingBase, ProtCryoloBase,
                                         onlyFinished=False, keyType=str)
 
     def _getFinishedPickingMicNames(self):
-        """Micrograph names represented by finished picking steps."""
-        return self._collectStepArgKeys(PICKING_STEP_NAMES, keyType=str)
+        """Micrograph names represented by finished picking steps.
+
+        A micrograph picked again in this run (it failed before) only
+        counts once its new step has finished: its old step finished too.
+        """
+        finished = self._collectStepArgKeys(PICKING_STEP_NAMES, keyType=str)
+        retried = getattr(self, '_retriedMicNames', None)
+
+        if retried:
+            finishedNow = self._collectStepArgKeys(
+                PICKING_STEP_NAMES, keyType=str, includePrevious=False)
+            finished = {name for name in finished
+                        if name not in retried or name in finishedNow}
+
+        return finished
+
+    def _hasActiveStreamingWork(self):
+        """Micrographs scheduled or waiting for a batch, not yet published."""
+        return bool(getattr(self, 'micDict', None)
+                    or getattr(self, '_pendingMics', None))
 
     def _getPublishedPickingMicIds(self):
         """Micrograph ids already represented in the output coordinates.
@@ -302,6 +331,8 @@ class SphireProtCRYOLOPicking(SphireStreamingBase, ProtCryoloBase,
 
         if newDone:
             self._updateOutputCoordSet(newDone, streamMode)
+            self.__dict__.setdefault('_handledPickingMicIds', set()).update(
+                mic.getObjId() for mic in newDone)
 
             for mic in newDone:
                 self.micDict.pop(mic.getMicName(), None)
@@ -313,6 +344,57 @@ class SphireProtCRYOLOPicking(SphireStreamingBase, ProtCryoloBase,
 
         if self.finished:
             self._updateStreamState(streamMode)
+            self._failIfEveryMicrographFailed()
+
+    def _failIfEveryMicrographFailed(self):
+        """A failed micrograph is left out; the run fails only when that
+        happened to every micrograph."""
+        handled = getattr(self, '_handledPickingMicIds', set())
+        output = getattr(self, 'outputCoordinates', None)
+
+        if (handled and handled <= self._failedPickingMicIds()
+                and (output is None or output.getSize() == 0)):
+            raise Exception("crYOLO picking failed for every one of the %d "
+                            "micrographs; see the errors above. Continue "
+                            "picks them again." % len(handled))
+
+    # ------------------------- failed micrographs ------------------------
+    def _failedPickingMicIds(self):
+        """Ids of the micrographs whose picking failed, from extra/."""
+        cached = getattr(self, '_failedPickingMicIdsCache', None)
+
+        if cached is None:
+            cached = set()
+            path = self._getExtraPath(FAILED_PICKING_LIST)
+
+            if os.path.exists(path):
+                with open(path) as handle:
+                    cached = {int(line) for line in handle if line.strip()}
+
+            self._failedPickingMicIdsCache = cached
+
+        return set(cached)
+
+    def _writeFailedPicking(self, micIds):
+        with open(self._getExtraPath(FAILED_PICKING_LIST), 'w') as handle:
+            handle.writelines('%d\n' % micId for micId in sorted(micIds))
+
+        self._failedPickingMicIdsCache = set(micIds)
+
+    def _recordFailedPicking(self, micIds):
+        with _failedListLock:
+            failed = self._failedPickingMicIds()
+
+            if not set(micIds) <= failed:
+                self._writeFailedPicking(failed | set(micIds))
+
+    def _forgetFailedPicking(self, micIds):
+        """Picked well now: no longer listed as failed."""
+        with _failedListLock:
+            failed = self._failedPickingMicIds()
+
+            if failed & set(micIds):
+                self._writeFailedPicking(failed - set(micIds))
 
     # -------------------------- INFO functions -------------------------------
     def _validateStreamingThreads(self):
@@ -366,31 +448,42 @@ class SphireProtCRYOLOPicking(SphireStreamingBase, ProtCryoloBase,
 
     def _pickMicrograph(self, micrograph, *args):
         """This function picks from a given micrograph"""
-        self._pickMicrographList([micrograph], args)
+        self._pickMicrographList([micrograph], *args)
 
     def _pickMicrographList(self, micList, *args):
+        """Pick a batch; a micrograph crYOLO gives no output for fails alone.
+
+        A failure is not raised: the step would fail and take the whole
+        run down with it. Its micrographs are left out of the output
+        instead, and Continue picks them again.
+        """
         if not micList:  # maybe in continue cases, need to properly check
             return
+
+        workingDir = self._getTmpPath(self.getMicsWorkingDir(micList))
+
         try:
-            workingDir = self._getTmpPath(self.getMicsWorkingDir(micList))
             self._pickMicrographsBatch(micList, workingDir, '%(GPU)s')
-            # Move output files to extra folder
-            # FIXME: I think this can be problematic with parallel process running
-            # cryolo on different GPUs
-            cboxFn = os.path.join(workingDir, "CBOX")
-            pwutils.moveTree(cboxFn, self._getExtraPath())
-        except FileNotFoundError:
-            self.warning(
-                f'File not found error:{cboxFn}. '
-                f'Failed mics:{workingDir}'
-            )
-            raise
         except Exception as e:
-            self.warning(
-                f"Cryolo has failed for {workingDir} --> {str(e)}. "
-                f"Failed mics:{workingDir}"
-            )
-            raise
+            self.error(f"crYOLO has failed for micrographs "
+                       f"{[mic.getObjId() for mic in micList]} --> {e}")
+
+        # Each micrograph's own output is moved on its own, so a missing
+        # one is known for what it is, not hidden by the others.
+        for mic in micList:
+            cboxName = convert.getScopedMicFn(mic, 'cbox')
+            source = os.path.join(workingDir, 'CBOX', cboxName)
+            target = self._getExtraPath(cboxName)
+
+            if os.path.exists(source):
+                pwutils.moveFile(source, target)
+            else:
+                # An older output of a failed attempt must not stand in
+                # for this one.
+                pwutils.cleanPath(target)
+                self.error(f"Missing crYOLO output for micrograph "
+                           f"{mic.getObjId()}: {source}")
+                self._recordFailedPicking([mic.getObjId()])
 
     def _getMicCoordsFile(self, outputDir, mic):
         # Here CBOX output files are moved to extra, so not taking into
@@ -402,7 +495,28 @@ class SphireProtCRYOLOPicking(SphireStreamingBase, ProtCryoloBase,
     def readCoordsFromMics(self, outputDir, micDoneList, outputCoords):
         """This method read coordinates from a given list of micrographs.
         Return a dict with micIds and number of coordinates read for each one.
+
+        A micrograph with no output, or one that cannot be read whole, is
+        recorded as failed and left out, coordinates and all: the others
+        are still read.
         """
+        readable = []
+
+        for mic in micDoneList:
+            coordsFile = self._getMicCoordsFile(outputDir, mic)
+
+            if os.path.exists(coordsFile):
+                readable.append((mic, coordsFile))
+            else:
+                self.error(
+                    f"Missing crYOLO coordinate output for micrograph "
+                    f"{mic.getObjId()}: {coordsFile}"
+                )
+                self._recordFailedPicking([mic.getObjId()])
+
+        if not readable:
+            return {}
+
         # Coordinates may have a boxSize (e.g. streaming case)
         boxSize = outputCoords.getBoxSize()
         if not boxSize:
@@ -416,14 +530,13 @@ class SphireProtCRYOLOPicking(SphireStreamingBase, ProtCryoloBase,
                 try:
                     boxSize = self.getEstimatedBoxSize(outputPath)
                 except Exception as e:
-                    self.warning(
-                        f"ERROR: Cryolo has not a boxSize estimation yet "
-                        f"--> {str(e)}\n"
+                    self.error(
+                        f"Could not determine the box size while reading "
+                        f"crYOLO coordinates --> {str(e)}"
                     )
-                    raise RuntimeError(
-                        "Could not determine box size while reading "
-                        "crYOLO coordinates."
-                    ) from e
+                    self._recordFailedPicking(
+                        [mic.getObjId() for mic, _ in readable])
+                    return {}
                 if self.boxSizeFactor.get() != 1:
                     boxSize = int(boxSize * self.boxSizeFactor.get())
 
@@ -433,7 +546,7 @@ class SphireProtCRYOLOPicking(SphireStreamingBase, ProtCryoloBase,
         # JMRT: Let's assume that all mics have same dims, so we avoid
         # to open the image file each time for checking this
         if not hasattr(self, 'yFlipHeight'):
-            self.yFlipHeight = convert.getFlipYHeight(micDoneList[0].getFileName())
+            self.yFlipHeight = convert.getFlipYHeight(readable[0][0].getFileName())
 
         # Create a reader to parse .cbox files
         # and a Coordinate object to add to output set
@@ -444,51 +557,34 @@ class SphireProtCRYOLOPicking(SphireStreamingBase, ProtCryoloBase,
         coord._cryoloScore = emobj.Float()
 
         processedMics = {}
-        failedMicIds = []
 
-        for mic in micDoneList:
-            # A missing cbox is a genuine crYOLO failure signal for that
-            # micrograph, not a legitimate zero-coordinate result - it
-            # must not be silently swallowed. But letting it abort the
-            # whole loop would also drop every other (good) micrograph
-            # still pending in this batch, since the caller checkpoints
-            # (classic) or persists (tasks) whatever this method leaves
-            # behind. Isolate it per-micrograph instead and only raise
-            # once, below, if the entire batch turned out unreadable.
-            coordsFile = self._getMicCoordsFile(outputDir, mic)
-            if not os.path.exists(coordsFile):
-                self.error(
-                    f"Missing crYOLO coordinate output for micrograph "
-                    f"{mic.getObjId()}: {coordsFile}"
-                )
-                failedMicIds.append(mic.getObjId())
+        for mic, coordsFile in readable:
+            # A micrograph is published whole or not at all: its rows are
+            # all read before any of them reaches the output.
+            try:
+                rows = (list(reader.iterCoords(coordsFile))
+                        if os.path.getsize(coordsFile) else [])
+            except Exception as e:
+                self.error(f"Could not read the crYOLO coordinates of "
+                           f"micrograph {mic.getObjId()}: {e}")
+                self._recordFailedPicking([mic.getObjId()])
                 continue
 
-            count = 0
-            if os.path.getsize(coordsFile):
-                for x, y, z, score, _, _ in reader.iterCoords(coordsFile):
-                    # Clean up objId to add as a new coordinate
-                    coord.setObjId(None)
-                    coord.setPosition(x, y)
-                    coord.setMicrograph(mic)
-                    coord._cryoloScore.set(score)
-                    # Add it to the set
-                    outputCoords.append(coord)
-                    count += 1
-            processedMics[mic.getObjId()] = count
+            for x, y, z, score, _, _ in rows:
+                # Clean up objId to add as a new coordinate
+                coord.setObjId(None)
+                coord.setPosition(x, y)
+                coord.setMicrograph(mic)
+                coord._cryoloScore.set(score)
+                # Add it to the set
+                outputCoords.append(coord)
+
+            processedMics[mic.getObjId()] = len(rows)
+
+        self._forgetFailedPicking(processedMics)
 
         # Register box size
         self.createBoxSizeOutput(outputCoords)
-
-        if failedMicIds and not processedMics:
-            # Every micrograph in this batch was unreadable - treat it as
-            # a systemic failure (e.g. crYOLO/model/GPU issue) and surface
-            # it loudly, instead of silently completing an all-failed
-            # batch as if it had produced zero coordinates.
-            raise RuntimeError(
-                "Missing crYOLO coordinate output for micrograph(s): %s"
-                % ", ".join(str(micId) for micId in failedMicIds)
-            )
 
         return processedMics
 

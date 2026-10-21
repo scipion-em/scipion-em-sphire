@@ -21,6 +21,7 @@
 
 import os
 import time
+from datetime import datetime
 from uuid import uuid4
 
 from emtools.utils import Timer, Pretty, Process
@@ -75,10 +76,13 @@ class SphireProtCRYOLOPickingTasks(SphireProtCRYOLOPicking):
         self._insertFunctionStep(self.createConfigStep,
                                  self.getInputMicrographs(),
                                  needsGPU=False)
-        self._insertFunctionStep(self.pickAllMicrogaphsStep, needsGPU=True)
+        # A new timestamp every launch: a finished step pyworkflow would
+        # not run again, and Continue has to pick what failed.
+        self._insertFunctionStep(self.pickAllMicrogaphsStep,
+                                 str(datetime.now()), needsGPU=True)
 
     # --------------------------- STEPS functions -----------------------------
-    def pickAllMicrogaphsStep(self):
+    def pickAllMicrogaphsStep(self, when=None):
         self.info(f">>> {Pretty.now()}: ----------------- "
                   f"Start processing movies----------- ")
         self._firstTimeOutput = True
@@ -114,6 +118,8 @@ class SphireProtCRYOLOPickingTasks(SphireProtCRYOLOPicking):
         def _updateOutput(batch):
             if batch.get('failed', False):
                 failedBatches.append(batch)
+                self._recordFailedPicking(
+                    [mic.getObjId() for mic in batch['items']])
                 return batch
 
             if outputErrors:
@@ -131,9 +137,14 @@ class SphireProtCRYOLOPickingTasks(SphireProtCRYOLOPicking):
         if outputErrors:
             raise outputErrors[0]
 
-        if failedBatches:
+        # A failed micrograph is left out and picked again on Continue;
+        # the run fails only when that happened to every micrograph.
+        if not self._processedMics and (failedBatches
+                                        or self._failedPickingMicIds()):
             raise RuntimeError(
-                "crYOLO failed for one or more streaming batches."
+                "crYOLO picking failed for every micrograph (%d batch(es) "
+                "failed); see the errors above. Continue picks them again."
+                % len(failedBatches)
             )
 
         outputName = 'outputCoordinates'
@@ -203,9 +214,12 @@ class SphireProtCRYOLOPickingTasks(SphireProtCRYOLOPicking):
 
         # Zero-coordinate micrographs can only be recognised by name, so
         # this walks the input once per execution - never per poll - and
-        # only compares names already in memory.
+        # only compares names already in memory. One whose output could
+        # not be read is picked again.
+        failedIds = self._failedPickingMicIds()
+
         for mic in inputMics.iterItems():
-            if mic.getObjId() in processed:
+            if mic.getObjId() in processed or mic.getObjId() in failedIds:
                 continue
 
             persisted = self._getPersistedMicCoordsFile(mic)

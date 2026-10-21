@@ -123,7 +123,20 @@ class _Pipeline:
         pass
 
 
-class _TasksHarness(SphireStreamingBase):
+class _InMemoryFailedList:
+    """The failed-micrograph list, kept in memory instead of in extra/."""
+
+    def _failedPickingMicIds(self):
+        return set(self.__dict__.setdefault('failedIds', set()))
+
+    def _recordFailedPicking(self, micIds):
+        self.__dict__.setdefault('failedIds', set()).update(micIds)
+
+    def _forgetFailedPicking(self, micIds):
+        self.__dict__.setdefault('failedIds', set()).difference_update(micIds)
+
+
+class _TasksHarness(_InMemoryFailedList, SphireStreamingBase):
     def __init__(self, tmpDir):
         self.tmpDir = tmpDir
         self.mics = _StreamingMics()
@@ -610,7 +623,8 @@ class _ClassicPickingFailureHarness(SphireProtCRYOLOPicking):
         self.tmpDir = tmpDir
         mic = _ClassicMic(1, os.path.join(tmpDir, "mic_1.mrc"))
         self.micDict = {mic.getMicName(): mic}
-        self.warnings = []
+        self.errors = []
+        os.makedirs(os.path.join(tmpDir, "extra"))
 
     def isContinued(self):
         return False
@@ -631,8 +645,8 @@ class _ClassicPickingFailureHarness(SphireProtCRYOLOPicking):
     def _pickMicrographsBatch(self, *args, **kwargs):
         raise RuntimeError("simulated crYOLO picking failure")
 
-    def warning(self, message):
-        self.warnings.append(message)
+    def error(self, message, redirectStandard=True):
+        self.errors.append(message)
 
     def info(self, *args, **kwargs):
         pass
@@ -645,11 +659,8 @@ class TestSphireClassicStreamingFailureResumeRegression(unittest.TestCase):
             mic = protocol.micDict["mic_001"]
             doneFile = protocol._getMicDone(mic)
 
-            with self.assertRaisesRegex(
-                RuntimeError,
-                "simulated crYOLO picking failure",
-            ):
-                protocol.pickMicrographListStep(["mic_001"])
+            # Not raised: the step would fail and take the run with it.
+            protocol.pickMicrographListStepOwn(["mic_001"])
 
             self.assertFalse(
                 os.path.exists(doneFile),
@@ -657,8 +668,14 @@ class TestSphireClassicStreamingFailureResumeRegression(unittest.TestCase):
                 "must be able to retry it.",
             )
             self.assertTrue(
-                protocol.warnings,
-                "The picking failure should still be reported as a warning.",
+                protocol.errors,
+                "The picking failure should still be reported.",
+            )
+            self.assertEqual(
+                {1},
+                protocol._failedPickingMicIds(),
+                "The micrograph is listed as failed, so Continue picks it "
+                "again.",
             )
 
 class _ClassicNoStorageMicSet:
@@ -725,7 +742,7 @@ class _ClassicLogicalMicSet(LogicalSetFake):
         super().__init__(items, streamClosed=closed)
 
 
-class _ClassicLogicalLoadHarness(SphireProtCRYOLOPicking):
+class _ClassicLogicalLoadHarness(_InMemoryFailedList, SphireProtCRYOLOPicking):
     def __init__(self):
         self.micDict = OrderedDict()
         self._pendingMics = OrderedDict()
@@ -759,10 +776,12 @@ class _ClassicNoBoxOutput:
         return 0
 
 
-class _ClassicUnreadableCoordsHarness(SphireProtCRYOLOPicking):
-    def __init__(self):
+class _ClassicUnreadableCoordsHarness(_InMemoryFailedList,
+                                      SphireProtCRYOLOPicking):
+    def __init__(self, coordsFile):
+        self.coordsFile = coordsFile
         self.boxSize = _Value(0)
-        self.warnings = []
+        self.errors = []
 
     def getEstimatedBoxSize(self, outputPath):
         raise RuntimeError("box size is not available yet")
@@ -770,27 +789,27 @@ class _ClassicUnreadableCoordsHarness(SphireProtCRYOLOPicking):
     def _getTmpPath(self, *parts):
         return os.path.join("/tmp", *parts)
 
-    def warning(self, message):
-        self.warnings.append(message)
+    def _getMicCoordsFile(self, outputDir, mic):
+        return self.coordsFile
+
+    def error(self, message, redirectStandard=True):
+        self.errors.append(message)
 
 
 class TestSphireClassicUnreadableCoordinatesRegression(unittest.TestCase):
-    def testClassicUnreadableCoordinatesRaiseInsteadOfCompleting(self):
-        protocol = _ClassicUnreadableCoordsHarness()
-        outputCoords = _ClassicNoBoxOutput()
+    def testWithoutABoxSizeTheMicrographsFailInsteadOfCompleting(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            cbox = os.path.join(tmp, "mic.cbox")
+            open(cbox, "w").close()
+            protocol = _ClassicUnreadableCoordsHarness(cbox)
 
-        with self.assertRaisesRegex(
-            RuntimeError,
-            "box size|coordinates",
-        ):
-            protocol.readCoordsFromMics(
-                None,
-                [_Mic(1)],
-                outputCoords,
-            )
+            processed = protocol.readCoordsFromMics(
+                None, [_Mic(1)], _ClassicNoBoxOutput())
 
+        self.assertEqual({}, processed)
+        self.assertEqual({1}, protocol._failedPickingMicIds())
         self.assertTrue(
-            protocol.warnings,
+            protocol.errors,
             "The coordinate-read failure should still be reported.",
         )
 
@@ -878,7 +897,7 @@ class _ClassicFixedBoxOutput:
         )
 
 
-class _ClassicCboxPresenceHarness(SphireProtCRYOLOPicking):
+class _ClassicCboxPresenceHarness(_InMemoryFailedList, SphireProtCRYOLOPicking):
     def __init__(self, coordsFile):
         self.coordsFile = coordsFile
         self.boxSize = _Value(50)
@@ -902,15 +921,16 @@ class TestSphireClassicCboxPresenceRegression(unittest.TestCase):
                 os.path.join(tmp, "missing.cbox")
             )
 
-            with self.assertRaisesRegex(
-                RuntimeError,
-                "cbox|coordinate|output",
-            ):
-                protocol.readCoordsFromMics(
-                    tmp,
-                    [_Mic(1)],
-                    _ClassicFixedBoxOutput(),
-                )
+            processed = protocol.readCoordsFromMics(
+                tmp,
+                [_Mic(1)],
+                _ClassicFixedBoxOutput(),
+            )
+
+            self.assertEqual({}, processed)
+            self.assertEqual({1}, protocol._failedPickingMicIds(),
+                             "A missing cbox is a failure, not a micrograph "
+                             "without particles.")
 
     def testClassicEmptyCboxRemainsValidZeroCoordinateResult(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -933,7 +953,7 @@ class TestSphireClassicCboxPresenceRegression(unittest.TestCase):
             )
 
 
-class _ClassicCboxPerMicHarness(SphireProtCRYOLOPicking):
+class _ClassicCboxPerMicHarness(_InMemoryFailedList, SphireProtCRYOLOPicking):
     def __init__(self, coordsFileByMicId):
         self._coordsFileByMicId = coordsFileByMicId
         self.boxSize = _Value(50)
@@ -992,19 +1012,23 @@ class TestSphireClassicCboxPartialFailureRegression(unittest.TestCase):
                 "ignored.",
             )
 
-    def testAllMicrographsFailingInBatchStillRaises(self):
+    def testAllMicrographsFailingInBatchAreRecordedAsFailed(self):
+        # Not raised: the run fails only when every micrograph failed,
+        # which is decided once the stream is over, not per batch.
         with tempfile.TemporaryDirectory() as tmp:
             protocol = _ClassicCboxPerMicHarness({
                 1: os.path.join(tmp, "missing1.cbox"),
                 2: os.path.join(tmp, "missing2.cbox"),
             })
 
-            with self.assertRaisesRegex(RuntimeError, "coordinate"):
-                protocol.readCoordsFromMics(
-                    tmp,
-                    [_Mic(1), _Mic(2)],
-                    _ClassicFixedBoxOutput(),
-                )
+            processed = protocol.readCoordsFromMics(
+                tmp,
+                [_Mic(1), _Mic(2)],
+                _ClassicFixedBoxOutput(),
+            )
+
+            self.assertEqual({}, processed)
+            self.assertEqual({1, 2}, protocol._failedPickingMicIds())
 
 
 class _StaleCloseMics(LogicalSetFake):
