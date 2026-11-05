@@ -40,7 +40,107 @@ import sphire.convert as convert
 
 
 class SphireProtCRYOLONapariTomoPicker(ProtTomoPicking):
-    """ Picks particles or filaments in a set of tomograms using napari_boxmanager. """
+    """
+    Picks particles or filaments in a set of tomograms using napari_boxmanager.
+
+    AI Generated:
+
+    crYOLO Tomogram Manual Picking (SphireProtCRYOLONapariTomoPicker) - User Manual
+        Overview
+
+        The crYOLO Tomogram Manual Picking protocol provides an interactive
+        environment for selecting particles or filament coordinates directly
+        within three-dimensional tomograms using the napari-boxmanager
+        visualization framework. The protocol is designed for cryo-electron
+        tomography workflows in which users require direct visual inspection
+        and manual annotation of volumetric data.
+
+        In biological practice, manual picking remains particularly important
+        when automated detection methods are unreliable due to low contrast,
+        crowded environments, unusual particle morphologies, or highly
+        heterogeneous cellular contexts. Interactive annotation allows users
+        to incorporate biological expertise directly into the coordinate
+        selection process, improving the quality of downstream subtomogram
+        analysis and reconstruction.
+
+        Inputs and General Workflow
+
+        The protocol requires a set of tomograms that will be opened in an
+        interactive visualization session. Users inspect each tomogram and
+        manually define particle or filament coordinates within the volume.
+        Existing coordinate annotations may also be revisited and refined,
+        allowing iterative correction and validation of previously generated
+        results.
+
+        The workflow is particularly suitable for exploratory tomography
+        projects where the biological structures of interest are difficult
+        to identify automatically. Because users interact directly with the
+        volumetric data, the protocol supports careful contextual analysis of
+        membranes, organelles, macromolecular assemblies, and filamentous
+        structures inside complex cellular environments.
+
+        Interactive Picking and Biological Interpretation
+
+        Manual picking provides users with complete control over the
+        interpretation of structural features within tomograms. This is
+        especially valuable in cryo-electron tomography because biological
+        samples often contain overlapping densities, incomplete particles,
+        crowded intracellular regions, or variable conformational states.
+
+        In many cases, expert visual interpretation can distinguish biologically
+        meaningful structures from contamination, reconstruction artifacts, or
+        noisy background regions more effectively than automated algorithms.
+        Filament tracing is also easier to refine manually when filaments
+        exhibit curvature, branching, discontinuities, or variable thickness.
+
+        The protocol supports iterative annotation workflows in which users may
+        repeatedly open the same tomograms, review previous coordinate sets,
+        and improve annotations over time. This approach is common during the
+        early stages of tomography projects where annotation standards and
+        structural criteria are still being optimized.
+
+        Coordinate Management and Output Generation
+
+        After annotation is completed, the protocol generates a three-dimensional
+        coordinate set associated with the original tomograms. These coordinates
+        define the spatial locations of particles or filament positions and may
+        be used directly in subtomogram extraction, averaging, classification,
+        or visualization workflows.
+
+        The protocol preserves the relationship between coordinates and their
+        originating tomograms, ensuring compatibility with downstream cryo-ET
+        analysis pipelines. Because the workflow is interactive, outputs reflect
+        biologically informed user decisions rather than purely automated
+        detection criteria.
+
+        Practical Recommendations
+
+        Manual picking is most effective when tomograms have been carefully
+        reconstructed and filtered to maximize structural interpretability.
+        Users should inspect several regions of each tomogram before beginning
+        annotation in order to identify consistent structural patterns and
+        avoid introducing selection bias.
+
+        For large datasets, it is often beneficial to combine manual annotation
+        with automated approaches. Manually curated coordinates can serve as
+        high-quality training data for deep learning models, while automated
+        picking can accelerate large-scale processing after robust annotation
+        standards have been established.
+
+        When annotating filamentous assemblies, users should pay special
+        attention to continuity, curvature, and local structural variability.
+        Careful visual inspection is essential to distinguish true biological
+        filaments from reconstruction artifacts or overlapping densities.
+
+        Final Perspective
+
+        Interactive tomogram annotation remains an essential component of many
+        cryo-electron tomography workflows, particularly for challenging or
+        biologically complex datasets. By combining direct visualization with
+        user-guided coordinate selection, this protocol enables accurate and
+        biologically informed particle or filament annotation suitable for
+        high-quality subtomogram analysis and structural interpretation.
+    """
 
     _label = 'cryolo tomo picking (manual)'
     _devStatus = BETA

@@ -37,7 +37,127 @@ import sphire.convert as convert
 
 
 class SphireProtCRYOLOTraining(ProtCryoloBase, ProtParticlePicking):
-    """ Train crYOLO picker using a set of coordinates. """
+    """
+    Trains a crYOLO deep learning model for automated particle picking in cryo-EM
+    micrographs using a curated set of particle coordinates provided by the user.
+
+    AI Generated:
+
+    crYOLO Training (SphireProtCRYOLOTraining) - User Manual
+        Overview
+
+        The crYOLO training protocol creates a customized deep learning model capable
+        of automatically identifying particles in cryo-EM micrographs. Its primary
+        objective is to adapt particle picking performance to the specific appearance,
+        imaging conditions, and biological characteristics of a user dataset. By
+        learning from manually curated or previously validated particle coordinates,
+        the resulting model becomes specialized for the structures and acquisition
+        conditions present in the experiment.
+
+        In practical cryo-EM workflows, particle picking is one of the most critical
+        early processing stages because it strongly influences downstream classification,
+        reconstruction quality, and final biological interpretation. A well trained
+        model can dramatically reduce manual intervention while increasing consistency
+        and throughput in large cryo-EM datasets.
+
+        Inputs and General Workflow
+
+        The protocol requires a set of micrographs together with corresponding particle
+        coordinates that represent correct particle locations. These coordinates usually
+        originate from manual picking, template matching, or a previously validated
+        picking workflow. Even relatively small training datasets can be effective when
+        the annotations are accurate and representative of the biological sample.
+
+        During training, the protocol prepares the experimental images and associated
+        particle annotations so the neural network can learn the visual appearance of
+        the target particles. The resulting model can later be applied to new
+        micrographs acquired under similar experimental conditions.
+
+        Biological users should ensure that the training coordinates reflect the true
+        structural diversity of the dataset. If the annotations contain strong bias,
+        contamination, damaged particles, or preferential orientations, the trained
+        model may reproduce these limitations during automated picking.
+
+        Training Strategies
+
+        The protocol supports both training from scratch and fine tuning of an existing
+        crYOLO model. Training from scratch is generally appropriate when working with
+        novel samples, unusual imaging conditions, or particle types that differ
+        substantially from existing pretrained models. This strategy may require more
+        training examples and additional optimization but provides maximum flexibility.
+
+        Fine tuning is often preferred when a previously trained model already resembles
+        the current dataset. In these situations, the model can adapt more rapidly and
+        frequently achieves reliable picking performance with fewer annotated
+        micrographs. This is particularly useful for iterative cryo-EM projects,
+        related protein families, or repeated data collection campaigns performed under
+        similar microscope conditions.
+
+        Training Parameters and Convergence
+
+        Several parameters influence how the neural network learns from the training
+        data. The learning rate controls how quickly the model adapts during training.
+        Excessively large values may lead to unstable learning, while very small values
+        can slow convergence significantly.
+
+        The batch size determines how many micrographs are processed simultaneously
+        during optimization. Larger batch sizes may improve computational efficiency
+        when sufficient GPU memory is available, whereas smaller values are often more
+        stable on limited hardware resources.
+
+        The protocol also incorporates an early stopping strategy that monitors training
+        convergence. This prevents unnecessary overtraining once the model performance
+        no longer improves on validation data. From a biological perspective, avoiding
+        overfitting is essential because a model that memorizes the training images too
+        closely may fail to generalize to new micrographs.
+
+        GPU Requirements and Computational Considerations
+
+        crYOLO training relies heavily on GPU acceleration. Training time depends on
+        the number of micrographs, particle complexity, image size, and available GPU
+        resources. Modern GPUs substantially reduce execution time and allow more
+        efficient optimization of deep learning models.
+
+        Users should monitor training quality carefully rather than relying exclusively
+        on computational metrics. Visual inspection of picked particles on independent
+        micrographs remains one of the most reliable ways to evaluate biological
+        relevance and practical usability.
+
+        Output Interpretation
+
+        The protocol produces a trained crYOLO model that can be directly applied for
+        automated particle picking in future workflows. The model encapsulates the
+        learned visual representation of the particles and associated imaging
+        conditions.
+
+        A successful model should identify particles consistently across different
+        micrographs while minimizing false positives originating from contamination,
+        carbon edges, ice artifacts, or background noise. Biological interpretation of
+        downstream reconstructions depends strongly on the quality of this selection
+        step.
+
+        Practical Recommendations
+
+        For most cryo-EM projects, it is advisable to begin with a small but carefully
+        curated set of high quality particle annotations. Correct annotations are more
+        important than large quantities of inconsistent training data. Including a
+        representative range of defocus conditions, particle orientations, and ice
+        qualities usually improves model robustness.
+
+        Fine tuning existing models is often an efficient starting point for related
+        datasets, while completely new biological systems may benefit from dedicated
+        training from scratch. Users should periodically validate the picking results
+        visually and refine the training dataset if systematic picking errors appear.
+
+        Final Perspective
+
+        Deep learning based particle picking has become an essential component of
+        modern cryo-EM workflows because it enables rapid, scalable, and reproducible
+        particle detection. Careful preparation of training annotations, thoughtful
+        parameter selection, and continuous biological validation are the key elements
+        for obtaining reliable automated picking models that support high quality
+        structural analysis.
+    """
     _label = 'cryolo training'
     MODEL = 'model.h5'
     TRAIN = ['train_annotations', 'train_images']
