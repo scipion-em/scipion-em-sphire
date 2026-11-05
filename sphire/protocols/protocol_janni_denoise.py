@@ -39,7 +39,103 @@ from ..constants import JANNI_GENMOD_VAR, JANNI_GENMOD
 
 
 class SphireProtJanniDenoising(ProtMicrographs):
-    """ Protocol to denoise a set of micrographs. """
+    """
+    Denoises cryo-EM micrographs using the JANNI deep learning framework in order to
+    improve image quality before downstream particle picking, classification, or
+    reconstruction steps.
+
+    AI Generated:
+
+    JANNI Micrograph Denoising (SphireProtJanniDenoising) - User Manual
+        Overview
+
+        The JANNI denoising protocol applies deep learning based image restoration to
+        cryo-EM micrographs. Its primary objective is to reduce background noise while
+        preserving biologically meaningful structural information, allowing users to
+        obtain cleaner images for subsequent cryo-EM processing tasks. Denoising is
+        particularly useful in challenging datasets acquired at low dose conditions,
+        with thick ice, poor contrast, or difficult imaging environments where particle
+        visibility becomes limited.
+
+        In practical cryo-EM workflows, denoising often improves visualization of
+        particles and increases the robustness of automated particle picking methods.
+        Biological users commonly employ this protocol before particle detection,
+        especially when working with small proteins, flexible assemblies, membrane
+        proteins, or heterogeneous samples where weak signal can complicate analysis.
+
+        Inputs and General Workflow
+
+        The protocol requires a set of input micrographs that will be processed with a
+        pretrained JANNI model. The denoising procedure generates a corresponding set
+        of restored micrographs while preserving the original acquisition metadata and
+        organizational structure needed for downstream processing.
+
+        Since denoising modifies the appearance of the raw experimental images, users
+        should interpret the results carefully. The protocol is intended to enhance
+        visibility and improve computational processing, not to generate new biological
+        information. Structural features that are absent in the original data cannot be
+        reliably reconstructed through denoising alone.
+
+        GPU Requirements and Performance
+
+        JANNI performs denoising using GPU acceleration. The protocol is optimized for
+        execution on a single GPU device, providing efficient processing for large
+        cryo-EM datasets. GPU memory availability strongly influences processing speed
+        and the ability to handle large micrographs.
+
+        In facility or high throughput environments, denoising can substantially reduce
+        the manual effort required during particle selection and dataset inspection.
+        However, users working with extremely large datasets should monitor hardware
+        usage carefully and verify that the selected computational resources are
+        sufficient for stable execution.
+
+        Biological Interpretation of Denoised Micrographs
+
+        Denoised micrographs are generally easier to inspect visually and may reveal
+        particle boundaries more clearly than the original images. This is especially
+        beneficial when particles are embedded in noisy vitreous ice or when contrast
+        transfer effects obscure structural features.
+
+        Nevertheless, denoising should not replace rigorous validation using the
+        original experimental data. Biological interpretation, resolution assessment,
+        and publication quality reconstructions should always consider whether image
+        restoration could introduce biases or suppress weak structural variability.
+        Users are encouraged to compare denoised and non-denoised workflows whenever
+        possible.
+
+        Output Interpretation
+
+        The protocol produces a new set of denoised micrographs suitable for downstream
+        cryo-EM analysis pipelines. These outputs can be directly used for particle
+        picking, visual inspection, or additional preprocessing steps.
+
+        In some cases, individual micrographs may fail during processing due to GPU
+        limitations, corrupted input data, or unexpected image properties. The protocol
+        reports incomplete processing situations so users can identify problematic
+        images and evaluate whether reprocessing or dataset curation is necessary.
+
+        Practical Recommendations
+
+        For most biological applications, denoising is best used as an auxiliary
+        enhancement step rather than a replacement for careful data acquisition and
+        preprocessing. Users should visually inspect representative outputs to ensure
+        that particle shapes, membrane boundaries, filament organization, or other
+        relevant biological features remain realistic after restoration.
+
+        Denoising is particularly effective before automated particle picking,
+        especially for low contrast datasets. However, overly aggressive interpretation
+        of restored images should be avoided, particularly in cases involving flexible
+        complexes, rare conformational states, or weak densities close to the noise
+        level.
+
+        Final Perspective
+
+        Deep learning based denoising provides a practical way to improve the usability
+        of cryo-EM micrographs while reducing the impact of experimental noise. When
+        used carefully and validated against the original data, it can simplify
+        downstream processing and improve the efficiency of cryo-EM workflows without
+        compromising biological interpretation.
+    """
     _label = 'janni denoising'
 
     def __init__(self, **kwargs):

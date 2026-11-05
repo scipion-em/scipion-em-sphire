@@ -43,7 +43,153 @@ import sphire.convert as convert
 
 
 class SphireProtCRYOLOPicking(ProtCryoloBase, ProtParticlePickingAuto):
-    """ Picks particles in a set of micrographs with crYOLO.
+    """
+    Picks particles in a set of micrographs with crYOLO.
+
+    AI Generated:
+
+    crYOLO Particle Picking (SphireProtCRYOLOPicking) - User Manual
+        Overview
+
+        The crYOLO Particle Picking protocol performs automated particle
+        detection on cryo-EM micrographs using deep learning models trained
+        to recognize particle locations with high sensitivity and speed.
+        The protocol is intended to streamline the particle selection stage
+        in single-particle cryo-EM workflows, reducing the amount of manual
+        intervention required while maintaining reproducibility across large
+        datasets.
+
+        In practical biological workflows, this protocol is commonly used
+        after motion correction and CTF estimation, once micrographs are
+        ready for particle extraction. Automated particle picking becomes
+        particularly important in modern cryo-EM projects where datasets
+        may contain tens or hundreds of thousands of micrographs. By using
+        pretrained or custom-trained models, the protocol enables rapid
+        identification of candidate particles suitable for downstream
+        classification and reconstruction.
+
+        Inputs and General Workflow
+
+        The protocol requires a set of input micrographs together with a
+        compatible crYOLO model. The model may represent a general-purpose
+        detector or a model trained specifically for a given biological
+        specimen. In most workflows, custom-trained models provide higher
+        precision when the particle morphology differs substantially from
+        standard cryo-EM datasets.
+
+        During execution, the protocol analyzes each micrograph and produces
+        a set of particle coordinates representing the predicted particle
+        centers. These coordinates can then be used directly for particle
+        extraction and subsequent image processing steps.
+
+        The protocol supports both standard and streaming-oriented workflows.
+        In conventional processing, all micrographs are analyzed as a batch.
+        In streaming scenarios, newly arriving micrographs can be processed
+        progressively as data acquisition continues. This capability is
+        especially valuable in high-throughput cryo-EM facilities where
+        users may wish to monitor particle quality and data consistency in
+        near real time.
+
+        Confidence Thresholds and Particle Selection
+
+        One of the most biologically relevant parameters is the prediction
+        confidence threshold. This value determines how permissive the
+        particle selection will be. Lower thresholds generally increase the
+        number of detected particles but may also introduce more false
+        positives such as ice contamination, carbon edges, or background
+        artifacts. Higher thresholds improve precision but may miss weak or
+        low-contrast particles.
+
+        In practice, users often begin with moderate thresholds and visually
+        inspect the results before optimizing the settings. The ideal balance
+        depends strongly on particle size, contrast, ice thickness, and the
+        biological heterogeneity of the sample.
+
+        Box Size Estimation and Interpretation
+
+        The protocol can determine particle box dimensions automatically or
+        use values provided by the user. Accurate box sizing is biologically
+        important because it directly influences downstream particle
+        extraction and classification quality. Boxes that are too small may
+        truncate structural features, whereas excessively large boxes
+        introduce unnecessary background noise and increase computational
+        cost.
+
+        In many practical cases, automated estimation provides a useful
+        starting point, particularly for exploratory analyses or newly
+        collected datasets. Nevertheless, experienced users may prefer to
+        refine the box dimensions manually to better match the expected
+        particle diameter and structural context.
+
+        GPU and High-Throughput Processing
+
+        The protocol is designed to benefit from GPU acceleration, allowing
+        rapid analysis of large cryo-EM datasets. This is particularly
+        important in facility environments and modern automated acquisition
+        pipelines where thousands of micrographs may be generated during a
+        single collection session.
+
+        Parallel execution significantly reduces turnaround time and enables
+        faster experimental decisions. For example, users can evaluate
+        particle distribution, ice quality, and preferred orientations early
+        during data collection rather than waiting until the end of the
+        acquisition process.
+
+        Streaming and Incremental Processing
+
+        The protocol supports incremental processing workflows in which
+        micrographs are analyzed continuously as they become available. This
+        approach is highly valuable for microscope sessions that operate in
+        streaming mode because it allows immediate feedback regarding sample
+        quality and particle abundance.
+
+        From a biological perspective, rapid access to picking statistics
+        helps users identify problematic acquisition conditions such as low
+        particle concentration, aggregation, contamination, or preferred
+        orientation bias before large amounts of unusable data are collected.
+
+        Outputs and Their Interpretation
+
+        The primary output of the protocol is a set of particle coordinates
+        associated with the analyzed micrographs. Each coordinate corresponds
+        to a predicted particle location and may include an associated
+        confidence score reflecting the reliability of the prediction.
+
+        These outputs form the basis for subsequent cryo-EM processing steps,
+        including particle extraction, two-dimensional classification,
+        three-dimensional reconstruction, and refinement. The quality of the
+        particle coordinates strongly influences all downstream analyses,
+        making visual validation an essential part of routine workflows.
+
+        Practical Recommendations
+
+        For most biological projects, it is advisable to begin with a
+        well-validated pretrained model whenever the specimen resembles
+        previously characterized particles. When dealing with uncommon
+        complexes, filamentous assemblies, membrane proteins, or highly
+        heterogeneous particles, custom model training usually provides
+        superior performance.
+
+        Visual inspection remains essential even when automated picking
+        performs well. Users should verify that the detected particles match
+        the expected biological structures and that contamination or ice
+        features are not systematically selected.
+
+        If the protocol detects too many false positives, increasing the
+        confidence threshold or refining the training dataset is usually
+        effective. Conversely, if many valid particles are missed, reducing
+        the threshold or retraining the model with more representative
+        examples may improve sensitivity.
+
+        Final Perspective
+
+        Automated particle picking has become one of the foundational stages
+        of modern cryo-EM image analysis. By combining deep learning with
+        scalable high-throughput processing, this protocol enables rapid and
+        reproducible particle detection across diverse biological datasets.
+        Careful model selection, threshold optimization, and visual
+        validation are the most important factors for obtaining reliable
+        particle coordinates suitable for high-resolution structural studies.
     """
     _label = 'cryolo picking'
     stepsExecutionMode = cons.STEPS_PARALLEL
