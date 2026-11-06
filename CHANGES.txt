@@ -1,3 +1,8 @@
+3.3.0:
+ - Users: crYOLO picking in streaming is reliable: Continue/Resume picks up where the run stopped: it reruns the steps an interrupted run left unfinished, without hanging, losing or repeating items. Failed micrographs are left out, picked again on Continue,
+   and the run fails only if every micrograph failed. One micrograph's coordinates are no longer given to another.
+ - Users: documentation for every protocol; janni is installed with crYOLO.
+ - Developers: no resume checkpoint any more; each poll costs only what arrived.
 3.2.6: fix installation preventing the original installation method relied on NVIDIA’s legacy distribution servers
        for nvidia-tensorflow (v1.15.5) to fail.
 3.2.5: deploy test.
