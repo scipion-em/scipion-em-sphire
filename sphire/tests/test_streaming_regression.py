@@ -1174,3 +1174,15 @@ class TestSphireClassicGeneratorPrerequisites(unittest.TestCase):
             SphireProtCRYOLOPicking._insertInitialSteps(protocol),
         )
         self.assertEqual([], protocol.inserted)
+
+
+class TestPickingKeepsTheStreamingBase(unittest.TestCase):
+    """A merge once dropped SphireStreamingBase from the picking class: every streaming helper was gone and the
+    protocol failed at once ('object has no attribute _getOutputUniqueValues')."""
+
+    def test_PickingProtocolsInheritTheStreamingHelpers(self):
+        for protocolClass in (SphireProtCRYOLOPicking, tasks.SphireProtCRYOLOPickingTasks):
+            self.assertTrue(issubclass(protocolClass, SphireStreamingBase), protocolClass.__name__)
+            for helper in ("_getOutputUniqueValues", "_collectStepArgKeys"):
+                if hasattr(SphireStreamingBase, helper):
+                    self.assertTrue(hasattr(protocolClass, helper), "%s.%s" % (protocolClass.__name__, helper))

@@ -55,7 +55,8 @@ FAILED_PICKING_LIST = 'FAILED_all.TXT'
 _failedListLock = threading.Lock()
 
 
-class SphireProtCRYOLOPicking(ProtCryoloBase, ProtParticlePickingAuto):
+class SphireProtCRYOLOPicking(SphireStreamingBase, ProtCryoloBase,
+                              ProtParticlePickingAuto):
     """
     Picks particles in a set of micrographs with crYOLO.
 
