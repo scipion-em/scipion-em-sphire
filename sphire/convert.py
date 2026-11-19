@@ -286,10 +286,17 @@ def getFlipYHeight(filename):
     return y if needToFlipOnY(filename) else None
 
 
-def convertMicrographs(micList, micDir):
+def convertMicrographs(micList, micDir, nameFunc=None):
     """ Convert (or simply link) input micrographs into the given directory
     in a format that is compatible with crYOLO.
+
+    ``nameFunc`` decides the name each micrograph takes inside micDir.
+    It defaults to the plain basename, which is what every caller got
+    before and what the tomography protocols still rely on; the
+    single-particle picking passes getScopedMicFn so two images sharing
+    a basename cannot overwrite each other's link.
     """
+    nameFunc = nameFunc or getMicFn
     ih = ImageHandler()
     ext = pwutils.getExt(micList[0].getFileName())
 
@@ -307,7 +314,7 @@ def convertMicrographs(micList, micDir):
         ext = '.mrc'
 
     for mic in micList:
-        func(mic, getMicFn(mic, ext.lstrip(".")))
+        func(mic, nameFunc(mic, ext.lstrip(".")))
 
 
 convertTomograms = convertMicrographs
@@ -316,6 +323,18 @@ convertTomograms = convertMicrographs
 def getMicFn(mic, ext='mrc'):
     """ Return a name for the micrograph based on its filename. """
     return pwutils.replaceBaseExt(mic.getFileName(), ext)
+
+
+def getScopedMicFn(mic, ext='mrc'):
+    """ Return a name that two micrographs can never share.
+
+    A Set can hold two images whose files differ only in their
+    directory. Named after the basename alone they collide: linked into
+    one folder, only one of them reaches crYOLO, and both read their
+    coordinates back from the same output. The id keeps them apart and
+    the original basename stays in the name so logs remain readable.
+    """
+    return '%06d__%s' % (mic.getObjId(), getMicFn(mic, ext))
 
 
 def roundInputSize(inputSize):
